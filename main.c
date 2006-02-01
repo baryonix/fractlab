@@ -286,7 +286,7 @@ unsigned
 mandelbrot (double x0f, double y0f, unsigned maxiter)
 {
 	mp_limb_t x[TOTAL_LIMBS], y[TOTAL_LIMBS], x0[TOTAL_LIMBS], y0[TOTAL_LIMBS], xsqr[TOTAL_LIMBS], ysqr[TOTAL_LIMBS], sqrsum[TOTAL_LIMBS], four[TOTAL_LIMBS];
-	//mpz_t cd_x, cd_y; // for cycle detection
+	mp_limb_t cd_x[TOTAL_LIMBS], cd_y[TOTAL_LIMBS];
 	mpz_t ztmp;
 	unsigned i;
 
@@ -298,18 +298,16 @@ mandelbrot (double x0f, double y0f, unsigned maxiter)
 	my_double_to_mpz (ztmp, x0f);
 	bool x0_sign = x0f < 0.0;
 	for (i = 0; i < TOTAL_LIMBS; i++)
-		x0[i] = x[i] = mpz_getlimbn (ztmp, i);
+		x0[i] = x[i] = cd_x[i] = mpz_getlimbn (ztmp, i);
 
 	my_double_to_mpz (ztmp, y0f);
 	bool y0_sign = y0f < 0.0;
 	for (i = 0; i < TOTAL_LIMBS; i++)
-		y0[i] = y[i] = mpz_getlimbn (ztmp, i);
+		y0[i] = y[i] = cd_y[i] = mpz_getlimbn (ztmp, i);
 
 	bool x_sign = x0_sign, y_sign = y0_sign;
 
 	int k = 1, m = 1;
-	//mpz_init_set (cd_x, x0);
-	//mpz_init_set (cd_y, y0);
 	i = 0;
 	my_mpn_mul_fast (xsqr, x, x);
 	my_mpn_mul_fast (ysqr, y, y);
@@ -330,8 +328,8 @@ mandelbrot (double x0f, double y0f, unsigned maxiter)
 		x_sign = my_mpn_add_signed (x, x, x_sign, x0, x0_sign);
 
 
-		/*k--;
-		if (mpz_cmp (x, cd_x) == 0 && mpz_cmp (y, cd_y) == 0) {
+		k--;
+		if (mpn_cmp (x, cd_x, TOTAL_LIMBS) == 0 && mpn_cmp (y, cd_y, TOTAL_LIMBS) == 0) {
 			printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
 			iter_saved += maxiter - i;
 			i = maxiter;
@@ -339,9 +337,10 @@ mandelbrot (double x0f, double y0f, unsigned maxiter)
 		}
 		if (k == 0) {
 			k = m <<= 1;
-			mpz_set (cd_x, x);
-			mpz_set (cd_y, y);
-		}*/
+			int j;
+			memcpy (cd_x, x, sizeof (x));
+			memcpy (cd_y, y, sizeof (y));
+		}
 
 
 		my_mpn_mul_fast (xsqr, x, x);
