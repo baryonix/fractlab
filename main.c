@@ -238,65 +238,99 @@ gtk_mandel_get_pixel (GtkWidget *widget, int x, int y)
 }
 
 
-//#define TOTAL_LIMBS 4
-#define FRAC_LIMBS 4
-#define FRAC_BITS (FRAC_LIMBS * mp_bits_per_limb)
+// Both of these must be even numbers, and TOTAL_LIMBS > FRAC_LIMBS.
+#define TOTAL_LIMBS 10
+#define FRAC_LIMBS 8
 
-//void
-//my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1)
+void
+my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1)
+{
+	mpn_mul_n (p, f0 + FRAC_LIMBS / 2, f1 + FRAC_LIMBS / 2, TOTAL_LIMBS / 2);
+}
+
+bool
+my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign)
+{
+	if (op1_sign == op2_sign) {
+		mpn_add_n (rop, op1, op2, TOTAL_LIMBS);
+		return op1_sign;
+	} else {
+		if (mpn_cmp (op1, op2, TOTAL_LIMBS) > 0) {
+			mpn_sub_n (rop, op1, op2, TOTAL_LIMBS);
+			return op1_sign;
+		} else {
+			mpn_sub_n (rop, op2, op1, TOTAL_LIMBS);
+			return op2_sign;
+		}
+	}
+}
 
 unsigned iter_saved = 0;
+
+void
+my_double_to_mpz (mpz_t rop, double op)
+{
+	int expo;
+
+	op = frexp (op, &expo);
+	mpz_set_d (rop, ldexp (op, 64));
+	expo = FRAC_LIMBS * mp_bits_per_limb - 64 + expo;
+	if (expo > 0)
+		mpz_mul_2exp (rop, rop, expo);
+	else if (expo < 0)
+		mpz_tdiv_q_2exp (rop, rop, -expo);
+}
+
 
 unsigned
 mandelbrot (double x0f, double y0f, unsigned maxiter)
 {
-	mpz_t x, y, x0, y0, xsqr, ysqr, sqrsum, four;
-	mpz_t cd_x, cd_y; // for cycle detection
-	mpz_init_set_ui (four, 4);
-	mpz_mul_2exp (four, four, FRAC_BITS);
-	int expo;
-	x0f = frexp (x0f, &expo);
-	mpz_init_set_d (x0, ldexp (x0f, 64));
-	expo = FRAC_LIMBS * mp_bits_per_limb - 64 + expo;
-	if (expo > 0)
-		mpz_mul_2exp (x0, x0, expo);
-	else if (expo < 0)
-		mpz_tdiv_q_2exp (x0, x0, -expo);
+	mp_limb_t x[TOTAL_LIMBS], y[TOTAL_LIMBS], x0[TOTAL_LIMBS], y0[TOTAL_LIMBS], xsqr[TOTAL_LIMBS], ysqr[TOTAL_LIMBS], sqrsum[TOTAL_LIMBS], four[TOTAL_LIMBS];
+	//mpz_t cd_x, cd_y; // for cycle detection
+	mpz_t ztmp;
+	unsigned i;
 
-	y0f = frexp (y0f, &expo);
-	mpz_init_set_d (y0, ldexp (y0f, 64));
-	expo = FRAC_LIMBS * mp_bits_per_limb - 64 + expo;
-	if (expo > 0)
-		mpz_mul_2exp (y0, y0, expo);
-	else if (expo < 0)
-		mpz_tdiv_q_2exp (y0, y0, -expo);
+	for (i = 0; i < TOTAL_LIMBS; i++)
+		four[i] = 0;
+	four[FRAC_LIMBS] = 4;
+
+	mpz_init (ztmp);
+	my_double_to_mpz (ztmp, x0f);
+	bool x0_sign = x0f < 0.0;
+	for (i = 0; i < TOTAL_LIMBS; i++)
+		x0[i] = x[i] = mpz_getlimbn (ztmp, i);
+
+	my_double_to_mpz (ztmp, y0f);
+	bool y0_sign = y0f < 0.0;
+	for (i = 0; i < TOTAL_LIMBS; i++)
+		y0[i] = y[i] = mpz_getlimbn (ztmp, i);
+
+	bool x_sign = x0_sign, y_sign = y0_sign;
 
 	int k = 1, m = 1;
-	mpz_init_set (x, x0);
-	mpz_init_set (y, y0);
-	mpz_init_set (cd_x, x0);
-	mpz_init_set (cd_y, y0);
-	mpz_init (xsqr);
-	mpz_init (ysqr);
-	mpz_init (sqrsum);
-	unsigned i = 0;
-	mpz_mul (xsqr, x, x);
-	mpz_tdiv_q_2exp (xsqr, xsqr, FRAC_BITS);
-	mpz_mul (ysqr, y, y);
-	mpz_tdiv_q_2exp (ysqr, ysqr, FRAC_BITS);
-	mpz_add (sqrsum, xsqr, ysqr);
-	mpz_tdiv_q_2exp (x, x, FRAC_BITS / 2);
-	mpz_tdiv_q_2exp (y, y, FRAC_BITS / 2);
-	while (i < maxiter && mpz_cmp (sqrsum, four) < 0) {
-		mpz_mul (y, x, y);
-		mpz_mul_2exp (y, y, 1);
-		mpz_add (y, y, y0);
+	//mpz_init_set (cd_x, x0);
+	//mpz_init_set (cd_y, y0);
+	i = 0;
+	my_mpn_mul_fast (xsqr, x, x);
+	my_mpn_mul_fast (ysqr, y, y);
+	mpn_add_n (sqrsum, xsqr, ysqr, TOTAL_LIMBS);
+	while (i < maxiter && mpn_cmp (sqrsum, four, TOTAL_LIMBS) < 0) {
+		mp_limb_t tmp1[TOTAL_LIMBS];
+		my_mpn_mul_fast (tmp1, x, y);
+		mpn_lshift (y, tmp1, TOTAL_LIMBS, 1);
+		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, y0, y0_sign);
 
-		mpz_sub (x, xsqr, ysqr);
-		mpz_add (x, x, x0);
+		if (mpn_cmp (xsqr, ysqr, TOTAL_LIMBS) > 0) {
+			mpn_sub_n (x, xsqr, ysqr, TOTAL_LIMBS);
+			x_sign = false;
+		} else {
+			mpn_sub_n (x, ysqr, xsqr, TOTAL_LIMBS);
+			x_sign = true;
+		}
+		x_sign = my_mpn_add_signed (x, x, x_sign, x0, x0_sign);
 
 
-		k--;
+		/*k--;
 		if (mpz_cmp (x, cd_x) == 0 && mpz_cmp (y, cd_y) == 0) {
 			printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
 			iter_saved += maxiter - i;
@@ -307,15 +341,12 @@ mandelbrot (double x0f, double y0f, unsigned maxiter)
 			k = m <<= 1;
 			mpz_set (cd_x, x);
 			mpz_set (cd_y, y);
-		}
+		}*/
 
 
-		mpz_tdiv_q_2exp (x, x, FRAC_BITS / 2);
-		mpz_tdiv_q_2exp (y, y, FRAC_BITS / 2);
-
-		mpz_mul (xsqr, x, x);
-		mpz_mul (ysqr, y, y);
-		mpz_add (sqrsum, xsqr, ysqr);
+		my_mpn_mul_fast (xsqr, x, x);
+		my_mpn_mul_fast (ysqr, y, y);
+		mpn_add_n (sqrsum, xsqr, ysqr, TOTAL_LIMBS);
 
 		i++;
 	}
