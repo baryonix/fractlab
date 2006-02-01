@@ -1,0 +1,4 @@
+#!/bin/ksh
+pkg="gtk+-2.0 gthread-2.0"
+set -x
+gcc -std=c99 -D_XOPEN_SOURCE -Wall -g -o mandel-gtk $(pkg-config --cflags $pkg) main.c $(pkg-config --libs $pkg) -lgmp || echo >&2 "*** Compile failed!"
