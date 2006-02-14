@@ -64,7 +64,6 @@ struct mandeldata {
 	GtkWidget *widget;
 	GThread *join_me;
 	volatile bool terminate;
-	unsigned frac_limbs;
 };
 
 
@@ -188,7 +187,7 @@ gpointer * calcmandel (gpointer *data);
 
 
 void
-gtk_mandel_restart_thread (GtkWidget *widget, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, unsigned frac_limbs)
+gtk_mandel_restart_thread (GtkWidget *widget, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
@@ -200,7 +199,6 @@ gtk_mandel_restart_thread (GtkWidget *widget, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	md->widget = widget;
 	md->join_me = mandel->thread;
 	md->terminate = false;
-	md->frac_limbs = frac_limbs;
 
 	if (mandel->md != NULL)
 		mandel->md->terminate = true;
@@ -287,7 +285,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		gmp_printf ("* xmax = %.Ff\n", xmax);
 		gmp_printf ("* ymin = %.Ff\n", ymin);
 		gmp_printf ("* ymax = %.Ff\n", ymax);
-		gtk_mandel_restart_thread (my_img, xmin, xmax, ymin, ymax, mandel->maxiter, mandel->frac_limbs);
+		gtk_mandel_restart_thread (my_img, xmin, xmax, ymin, ymax, mandel->maxiter);
 		return TRUE;
 	} else {
 		printf ("Other event!\n");
@@ -554,8 +552,40 @@ calcmandel (gpointer *data)
 	mpf_clear (md->ymin);
 	mpf_clear (md->ymax);
 	mandel->maxiter = md->maxiter;
-	unsigned frac_limbs = mandel->frac_limbs = md->frac_limbs;
+
+
+	// Determine the required precision.
+	mpf_t dx, dy;
+	mpf_init (dx);
+	mpf_init (dy);
+
+	mpf_sub (dx, mandel->xmax_f, mandel->xmin_f);
+	mpf_div_ui (dx, dx, mandel->w);
+
+	mpf_sub (dy, mandel->ymin_f, mandel->ymax_f);
+	mpf_div_ui (dy, dy, mandel->h);
+
+	long exponent;
+	if (mpf_cmp (dx, dy) > 1)
+		mpf_get_d_2exp (&exponent, dx);
+	else
+		mpf_get_d_2exp (&exponent, dy);
+
+	mpf_clear (dx);
+	mpf_clear (dy);
+
+	if (exponent > 0)
+		exponent = 0;
+
+	// We add a minimum of 2 extra bits of precision, that should do.
+	int required_bits = 2 - exponent;
+
+	mandel->frac_limbs = required_bits / mp_bits_per_limb + 1;
+
+	unsigned frac_limbs = mandel->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
+
+	fprintf (stderr, "* Using %d fractional limbs.\n", frac_limbs);
 
 	// Convert coordinates to integer values.
 	mpf_t f;
@@ -705,7 +735,7 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 	GtkMandel *mandel = GTK_MANDEL (data);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (widget)));
 	if (i > 0)
-		gtk_mandel_restart_thread (GTK_WIDGET (mandel), mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i, mandel->frac_limbs);
+		gtk_mandel_restart_thread (GTK_WIDGET (mandel), mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i);
 }
 
 
@@ -717,9 +747,9 @@ main (int argc, char **argv)
 	gdk_threads_init ();
 	gdk_threads_enter ();
 
-	unsigned frac_limbs = 5, total_limbs = INT_LIMBS + frac_limbs;
+	//unsigned frac_limbs = 5, total_limbs = INT_LIMBS + frac_limbs;
 
-	mpf_set_default_prec (total_limbs * mp_bits_per_limb);
+	mpf_set_default_prec (1024);
 
 	int i;
 	for (i = 0; i < COLORS; i++) {
@@ -779,9 +809,6 @@ main (int argc, char **argv)
 	fclose (cfile);
 
 	mpf_ui_div (magf, 1, magf);
-	long exponent;
-	mpf_get_d_2exp (&exponent, magf);
-	fprintf (stderr, "* Using %d limbs.\n", (abs (exponent) + 16) / 32 + 1);
 
 	mpf_sub (xmin, xc, magf);
 	mpf_add (xmax, xc, magf);
@@ -810,7 +837,7 @@ main (int argc, char **argv)
 	//my_double_to_mpz (xmax, 1.0);
 	//my_double_to_mpz (ymin, -1.5);
 	//my_double_to_mpz (ymax, 1.5);
-	gtk_mandel_restart_thread (img, xmin, xmax, ymin, ymax, 1000, frac_limbs);
+	gtk_mandel_restart_thread (img, xmin, xmax, ymin, ymax, 1000);
 	gtk_main ();
 	gdk_threads_leave ();
 
