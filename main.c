@@ -13,9 +13,21 @@
 
 
 // Both of these must be even numbers, and TOTAL_LIMBS > FRAC_LIMBS.
-#define TOTAL_LIMBS 10
-#define FRAC_LIMBS 8
+// With USE_FULL_MP_MUL we only need TOTAL_LIMBS > FRAC_LIMBS (both can be odd).
+#define INT_LIMBS 1
+#define FRAC_LIMBS 3
+#define TOTAL_LIMBS (INT_LIMBS + FRAC_LIMBS)
 
+#define USE_CENTER_MAGF
+#define USE_MPMATH
+#define USE_FULL_MP_MUL
+
+#define MARIANI_SILVER 1
+#define SUCCESSIVE_REFINE 2
+#define RENDERING_METHOD SUCCESSIVE_REFINE
+
+#define SR_CHUNK_SIZE 32
+#define LOG_FACTOR 100.0
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
@@ -40,6 +52,7 @@ struct _GtkMandel
 	GThread *thread;
 	struct mandeldata *md;
 	gdouble center_x, center_y;
+	unsigned frac_limbs, total_limbs;
 };
 
 
@@ -293,8 +306,15 @@ void
 gtk_mandel_set_pixel (GtkWidget *widget, int x, int y, unsigned iter)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
-
 	mandel->data[x * mandel->h + y] = iter;
+}
+
+
+void
+gtk_mandel_put_pixel (GtkWidget *widget, int x, int y, unsigned iter)
+{
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	gtk_mandel_set_pixel (widget, x, y, iter);
 
 	gtk_mandel_set_gc_color (widget, iter);
 
@@ -310,11 +330,31 @@ gtk_mandel_get_pixel (GtkWidget *widget, int x, int y)
 	return mandel->data[x * mandel->h + y];
 }
 
+bool
+gtk_mandel_all_neighbors_same (GtkWidget *widget, int x, int y, int d)
+{
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	int px = gtk_mandel_get_pixel (widget, x, y);
+	return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
+		&& gtk_mandel_get_pixel (widget, x - d, y - d) == px
+		&& gtk_mandel_get_pixel (widget, x - d, y    ) == px
+		&& gtk_mandel_get_pixel (widget, x - d, y + d) == px
+		&& gtk_mandel_get_pixel (widget, x    , y - d) == px
+		&& gtk_mandel_get_pixel (widget, x    , y + d) == px
+		&& gtk_mandel_get_pixel (widget, x + d, y - d) == px
+		&& gtk_mandel_get_pixel (widget, x + d, y    ) == px
+		&& gtk_mandel_get_pixel (widget, x + d, y + d) == px;
+}
+
 
 void
 my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1)
 {
-	mpn_mul_n (p, f0 + FRAC_LIMBS / 2, f1 + FRAC_LIMBS / 2, TOTAL_LIMBS / 2);
+	mp_limb_t tmp[TOTAL_LIMBS * 2];
+	int i;
+	mpn_mul_n (tmp, f0, f1, TOTAL_LIMBS);
+	for (i = 0; i < TOTAL_LIMBS; i++)
+		p[i] = tmp[FRAC_LIMBS + i];
 }
 
 bool
@@ -336,20 +376,8 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 
 unsigned iter_saved = 0;
 
-void
-my_double_to_mpz (mpz_t rop, double op)
-{
-	int expo;
 
-	op = frexp (op, &expo);
-	mpz_set_d (rop, ldexp (op, 64));
-	expo = FRAC_LIMBS * mp_bits_per_limb - 64 + expo;
-	if (expo > 0)
-		mpz_mul_2exp (rop, rop, expo);
-	else if (expo < 0)
-		mpz_tdiv_q_2exp (rop, rop, -expo);
-}
-
+#ifdef USE_MPMATH
 
 unsigned
 mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
@@ -418,14 +446,22 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
 
 		i++;
 	}
-	//return i;
-	return (unsigned) (log (i) * 50.0);
+#ifdef LOG_FACTOR
+	return (unsigned) (log (i) * LOG_FACTOR);
+#else
+	return i;
+#endif
 }
 
 
-/*unsigned
-mandelbrot (double x0, double y0, unsigned maxiter)
+#else /* USE_MPMATH */
+
+
+unsigned
+mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
 {
+	double x0 = ldexp (mpz_get_d (x0z), -FRAC_LIMBS * mp_bits_per_limb);
+	double y0 = ldexp (mpz_get_d (y0z), -FRAC_LIMBS * mp_bits_per_limb);
 	unsigned i = 0;
 	double x = x0, y = y0;
 	while (i < maxiter && x * x + y * y < 4.0) {
@@ -436,7 +472,9 @@ mandelbrot (double x0, double y0, unsigned maxiter)
 	}
 	//return i;
 	return (unsigned) (log (i) * 50.0);
-}*/
+}
+
+#endif /* USE_MPMATH */
 
 
 void
@@ -452,12 +490,23 @@ gtk_mandel_render_pixel (GtkWidget *widget, int x, int y)
 	mpz_clear (xz);
 	mpz_clear (yz);
 	gdk_threads_enter ();
-	gtk_mandel_set_pixel (widget, x, y, i);
+	gtk_mandel_put_pixel (widget, x, y, i);
 	//gdk_flush ();
 	gdk_threads_leave ();
 }
 
 void calcpart (struct mandeldata *md, GtkWidget *widget, int x0, int y0, int x1, int y1);
+
+
+void
+gtk_mandel_put_rect (GtkWidget *widget, int x, int y, int d, unsigned iter)
+{
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	gtk_mandel_set_pixel (widget, x, y, iter);
+	gtk_mandel_set_gc_color (mandel, iter);
+	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, x, y, d, d);
+	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, x, y, d, d);
+}
 
 
 /*void
@@ -487,6 +536,7 @@ calcmandel (gpointer *data)
 	mpz_clear (md->ymax);
 	mandel->maxiter = md->maxiter;
 
+#if RENDERING_METHOD == MARIANI_SILVER
 	int x, y;
 
 	for (x = 0; x < mandel->w; x++) {
@@ -500,6 +550,48 @@ calcmandel (gpointer *data)
 	}
 
 	calcpart (md, widget, 0, 0, mandel->w - 1, mandel->h - 1);
+#elif RENDERING_METHOD == SUCCESSIVE_REFINE
+	unsigned x, y, chunk_size = SR_CHUNK_SIZE;
+
+	while (chunk_size != 0) {
+		for (y = 0; y < mandel->h; y += chunk_size)
+			for (x = 0; x < mandel->w && !md->terminate; x += chunk_size) {
+				unsigned parent_x, parent_y;
+				bool do_eval;
+				if (x % (2 * chunk_size) == 0)
+					parent_x = x;
+				else
+					parent_x = x - chunk_size;
+				if (y % (2 * chunk_size) == 0)
+					parent_y = y;
+				else
+					parent_y = y - chunk_size;
+
+				if (chunk_size == SR_CHUNK_SIZE) // 1st pass
+					do_eval = true;
+				else if (parent_x == x && parent_y == y)
+					do_eval = false;
+				else if (gtk_mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
+					do_eval = false;
+				else
+					do_eval = true;
+
+				if (do_eval) {
+					gtk_mandel_render_pixel (widget, x, y);
+					gdk_threads_enter ();
+					gtk_mandel_put_rect (widget, x, y, chunk_size, gtk_mandel_get_pixel (widget, x, y));
+					gdk_threads_leave ();
+				} else {
+					gdk_threads_enter ();
+					gtk_mandel_put_pixel (widget, x, y, gtk_mandel_get_pixel (widget, parent_x, parent_y));
+					gdk_threads_leave ();
+				}
+			}
+		chunk_size >>= 1;
+	}
+#else
+#error Unrecognized rendering method
+#endif /* RENDERING_METHOD */
 
 	gdk_threads_enter ();
 	gdk_flush ();
@@ -586,6 +678,8 @@ main (int argc, char **argv)
 	gdk_threads_init ();
 	gdk_threads_enter ();
 
+	mpf_set_default_prec (TOTAL_LIMBS * mp_bits_per_limb);
+
 	int i;
 	for (i = 0; i < COLORS; i++) {
 		mandelcolors[i].red = (guint16) (sin (2 * M_PI * i / COLORS) * 32767) + 32768;
@@ -618,20 +712,31 @@ main (int argc, char **argv)
 	printf ("now running main loop\n");
 
 	mpz_t xmin, xmax, ymin, ymax;
+	mpf_t xc, yc, magf, f;
 	mpz_init (xmin);
 	mpz_init (xmax);
 	mpz_init (ymin);
 	mpz_init (ymax);
 
-	mpf_t xc, yc, magf, f;
+	mpf_init (f);
+
+
+#ifdef USE_CENTER_MAGF
+
 	//mpf_init_set_str (xc, "-1.40084309617377383887", 10);
 	//mpf_init_set_str (yc, "7.11727648072394134e-4", 10);
 	//mpf_init_set_str (magf, "3.01664e+16", 10);
 	mpf_init_set_str (xc, "-.5", 10);
 	mpf_init_set_str (yc, "0", 10);
-	mpf_init_set_str (magf, "1.3333333", 10);
-	mpf_init (f);
-	mpf_ui_div (magf, 2, magf);
+	mpf_init_set_str (magf, "1.0", 10);
+	//mpf_init_set_str (xc, "-1.25141070099909495784515598549948", 10);
+	//mpf_init_set_str (yc, "0.34306049893835637273462212066896", 10);
+	//mpf_init_set_str (magf, "1.723368e+28", 10);
+	//mpf_init_set_str (xc, "-0.239358750392992414490000297287084670635420071", 10);
+	//mpf_init_set_str (yc, "0.871636268791863953664914365755396625241267485", 10);
+	//mpf_init_set_str (magf, "1.420893e+40", 10);
+
+	mpf_ui_div (magf, 1, magf);
 
 	mpf_sub (f, xc, magf);
 	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
@@ -648,6 +753,24 @@ main (int argc, char **argv)
 	mpf_add (f, yc, magf);
 	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
 	mpz_set_f (ymax, f);
+
+#else /* USE_CENTER_MAGF */
+
+	mpf_set_str (f, "-1.25336541010300744474", 10);
+	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpz_set_f (xmin, f);
+	mpf_set_str (f, "-1.25336539811306487297", 10);
+	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpz_set_f (xmax, f);
+
+	mpf_set_str (f, "0.34461507040406514393", 10);
+	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpz_set_f (ymin, f);
+	mpf_set_str (f, "0.344615082394007715705", 10);
+	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpz_set_f (ymax, f);
+
+#endif /* USE_CENTER_MAGF */
 
 	//my_double_to_mpz (xmin, -2.0);
 	//my_double_to_mpz (xmax, 1.0);
