@@ -12,15 +12,12 @@
 #include <gmp.h>
 
 
-// Both of these must be even numbers, and TOTAL_LIMBS > FRAC_LIMBS.
-// With USE_FULL_MP_MUL we only need TOTAL_LIMBS > FRAC_LIMBS (both can be odd).
 #define INT_LIMBS 1
-#define FRAC_LIMBS 3
+#define FRAC_LIMBS 7
 #define TOTAL_LIMBS (INT_LIMBS + FRAC_LIMBS)
 
 #define USE_CENTER_MAGF
 #define USE_MPMATH
-#define USE_FULL_MP_MUL
 
 #define MARIANI_SILVER 1
 #define SUCCESSIVE_REFINE 2
@@ -723,18 +720,19 @@ main (int argc, char **argv)
 
 #ifdef USE_CENTER_MAGF
 
-	//mpf_init_set_str (xc, "-1.40084309617377383887", 10);
-	//mpf_init_set_str (yc, "7.11727648072394134e-4", 10);
-	//mpf_init_set_str (magf, "3.01664e+16", 10);
-	mpf_init_set_str (xc, "-.5", 10);
-	mpf_init_set_str (yc, "0", 10);
-	mpf_init_set_str (magf, "1.0", 10);
-	//mpf_init_set_str (xc, "-1.25141070099909495784515598549948", 10);
-	//mpf_init_set_str (yc, "0.34306049893835637273462212066896", 10);
-	//mpf_init_set_str (magf, "1.723368e+28", 10);
-	//mpf_init_set_str (xc, "-0.239358750392992414490000297287084670635420071", 10);
-	//mpf_init_set_str (yc, "0.871636268791863953664914365755396625241267485", 10);
-	//mpf_init_set_str (magf, "1.420893e+40", 10);
+	FILE *cfile = fopen (argv[1], "r");
+	if (cfile == NULL) {
+		perror ("fopen");
+		exit (1);
+	}
+	char buf[1024];
+	fgets (buf, 1024, cfile);
+	mpf_init_set_str (xc, buf, 10);
+	fgets (buf, 1024, cfile);
+	mpf_init_set_str (yc, buf, 10);
+	fgets (buf, 1024, cfile);
+	mpf_init_set_str (magf, buf, 10);
+	fclose (cfile);
 
 	mpf_ui_div (magf, 1, magf);
 
