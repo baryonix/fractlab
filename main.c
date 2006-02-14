@@ -13,8 +13,6 @@
 
 
 #define INT_LIMBS 1
-#define FRAC_LIMBS 7
-#define TOTAL_LIMBS (INT_LIMBS + FRAC_LIMBS)
 
 #define USE_CENTER_MAGF
 #define USE_MPMATH
@@ -49,7 +47,7 @@ struct _GtkMandel
 	GThread *thread;
 	struct mandeldata *md;
 	gdouble center_x, center_y;
-	unsigned frac_limbs, total_limbs;
+	unsigned frac_limbs;
 };
 
 
@@ -65,6 +63,7 @@ struct mandeldata {
 	GtkWidget *widget;
 	GThread *join_me;
 	volatile bool terminate;
+	unsigned frac_limbs;
 };
 
 
@@ -155,7 +154,7 @@ gtk_mandel_init (GtkMandel *mandel)
 	mpz_init (mandel->ymin);
 	mpz_init (mandel->ymax);
 
-	mandel->w = mandel->h = 500;
+	mandel->w = mandel->h = 200;
 	mandel->maxiter = 10000;
 }
 
@@ -163,7 +162,7 @@ gpointer * calcmandel (gpointer *data);
 
 
 void
-gtk_mandel_restart_thread (GtkWidget *widget, mpz_t xmin, mpz_t xmax, mpz_t ymin, mpz_t ymax, unsigned maxiter)
+gtk_mandel_restart_thread (GtkWidget *widget, mpz_t xmin, mpz_t xmax, mpz_t ymin, mpz_t ymax, unsigned maxiter, unsigned frac_limbs)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
@@ -175,6 +174,7 @@ gtk_mandel_restart_thread (GtkWidget *widget, mpz_t xmin, mpz_t xmax, mpz_t ymin
 	md->widget = widget;
 	md->join_me = mandel->thread;
 	md->terminate = false;
+	md->frac_limbs = frac_limbs;
 
 	if (mandel->md != NULL)
 		mandel->md->terminate = true;
@@ -188,7 +188,7 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (my_img);
 	printf ("* realize signal triggered: win=%p\n", my_img->window);
-	mandel->pixmap = gdk_pixmap_new (my_img->window, 500, 500, -1);
+	mandel->pixmap = gdk_pixmap_new (my_img->window, 200, 200, -1);
 	printf ("* Pixmap created: %p\n", mandel->pixmap);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
@@ -211,10 +211,10 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 
 
 void
-my_mpz_to_mpf (mpf_t rop, mpz_t op)
+my_mpz_to_mpf (mpf_t rop, mpz_t op, unsigned frac_limbs)
 {
 	mpf_set_z (rop, op);
-	mpf_div_2exp (rop, rop, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_div_2exp (rop, rop, frac_limbs * mp_bits_per_limb);
 }
 
 
@@ -258,17 +258,17 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 			mpz_add (ymax, cy, dy);
 		}
 		mpf_t f;
-		mpf_init2 (f, FRAC_LIMBS * mp_bits_per_limb);
-		my_mpz_to_mpf (f, xmin);
+		mpf_init2 (f, mandel->frac_limbs * mp_bits_per_limb);
+		my_mpz_to_mpf (f, xmin, mandel->frac_limbs);
 		gmp_printf ("* xmin = %.Ff\n", f);
-		my_mpz_to_mpf (f, xmax);
+		my_mpz_to_mpf (f, xmax, mandel->frac_limbs);
 		gmp_printf ("* xmax = %.Ff\n", f);
-		my_mpz_to_mpf (f, ymin);
+		my_mpz_to_mpf (f, ymin, mandel->frac_limbs);
 		gmp_printf ("* ymin = %.Ff\n", f);
-		my_mpz_to_mpf (f, ymax);
+		my_mpz_to_mpf (f, ymax, mandel->frac_limbs);
 		gmp_printf ("* ymax = %.Ff\n", f);
 		mpf_clear (f);
-		gtk_mandel_restart_thread (my_img, xmin, xmax, ymin, ymax, mandel->maxiter);
+		gtk_mandel_restart_thread (my_img, xmin, xmax, ymin, ymax, mandel->maxiter, mandel->frac_limbs);
 		return TRUE;
 	} else {
 		printf ("Other event!\n");
@@ -345,27 +345,29 @@ gtk_mandel_all_neighbors_same (GtkWidget *widget, int x, int y, int d)
 
 
 void
-my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1)
+my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs)
 {
-	mp_limb_t tmp[TOTAL_LIMBS * 2];
+	unsigned total_limbs = INT_LIMBS + frac_limbs;
+	mp_limb_t tmp[total_limbs * 2];
 	int i;
-	mpn_mul_n (tmp, f0, f1, TOTAL_LIMBS);
-	for (i = 0; i < TOTAL_LIMBS; i++)
-		p[i] = tmp[FRAC_LIMBS + i];
+	mpn_mul_n (tmp, f0, f1, total_limbs);
+	for (i = 0; i < total_limbs; i++)
+		p[i] = tmp[frac_limbs + i];
 }
 
 bool
-my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign)
+my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs)
 {
+	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	if (op1_sign == op2_sign) {
-		mpn_add_n (rop, op1, op2, TOTAL_LIMBS);
+		mpn_add_n (rop, op1, op2, total_limbs);
 		return op1_sign;
 	} else {
-		if (mpn_cmp (op1, op2, TOTAL_LIMBS) > 0) {
-			mpn_sub_n (rop, op1, op2, TOTAL_LIMBS);
+		if (mpn_cmp (op1, op2, total_limbs) > 0) {
+			mpn_sub_n (rop, op1, op2, total_limbs);
 			return op1_sign;
 		} else {
-			mpn_sub_n (rop, op2, op1, TOTAL_LIMBS);
+			mpn_sub_n (rop, op2, op1, total_limbs);
 			return op2_sign;
 		}
 	}
@@ -377,53 +379,54 @@ unsigned iter_saved = 0;
 #ifdef USE_MPMATH
 
 unsigned
-mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
+mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 {
-	mp_limb_t x[TOTAL_LIMBS], y[TOTAL_LIMBS], x0[TOTAL_LIMBS], y0[TOTAL_LIMBS], xsqr[TOTAL_LIMBS], ysqr[TOTAL_LIMBS], sqrsum[TOTAL_LIMBS], four[TOTAL_LIMBS];
-	mp_limb_t cd_x[TOTAL_LIMBS], cd_y[TOTAL_LIMBS];
+	unsigned total_limbs = INT_LIMBS + frac_limbs;
+	mp_limb_t x[total_limbs], y[total_limbs], x0[total_limbs], y0[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[total_limbs];
+	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
 	mpz_t ztmp;
 	unsigned i;
 
-	for (i = 0; i < TOTAL_LIMBS; i++)
+	for (i = 0; i < total_limbs; i++)
 		four[i] = 0;
-	four[FRAC_LIMBS] = 4;
+	four[frac_limbs] = 4;
 
 	//mpz_init (ztmp);
 	//my_double_to_mpz (ztmp, x0f);
 	bool x0_sign = mpz_sgn (x0z) < 0;
-	for (i = 0; i < TOTAL_LIMBS; i++)
+	for (i = 0; i < total_limbs; i++)
 		x0[i] = x[i] = cd_x[i] = mpz_getlimbn (x0z, i);
 
 	//my_double_to_mpz (ztmp, y0f);
 	bool y0_sign = mpz_sgn (y0z) < 0;
-	for (i = 0; i < TOTAL_LIMBS; i++)
+	for (i = 0; i < total_limbs; i++)
 		y0[i] = y[i] = cd_y[i] = mpz_getlimbn (y0z, i);
 
 	bool x_sign = x0_sign, y_sign = y0_sign;
 
 	int k = 1, m = 1;
 	i = 0;
-	my_mpn_mul_fast (xsqr, x, x);
-	my_mpn_mul_fast (ysqr, y, y);
-	mpn_add_n (sqrsum, xsqr, ysqr, TOTAL_LIMBS);
-	while (i < maxiter && mpn_cmp (sqrsum, four, TOTAL_LIMBS) < 0) {
-		mp_limb_t tmp1[TOTAL_LIMBS];
-		my_mpn_mul_fast (tmp1, x, y);
-		mpn_lshift (y, tmp1, TOTAL_LIMBS, 1);
-		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, y0, y0_sign);
+	my_mpn_mul_fast (xsqr, x, x, frac_limbs);
+	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
+	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
+	while (i < maxiter && mpn_cmp (sqrsum, four, total_limbs) < 0) {
+		mp_limb_t tmp1[total_limbs];
+		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
+		mpn_lshift (y, tmp1, total_limbs, 1);
+		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, y0, y0_sign, frac_limbs);
 
-		if (mpn_cmp (xsqr, ysqr, TOTAL_LIMBS) > 0) {
-			mpn_sub_n (x, xsqr, ysqr, TOTAL_LIMBS);
+		if (mpn_cmp (xsqr, ysqr, total_limbs) > 0) {
+			mpn_sub_n (x, xsqr, ysqr, total_limbs);
 			x_sign = false;
 		} else {
-			mpn_sub_n (x, ysqr, xsqr, TOTAL_LIMBS);
+			mpn_sub_n (x, ysqr, xsqr, total_limbs);
 			x_sign = true;
 		}
-		x_sign = my_mpn_add_signed (x, x, x_sign, x0, x0_sign);
+		x_sign = my_mpn_add_signed (x, x, x_sign, x0, x0_sign, frac_limbs);
 
 
 		k--;
-		if (mpn_cmp (x, cd_x, TOTAL_LIMBS) == 0 && mpn_cmp (y, cd_y, TOTAL_LIMBS) == 0) {
+		if (mpn_cmp (x, cd_x, total_limbs) == 0 && mpn_cmp (y, cd_y, total_limbs) == 0) {
 			//printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
 			iter_saved += maxiter - i;
 			i = maxiter;
@@ -437,9 +440,9 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
 		}
 
 
-		my_mpn_mul_fast (xsqr, x, x);
-		my_mpn_mul_fast (ysqr, y, y);
-		mpn_add_n (sqrsum, xsqr, ysqr, TOTAL_LIMBS);
+		my_mpn_mul_fast (xsqr, x, x, frac_limbs);
+		my_mpn_mul_fast (ysqr, y, y, frac_limbs);
+		mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
 
 		i++;
 	}
@@ -455,10 +458,10 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
 
 
 unsigned
-mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter)
+mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 {
-	double x0 = ldexp (mpz_get_d (x0z), -FRAC_LIMBS * mp_bits_per_limb);
-	double y0 = ldexp (mpz_get_d (y0z), -FRAC_LIMBS * mp_bits_per_limb);
+	double x0 = ldexp (mpz_get_d (x0z), -frac_limbs * mp_bits_per_limb);
+	double y0 = ldexp (mpz_get_d (y0z), -frac_limbs * mp_bits_per_limb);
 	unsigned i = 0;
 	double x = x0, y = y0;
 	while (i < maxiter && x * x + y * y < 4.0) {
@@ -483,7 +486,7 @@ gtk_mandel_render_pixel (GtkWidget *widget, int x, int y)
 	mpz_init (yz);
 	gtk_mandel_convert_x (mandel, xz, x);
 	gtk_mandel_convert_y (mandel, yz, y);
-	unsigned i = mandelbrot (xz, yz, mandel->maxiter);
+	unsigned i = mandelbrot (xz, yz, mandel->maxiter, mandel->frac_limbs);
 	mpz_clear (xz);
 	mpz_clear (yz);
 	gdk_threads_enter ();
@@ -532,6 +535,7 @@ calcmandel (gpointer *data)
 	mpz_clear (md->ymin);
 	mpz_clear (md->ymax);
 	mandel->maxiter = md->maxiter;
+	mandel->frac_limbs = md->frac_limbs;
 
 #if RENDERING_METHOD == MARIANI_SILVER
 	int x, y;
@@ -663,7 +667,7 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 	GtkMandel *mandel = GTK_MANDEL (data);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (widget)));
 	if (i > 0)
-		gtk_mandel_restart_thread (GTK_WIDGET (mandel), mandel->xmin, mandel->xmax, mandel->ymin, mandel->ymax, i);
+		gtk_mandel_restart_thread (GTK_WIDGET (mandel), mandel->xmin, mandel->xmax, mandel->ymin, mandel->ymax, i, mandel->frac_limbs);
 }
 
 
@@ -675,7 +679,9 @@ main (int argc, char **argv)
 	gdk_threads_init ();
 	gdk_threads_enter ();
 
-	mpf_set_default_prec (TOTAL_LIMBS * mp_bits_per_limb);
+	unsigned frac_limbs = 5, total_limbs = INT_LIMBS + frac_limbs;
+
+	mpf_set_default_prec (total_limbs * mp_bits_per_limb);
 
 	int i;
 	for (i = 0; i < COLORS; i++) {
@@ -698,7 +704,7 @@ main (int argc, char **argv)
 
 	win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	img = gtk_mandel_new ();
-	gtk_widget_set_size_request (img, 500, 500);
+	gtk_widget_set_size_request (img, 200, 200);
 	gtk_container_add (GTK_CONTAINER (vbox), img);
 	gtk_container_add (GTK_CONTAINER (win), vbox);
 
@@ -735,37 +741,40 @@ main (int argc, char **argv)
 	fclose (cfile);
 
 	mpf_ui_div (magf, 1, magf);
+	long exponent;
+	mpf_get_d_2exp (&exponent, magf);
+	fprintf (stderr, "* Using %d limbs.\n", (abs (exponent) + 16) / 32 + 1);
 
 	mpf_sub (f, xc, magf);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (xmin, f);
 
 	mpf_add (f, xc, magf);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (xmax, f);
 
 	mpf_sub (f, yc, magf);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (ymin, f);
 
 	mpf_add (f, yc, magf);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (ymax, f);
 
 #else /* USE_CENTER_MAGF */
 
 	mpf_set_str (f, "-1.25336541010300744474", 10);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (xmin, f);
 	mpf_set_str (f, "-1.25336539811306487297", 10);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (xmax, f);
 
 	mpf_set_str (f, "0.34461507040406514393", 10);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (ymin, f);
 	mpf_set_str (f, "0.344615082394007715705", 10);
-	mpf_mul_2exp (f, f, FRAC_LIMBS * mp_bits_per_limb);
+	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (ymax, f);
 
 #endif /* USE_CENTER_MAGF */
@@ -774,7 +783,7 @@ main (int argc, char **argv)
 	//my_double_to_mpz (xmax, 1.0);
 	//my_double_to_mpz (ymin, -1.5);
 	//my_double_to_mpz (ymax, 1.5);
-	gtk_mandel_restart_thread (img, xmin, xmax, ymin, ymax, 1000);
+	gtk_mandel_restart_thread (img, xmin, xmax, ymin, ymax, 1000, frac_limbs);
 	gtk_main ();
 	gdk_threads_leave ();
 
