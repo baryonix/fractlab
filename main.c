@@ -21,8 +21,10 @@
 #define SUCCESSIVE_REFINE 2
 #define RENDERING_METHOD SUCCESSIVE_REFINE
 
+#define PIXELS 300
+
 #define SR_CHUNK_SIZE 32
-#define LOG_FACTOR 100.0
+//#define LOG_FACTOR 100.0
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
@@ -179,7 +181,7 @@ gtk_mandel_init (GtkMandel *mandel)
 	mpz_init (mandel->ymin);
 	mpz_init (mandel->ymax);
 
-	mandel->w = mandel->h = 200;
+	mandel->w = mandel->h = PIXELS;
 	mandel->maxiter = 10000;
 }
 
@@ -212,7 +214,7 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (my_img);
 	printf ("* realize signal triggered: win=%p\n", my_img->window);
-	mandel->pixmap = gdk_pixmap_new (my_img->window, 200, 200, -1);
+	mandel->pixmap = gdk_pixmap_new (my_img->window, PIXELS, PIXELS, -1);
 	printf ("* Pixmap created: %p\n", mandel->pixmap);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
@@ -772,7 +774,7 @@ main (int argc, char **argv)
 
 	win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	img = gtk_mandel_new ();
-	gtk_widget_set_size_request (img, 200, 200);
+	gtk_widget_set_size_request (img, PIXELS, PIXELS);
 	gtk_container_add (GTK_CONTAINER (vbox), img);
 	gtk_container_add (GTK_CONTAINER (win), vbox);
 
