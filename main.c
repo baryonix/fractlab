@@ -153,7 +153,7 @@ gtk_mandel_get_type ()
 static void
 gtk_mandel_class_init (GtkMandelClass *class)
 {
-	GtkWidgetClass *widget_class = (GtkWidgetClass *) class;
+	//GtkWidgetClass *widget_class = (GtkWidgetClass *) class;
 	//widget_class->realize = my_realize;
 	//widget_class->button_press_event = mouse_event;
 }
@@ -163,15 +163,15 @@ gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data
 static void
 gtk_mandel_init (GtkMandel *mandel)
 {
-	gtk_signal_connect (mandel, "realize", my_realize, NULL);
+	gtk_signal_connect (GTK_OBJECT (mandel), "realize", (GtkSignalFunc) my_realize, NULL);
 	printf ("* realize signal connected.\n");
-	gtk_signal_connect (mandel, "button-press-event", mouse_event, NULL);
+	gtk_signal_connect (GTK_OBJECT (mandel), "button-press-event", (GtkSignalFunc) mouse_event, NULL);
 	printf ("* button-press-event signal connected.\n");
-	gtk_signal_connect (mandel, "button-release-event", mouse_event, NULL);
+	gtk_signal_connect (GTK_OBJECT (mandel), "button-release-event", (GtkSignalFunc) mouse_event, NULL);
 	printf ("* button-release-event signal connected.\n");
-	gtk_signal_connect (mandel, "motion-notify-event", mouse_event, NULL);
+	gtk_signal_connect (GTK_OBJECT (mandel), "motion-notify-event", (GtkSignalFunc) mouse_event, NULL);
 	printf ("* motion-notify-event signal connected.\n");
-	gtk_signal_connect (mandel, "expose-event", my_expose, NULL);
+	gtk_signal_connect (GTK_OBJECT (mandel), "expose-event", (GtkSignalFunc) my_expose, NULL);
 	printf ("* expose-event signal connected.\n");
 
 	mpf_init (mandel->xmin_f);
@@ -209,7 +209,7 @@ gtk_mandel_restart_thread (GtkWidget *widget, mpf_t xmin, mpf_t xmax, mpf_t ymin
 		mandel->md->terminate = true;
 
 	mandel->md = md;
-	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
+	mandel->thread = g_thread_create ((GThreadFunc) calcmandel, (gpointer) md, true, NULL);
 }
 
 void
@@ -406,7 +406,6 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	mp_limb_t x[total_limbs], y[total_limbs], x0[total_limbs], y0[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[total_limbs];
 	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
-	mpz_t ztmp;
 	unsigned i;
 
 	for (i = 0; i < total_limbs; i++)
@@ -456,7 +455,6 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 		}
 		if (k == 0) {
 			k = m <<= 1;
-			int j;
 			memcpy (cd_x, x, sizeof (x));
 			memcpy (cd_y, y, sizeof (y));
 		}
@@ -525,7 +523,7 @@ gtk_mandel_put_rect (GtkWidget *widget, int x, int y, int d, unsigned iter)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	gtk_mandel_set_pixel (widget, x, y, iter);
-	gtk_mandel_set_gc_color (mandel, iter);
+	gtk_mandel_set_gc_color (widget, iter);
 	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, x, y, d, d);
 	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, x, y, d, d);
 }
@@ -645,7 +643,7 @@ calcmandel (gpointer *data)
 					do_eval = true;
 				else if (parent_x == x && parent_y == y)
 					do_eval = false;
-				else if (gtk_mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
+				else if (gtk_mandel_all_neighbors_same (widget, parent_x, parent_y, chunk_size << 1))
 					do_eval = false;
 				else
 					do_eval = true;
@@ -767,9 +765,9 @@ main (int argc, char **argv)
 	gtk_init (&argc, &argv);
 
 	GtkWidget *hbox = gtk_hbox_new (false, 5);
-	GtkLabel *maxiter_label = gtk_label_new ("maxiter:");
+	GtkWidget *maxiter_label = gtk_label_new ("maxiter:");
 	gtk_container_add (GTK_CONTAINER (hbox), maxiter_label);
-	GtkEntry *maxiter_entry = gtk_entry_new ();
+	GtkWidget *maxiter_entry = gtk_entry_new ();
 	gtk_container_add (GTK_CONTAINER (hbox), maxiter_entry);
 
 	GtkWidget *vbox = gtk_vbox_new (false, 5);
@@ -781,14 +779,14 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (vbox), img);
 	gtk_container_add (GTK_CONTAINER (win), vbox);
 
-	gtk_signal_connect (maxiter_entry, "activate", new_maxiter, (gpointer) img);
+	gtk_signal_connect (GTK_OBJECT (maxiter_entry), "activate", (GtkSignalFunc) new_maxiter, (gpointer) img);
 
 	gtk_widget_show_all (win);
 
 	printf ("now running main loop\n");
 
 	mpf_t xmin, xmax, ymin, ymax;
-	mpf_t xc, yc, magf, f;
+	mpf_t f;
 	mpf_init (xmin);
 	mpf_init (xmax);
 	mpf_init (ymin);
