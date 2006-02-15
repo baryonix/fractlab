@@ -11,9 +11,12 @@ mandel-gtk: $(MANDEL_GTK_OBJECTS)
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-.PHONY: clean
+.PHONY: clean newdeps
 
 clean:
 	-rm -f *.o mandel-gtk
+
+newdeps:
+	$(CC) -MM *.c >Makefile.deps
 
 include Makefile.deps
