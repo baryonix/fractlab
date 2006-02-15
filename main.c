@@ -66,7 +66,7 @@ struct _GtkMandelClass
 struct mandeldata {
 	mpf_t xmin, xmax, ymin, ymax;
 	unsigned maxiter;
-	GtkWidget *widget;
+	GtkMandel *widget;
 	GThread *join_me;
 	volatile bool terminate;
 };
@@ -192,16 +192,15 @@ gpointer * calcmandel (gpointer *data);
 
 
 void
-gtk_mandel_restart_thread (GtkWidget *widget, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter)
+gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
 	mpf_init_set (md->xmin, xmin);
 	mpf_init_set (md->xmax, xmax);
 	mpf_init_set (md->ymin, ymin);
 	mpf_init_set (md->ymax, ymax);
 	md->maxiter = maxiter;
-	md->widget = widget;
+	md->widget = mandel;
 	md->join_me = mandel->thread;
 	md->terminate = false;
 
@@ -290,7 +289,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		gmp_printf ("* xmax = %.Ff\n", xmax);
 		gmp_printf ("* ymin = %.Ff\n", ymin);
 		gmp_printf ("* ymax = %.Ff\n", ymax);
-		gtk_mandel_restart_thread (my_img, xmin, xmax, ymin, ymax, mandel->maxiter);
+		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->maxiter);
 		return TRUE;
 	} else {
 		printf ("Other event!\n");
@@ -313,56 +312,51 @@ my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
 
 
 void
-gtk_mandel_set_gc_color (GtkWidget *widget, unsigned iter)
+gtk_mandel_set_gc_color (GtkMandel *mandel, unsigned iter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
 	gdk_gc_set_rgb_fg_color (mandel->pm_gc, &mandelcolors[iter % COLORS]);
 	gdk_gc_set_rgb_fg_color (mandel->gc, &mandelcolors[iter % COLORS]);
 }
 
 
 void
-gtk_mandel_set_pixel (GtkWidget *widget, int x, int y, unsigned iter)
+gtk_mandel_set_pixel (GtkMandel *mandel, int x, int y, unsigned iter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
 	mandel->data[x * mandel->h + y] = iter;
 }
 
 
 void
-gtk_mandel_put_pixel (GtkWidget *widget, int x, int y, unsigned iter)
+gtk_mandel_put_pixel (GtkMandel *mandel, int x, int y, unsigned iter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
-	gtk_mandel_set_pixel (widget, x, y, iter);
+	GtkWidget *widget = GTK_WIDGET (mandel);
 
-	gtk_mandel_set_gc_color (widget, iter);
-
+	gtk_mandel_set_pixel (mandel, x, y, iter);
+	gtk_mandel_set_gc_color (mandel, iter);
 	gdk_draw_point (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, x, y);
 	gdk_draw_point (GDK_DRAWABLE (widget->window), mandel->gc, x, y);
 }
 
 
 unsigned
-gtk_mandel_get_pixel (GtkWidget *widget, int x, int y)
+gtk_mandel_get_pixel (GtkMandel *mandel, int x, int y)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
 	return mandel->data[x * mandel->h + y];
 }
 
 bool
-gtk_mandel_all_neighbors_same (GtkWidget *widget, int x, int y, int d)
+gtk_mandel_all_neighbors_same (GtkMandel *mandel, int x, int y, int d)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
-	int px = gtk_mandel_get_pixel (widget, x, y);
+	int px = gtk_mandel_get_pixel (mandel, x, y);
 	return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
-		&& gtk_mandel_get_pixel (widget, x - d, y - d) == px
-		&& gtk_mandel_get_pixel (widget, x - d, y    ) == px
-		&& gtk_mandel_get_pixel (widget, x - d, y + d) == px
-		&& gtk_mandel_get_pixel (widget, x    , y - d) == px
-		&& gtk_mandel_get_pixel (widget, x    , y + d) == px
-		&& gtk_mandel_get_pixel (widget, x + d, y - d) == px
-		&& gtk_mandel_get_pixel (widget, x + d, y    ) == px
-		&& gtk_mandel_get_pixel (widget, x + d, y + d) == px;
+		&& gtk_mandel_get_pixel (mandel, x - d, y - d) == px
+		&& gtk_mandel_get_pixel (mandel, x - d, y    ) == px
+		&& gtk_mandel_get_pixel (mandel, x - d, y + d) == px
+		&& gtk_mandel_get_pixel (mandel, x    , y - d) == px
+		&& gtk_mandel_get_pixel (mandel, x    , y + d) == px
+		&& gtk_mandel_get_pixel (mandel, x + d, y - d) == px
+		&& gtk_mandel_get_pixel (mandel, x + d, y    ) == px
+		&& gtk_mandel_get_pixel (mandel, x + d, y + d) == px;
 }
 
 
@@ -498,9 +492,8 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 
 
 void
-gtk_mandel_render_pixel (GtkWidget *widget, int x, int y)
+gtk_mandel_render_pixel (GtkMandel *mandel, int x, int y)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
 	mpz_t xz, yz;
 	mpz_init (xz);
 	mpz_init (yz);
@@ -510,20 +503,20 @@ gtk_mandel_render_pixel (GtkWidget *widget, int x, int y)
 	mpz_clear (xz);
 	mpz_clear (yz);
 	gdk_threads_enter ();
-	gtk_mandel_put_pixel (widget, x, y, i);
+	gtk_mandel_put_pixel (mandel, x, y, i);
 	//gdk_flush ();
 	gdk_threads_leave ();
 }
 
-void calcpart (struct mandeldata *md, GtkWidget *widget, int x0, int y0, int x1, int y1);
+void calcpart (struct mandeldata *md, GtkMandel *mandel, int x0, int y0, int x1, int y1);
 
 
 void
-gtk_mandel_put_rect (GtkWidget *widget, int x, int y, int d, unsigned iter)
+gtk_mandel_put_rect (GtkMandel *mandel, int x, int y, int d, unsigned iter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
-	gtk_mandel_set_pixel (widget, x, y, iter);
-	gtk_mandel_set_gc_color (widget, iter);
+	GtkWidget *widget = GTK_WIDGET (mandel);
+	gtk_mandel_set_pixel (mandel, x, y, iter);
+	gtk_mandel_set_gc_color (mandel, iter);
 	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, x, y, d, d);
 	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, x, y, d, d);
 }
@@ -535,8 +528,8 @@ gpointer *
 calcmandel (gpointer *data)
 {
 	struct mandeldata *md = (struct mandeldata *) data;
-	GtkWidget *widget = md->widget;
-	GtkMandel *mandel = GTK_MANDEL (widget);
+	GtkMandel *mandel = md->widget;
+	GtkWidget *widget = GTK_WIDGET (mandel);
 
 	if (md->join_me != NULL)
 		g_thread_join (md->join_me);
@@ -643,19 +636,19 @@ calcmandel (gpointer *data)
 					do_eval = true;
 				else if (parent_x == x && parent_y == y)
 					do_eval = false;
-				else if (gtk_mandel_all_neighbors_same (widget, parent_x, parent_y, chunk_size << 1))
+				else if (gtk_mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
 					do_eval = false;
 				else
 					do_eval = true;
 
 				if (do_eval) {
-					gtk_mandel_render_pixel (widget, x, y);
+					gtk_mandel_render_pixel (mandel, x, y);
 					gdk_threads_enter ();
-					gtk_mandel_put_rect (widget, x, y, chunk_size, gtk_mandel_get_pixel (widget, x, y));
+					gtk_mandel_put_rect (mandel, x, y, chunk_size, gtk_mandel_get_pixel (mandel, x, y));
 					gdk_threads_leave ();
 				} else {
 					gdk_threads_enter ();
-					gtk_mandel_put_pixel (widget, x, y, gtk_mandel_get_pixel (widget, parent_x, parent_y));
+					gtk_mandel_put_pixel (mandel, x, y, gtk_mandel_get_pixel (mandel, parent_x, parent_y));
 					gdk_threads_leave ();
 				}
 			}
@@ -676,11 +669,11 @@ calcmandel (gpointer *data)
 
 
 void
-gtk_mandel_set_rect (GtkWidget *widget, int x0, int y0, int x1, int y1, unsigned iter)
+gtk_mandel_set_rect (GtkMandel *mandel, int x0, int y0, int x1, int y1, unsigned iter)
 {
-	GtkMandel *mandel = GTK_MANDEL (widget);
+	GtkWidget *widget = GTK_WIDGET (mandel);
 
-	gtk_mandel_set_gc_color (widget, iter);
+	gtk_mandel_set_gc_color (mandel, iter);
 
 	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
 	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
@@ -688,44 +681,44 @@ gtk_mandel_set_rect (GtkWidget *widget, int x0, int y0, int x1, int y1, unsigned
 
 
 void
-calcpart (struct mandeldata *md, GtkWidget *widget, int x0, int y0, int x1, int y1)
+calcpart (struct mandeldata *md, GtkMandel *mandel, int x0, int y0, int x1, int y1)
 {
 	if (md->terminate)
 		return;
 
 	int x, y;
 	bool failed = false;
-	unsigned p0 = gtk_mandel_get_pixel (widget, x0, y0);
+	unsigned p0 = gtk_mandel_get_pixel (mandel, x0, y0);
 
 	for (x = x0; !failed && x <= x1; x++)
-		failed = gtk_mandel_get_pixel (widget, x, y0) != p0 || gtk_mandel_get_pixel (widget, x, y1) != p0;
+		failed = gtk_mandel_get_pixel (mandel, x, y0) != p0 || gtk_mandel_get_pixel (mandel, x, y1) != p0;
 
 	for (y = y0; !failed && y <= y1; y++)
-		failed = gtk_mandel_get_pixel (widget, x0, y) != p0 || gtk_mandel_get_pixel (widget, x1, y) != p0;
+		failed = gtk_mandel_get_pixel (mandel, x0, y) != p0 || gtk_mandel_get_pixel (mandel, x1, y) != p0;
 
 	if (failed) {
 		if (x1 - x0 > y1 - y0) {
 			unsigned xm = (x0 + x1) / 2;
 			for (y = y0 + 1; y < y1; y++)
-				gtk_mandel_render_pixel (widget, xm, y);
+				gtk_mandel_render_pixel (mandel, xm, y);
 
 			if (xm - x0 > 1)
-				calcpart (md, widget, x0, y0, xm, y1);
+				calcpart (md, mandel, x0, y0, xm, y1);
 			if (x1 - xm > 1)
-				calcpart (md, widget, xm, y0, x1, y1);
+				calcpart (md, mandel, xm, y0, x1, y1);
 		} else {
 			unsigned ym = (y0 + y1) / 2;
 			for (x = x0 + 1; x < x1; x++)
-				gtk_mandel_render_pixel (widget, x, ym);
+				gtk_mandel_render_pixel (mandel, x, ym);
 
 			if (ym - y0 > 1)
-				calcpart (md, widget, x0, y0, x1, ym);
+				calcpart (md, mandel, x0, y0, x1, ym);
 			if (y1 - ym > 1)
-				calcpart (md, widget, x0, ym, x1, y1);
+				calcpart (md, mandel, x0, ym, x1, y1);
 		}
 	} else {
 		gdk_threads_enter ();
-		gtk_mandel_set_rect (widget, x0 + 1, y0 + 1, x1 - 1, y1 - 1, p0);
+		gtk_mandel_set_rect (mandel, x0 + 1, y0 + 1, x1 - 1, y1 - 1, p0);
 		//gdk_flush ();
 		gdk_threads_leave ();
 	}
@@ -738,7 +731,7 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 	GtkMandel *mandel = GTK_MANDEL (data);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (widget)));
 	if (i > 0)
-		gtk_mandel_restart_thread (GTK_WIDGET (mandel), mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i);
+		gtk_mandel_restart_thread (mandel, mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i);
 }
 
 
@@ -809,7 +802,7 @@ main (int argc, char **argv)
 	//my_double_to_mpz (xmax, 1.0);
 	//my_double_to_mpz (ymin, -1.5);
 	//my_double_to_mpz (ymax, 1.5);
-	gtk_mandel_restart_thread (img, xmin, xmax, ymin, ymax, 1000);
+	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000);
 	gtk_main ();
 	gdk_threads_leave ();
 
