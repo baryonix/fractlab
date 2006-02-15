@@ -17,7 +17,7 @@
 
 #define INT_LIMBS 1
 
-#define USE_CENTER_MAGF
+#undef USE_CENTER_MAGF
 #define USE_MPMATH
 
 #define MARIANI_SILVER 1
@@ -799,33 +799,11 @@ main (int argc, char **argv)
 
 #ifdef USE_CENTER_MAGF
 
-	mpf_init (xc);
-	mpf_init (yc);
-	mpf_init (magf);
-	read_coords_from_file (argv[1], xc, yc, magf);
-
-	mpf_ui_div (magf, 1, magf);
-
-	mpf_sub (xmin, xc, magf);
-	mpf_add (xmax, xc, magf);
-	mpf_sub (ymin, yc, magf);
-	mpf_add (ymax, yc, magf);
+	read_cmag_coords_from_file (argv[1], xmin, xmax, ymin, ymax);
 
 #else /* USE_CENTER_MAGF */
 
-	mpf_set_str (f, "-1.25336541010300744474", 10);
-	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (xmin, f);
-	mpf_set_str (f, "-1.25336539811306487297", 10);
-	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (xmax, f);
-
-	mpf_set_str (f, "0.34461507040406514393", 10);
-	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (ymin, f);
-	mpf_set_str (f, "0.344615082394007715705", 10);
-	mpf_mul_2exp (f, f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (ymax, f);
+	read_corner_coords_from_file (argv[1], xmin, xmax, ymin, ymax);
 
 #endif /* USE_CENTER_MAGF */
 
