@@ -12,6 +12,9 @@
 #include <gmp.h>
 
 
+#include "file.h"
+
+
 #define INT_LIMBS 1
 
 #define USE_CENTER_MAGF
@@ -796,19 +799,10 @@ main (int argc, char **argv)
 
 #ifdef USE_CENTER_MAGF
 
-	FILE *cfile = fopen (argv[1], "r");
-	if (cfile == NULL) {
-		perror ("fopen");
-		exit (1);
-	}
-	char buf[1024];
-	fgets (buf, 1024, cfile);
-	mpf_init_set_str (xc, buf, 10);
-	fgets (buf, 1024, cfile);
-	mpf_init_set_str (yc, buf, 10);
-	fgets (buf, 1024, cfile);
-	mpf_init_set_str (magf, buf, 10);
-	fclose (cfile);
+	mpf_init (xc);
+	mpf_init (yc);
+	mpf_init (magf);
+	read_coords_from_file (argv[1], xc, yc, magf);
 
 	mpf_ui_div (magf, 1, magf);
 

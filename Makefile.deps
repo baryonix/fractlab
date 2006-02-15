@@ -1,0 +1,2 @@
+file.o: file.c file.h
+main.o: main.c file.h
