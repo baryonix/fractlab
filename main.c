@@ -17,8 +17,8 @@
 
 #define INT_LIMBS 1
 
-#undef USE_CENTER_MAGF
-#define USE_MPMATH
+#define USE_CENTER_MAGF
+#define MP_THRESHOLD 64
 
 #define MARIANI_SILVER 1
 #define SUCCESSIVE_REFINE 2
@@ -392,8 +392,6 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 unsigned iter_saved = 0;
 
 
-#ifdef USE_MPMATH
-
 unsigned
 mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 {
@@ -468,14 +466,9 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 }
 
 
-#else /* USE_MPMATH */
-
-
 unsigned
-mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
+mandelbrot_fp (double x0, double y0, unsigned maxiter)
 {
-	double x0 = ldexp (mpz_get_d (x0z), -frac_limbs * mp_bits_per_limb);
-	double y0 = ldexp (mpz_get_d (y0z), -frac_limbs * mp_bits_per_limb);
 	unsigned i = 0;
 	double x = x0, y = y0;
 	while (i < maxiter && x * x + y * y < 4.0) {
@@ -484,24 +477,36 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 		y = 2 * xold * yold + y0;
 		i++;
 	}
-	//return i;
-	return (unsigned) (log (i) * 50.0);
+#ifdef LOG_FACTOR
+	return (unsigned) (log (i) * LOG_FACTOR);
+#else
+	return i;
+#endif
 }
-
-#endif /* USE_MPMATH */
 
 
 void
 gtk_mandel_render_pixel (GtkMandel *mandel, int x, int y)
 {
-	mpz_t xz, yz;
-	mpz_init (xz);
-	mpz_init (yz);
-	gtk_mandel_convert_x (mandel, xz, x);
-	gtk_mandel_convert_y (mandel, yz, y);
-	unsigned i = mandelbrot (xz, yz, mandel->maxiter, mandel->frac_limbs);
-	mpz_clear (xz);
-	mpz_clear (yz);
+	unsigned i;
+	if (mandel->frac_limbs == 0) {
+		// FP
+		double xmin = mpf_get_d (mandel->xmin_f);
+		double xmax = mpf_get_d (mandel->xmax_f);
+		double ymin = mpf_get_d (mandel->ymin_f);
+		double ymax = mpf_get_d (mandel->ymax_f);
+		i = mandelbrot_fp (x * (xmax - xmin) / mandel->w + xmin, y * (ymin - ymax) / mandel->h + ymax, mandel->maxiter);
+	} else {
+		// MP
+		mpz_t xz, yz;
+		mpz_init (xz);
+		mpz_init (yz);
+		gtk_mandel_convert_x (mandel, xz, x);
+		gtk_mandel_convert_y (mandel, yz, y);
+		i = mandelbrot (xz, yz, mandel->maxiter, mandel->frac_limbs);
+		mpz_clear (xz);
+		mpz_clear (yz);
+	}
 	gdk_threads_enter ();
 	gtk_mandel_put_pixel (mandel, x, y, i);
 	//gdk_flush ();
@@ -576,7 +581,10 @@ calcmandel (gpointer *data)
 	// We add a minimum of 2 extra bits of precision, that should do.
 	int required_bits = 2 - exponent;
 
-	mandel->frac_limbs = required_bits / mp_bits_per_limb + 1;
+	if (required_bits < MP_THRESHOLD)
+		mandel->frac_limbs = 0;
+	else
+		mandel->frac_limbs = required_bits / mp_bits_per_limb + 1;
 
 	unsigned frac_limbs = mandel->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
