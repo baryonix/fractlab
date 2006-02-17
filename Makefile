@@ -5,7 +5,7 @@ USE_IA32_ASM = i387
 CFLAGS = -I/opt/gmp/include -O3 -march=pentium4 -std=c99 -D_XOPEN_SOURCE -Wall -g $(shell pkg-config --cflags $(PKG))
 LIBS = $(shell pkg-config --libs $(PKG)) /opt/gmp/lib/libgmp.a
 
-MANDEL_GTK_OBJECTS = main.o file.o cmdline.o
+MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o
 
 ifeq ($(USE_IA32_ASM),i387)
 CFLAGS += -DMANDELBROT_FP_ASM
