@@ -1,2 +1,3 @@
+cmdline.o: cmdline.c cmdline.h
 file.o: file.c file.h
-main.o: main.c file.h fpdefs.h
+main.o: main.c cmdline.h file.h fpdefs.h

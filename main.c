@@ -16,6 +16,7 @@
 #include <gmp.h>
 
 
+#include "cmdline.h"
 #include "file.h"
 #include "fpdefs.h"
 
@@ -34,8 +35,6 @@ enum render_method_enum {
 
 typedef enum render_method_enum render_method_t;
 
-
-static double log_factor = 0.0;
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
@@ -191,7 +190,6 @@ gtk_mandel_init (GtkMandel *mandel)
 	mpz_init (mandel->ymax);
 
 	mandel->w = mandel->h = PIXELS;
-	mandel->maxiter = 10000;
 }
 
 gpointer * calcmandel (gpointer *data);
@@ -235,7 +233,6 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	mandel->data = malloc (mandel->w * mandel->h * sizeof (unsigned));
 
 	mandel->thread = NULL;
-
 }
 
 
@@ -753,26 +750,6 @@ calcpart (struct mandeldata *md, GtkMandel *mandel, int x0, int y0, int x1, int 
 }
 
 
-gboolean
-option_log_factor (const gchar *option_name, const gchar *value, gpointer data, GError **error)
-{
-	log_factor = strtod (value, NULL);
-	return true;
-}
-
-gchar *option_center_coords, *option_corner_coords;
-gboolean option_mariani_silver, option_successive_refine;
-
-static GOptionEntry option_entries[] = {
-	{"center-coords", 'c', 0, G_OPTION_ARG_FILENAME, &option_center_coords, "Read center/magf coordinates from FILE", "FILE"},
-	{"corner-coords", 'C', 0, G_OPTION_ARG_FILENAME, &option_corner_coords, "Read corner coordinates from FILE", "FILE"},
-	{"log-factor", 'l', 0, G_OPTION_ARG_CALLBACK, option_log_factor, "Factor for logarithmic palette", "X"},
-	{"successive-refine", 's', 0, G_OPTION_ARG_NONE, &option_successive_refine, "Use successive refinement algorithm (default)", NULL},
-	{"mariani-silver", 'm', 0, G_OPTION_ARG_NONE, &option_mariani_silver, "Use Mariani-Silver algorithm", NULL},
-	{NULL}
-};
-
-
 void
 new_maxiter (GtkWidget *widget, gpointer *data)
 {
@@ -791,6 +768,7 @@ main (int argc, char **argv)
 	gdk_threads_enter ();
 
 	//unsigned frac_limbs = 5, total_limbs = INT_LIMBS + frac_limbs;
+	parse_command_line (&argc, &argv);
 
 	mpf_set_default_prec (1024);
 
@@ -803,11 +781,6 @@ main (int argc, char **argv)
 
 	GtkWidget *win, *img;
 	gtk_init (&argc, &argv);
-
-	GOptionContext *option_context = g_option_context_new (NULL);
-	g_option_context_add_main_entries (option_context, option_entries, "mandelbrot");
-	g_option_context_add_group (option_context, gtk_get_option_group (true));
-	g_option_context_parse (option_context, &argc, &argv, NULL);
 
 	GtkWidget *hbox = gtk_hbox_new (false, 5);
 	GtkWidget *maxiter_label = gtk_label_new ("maxiter:");
