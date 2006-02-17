@@ -44,11 +44,11 @@ struct _GtkMandel
 {
 	GtkDrawingArea widget;
 	GdkPixmap *pixmap;
-	GdkGC *gc, *pm_gc;
-	GdkColor black;
+	GdkGC *gc, *pm_gc, *frame_gc;
+	GdkColor black, red, white;
 	GThread *thread;
 	struct mandeldata *md;
-	gdouble center_x, center_y;
+	gdouble center_x, center_y, selection_size;
 };
 
 
@@ -148,13 +148,22 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	GtkMandel *mandel = GTK_MANDEL (my_img);
 	mandel->pixmap = gdk_pixmap_new (my_img->window, PIXELS, PIXELS, -1);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
+	mandel->frame_gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
 	gtk_widget_add_events (my_img, GDK_BUTTON_PRESS_MASK |
-		GDK_BUTTON_RELEASE_MASK | /* GDK_BUTTON1_MOTION_MASK | */
+		GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK |
 		GDK_EXPOSURE_MASK);
 	GdkColormap *cmap = gdk_colormap_get_system ();
 	gdk_color_parse ("black", &mandel->black);
 	gdk_color_alloc (cmap, &mandel->black);
+	gdk_color_parse ("red", &mandel->red);
+	gdk_color_alloc (cmap, &mandel->red);
+	gdk_color_parse ("white", &mandel->white);
+	gdk_color_alloc (cmap, &mandel->white);
+
+	gdk_gc_set_foreground (mandel->frame_gc, &mandel->red);
+	gdk_gc_set_background (mandel->frame_gc, &mandel->white);
+	gdk_gc_set_line_attributes (mandel->frame_gc, 1, GDK_LINE_DOUBLE_DASH, GDK_CAP_NOT_LAST, GDK_JOIN_MITER);
 
 	mandel->thread = NULL;
 }
@@ -176,6 +185,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		printf ("* Button pressed, x=%f, y=%f\n", e->x, e->y);
 		mandel->center_x = e->x;
 		mandel->center_y = e->y;
+		mandel->selection_size = 0.0;
 		return TRUE;
 	} else if (e->type == GDK_BUTTON_RELEASE) {
 		printf ("* Button released!\n");
@@ -213,6 +223,12 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		gmp_printf ("* ymax = %.Ff\n", ymax);
 		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->md->maxiter, mandel->md->render_method);
 		return TRUE;
+	} else if (e->type == GDK_MOTION_NOTIFY) {
+		gdouble d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y));
+		gdk_draw_drawable (GDK_DRAWABLE (my_img->window), mandel->gc, GDK_DRAWABLE (mandel->pixmap), mandel->center_x - mandel->selection_size, mandel->center_y - mandel->selection_size, mandel->center_x - mandel->selection_size, mandel->center_y - mandel->selection_size, 2 * mandel->selection_size + 1, 2 * mandel->selection_size + 1);
+		gdk_draw_rectangle (GDK_DRAWABLE (my_img->window), mandel->frame_gc, false, mandel->center_x - d, mandel->center_y - d, 2 * d, 2 * d);
+		mandel->selection_size = d;
+		return true;
 	} else {
 		printf ("Other event!\n");
 		return FALSE;
@@ -334,6 +350,17 @@ main (int argc, char **argv)
 	GtkWidget *win, *img;
 	gtk_init (&argc, &argv);
 
+	GtkWidget *menu_items = gtk_menu_item_new_with_label ("Area Info");
+
+	GtkWidget *menu = gtk_menu_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_items);
+
+	GtkWidget *file_menu = gtk_menu_item_new_with_label ("File");
+	gtk_menu_item_set_submenu (GTK_MENU_ITEM (file_menu), menu);
+
+	GtkWidget *menu_bar = gtk_menu_bar_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu_bar), file_menu);
+
 	GtkWidget *hbox = gtk_hbox_new (false, 5);
 	GtkWidget *maxiter_label = gtk_label_new ("maxiter:");
 	gtk_container_add (GTK_CONTAINER (hbox), maxiter_label);
@@ -341,6 +368,7 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (hbox), maxiter_entry);
 
 	GtkWidget *vbox = gtk_vbox_new (false, 5);
+	gtk_container_add (GTK_CONTAINER (vbox), menu_bar);
 	gtk_container_add (GTK_CONTAINER (vbox), hbox);
 
 	win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
