@@ -170,15 +170,10 @@ static void
 gtk_mandel_init (GtkMandel *mandel)
 {
 	gtk_signal_connect (GTK_OBJECT (mandel), "realize", (GtkSignalFunc) my_realize, NULL);
-	printf ("* realize signal connected.\n");
 	gtk_signal_connect (GTK_OBJECT (mandel), "button-press-event", (GtkSignalFunc) mouse_event, NULL);
-	printf ("* button-press-event signal connected.\n");
 	gtk_signal_connect (GTK_OBJECT (mandel), "button-release-event", (GtkSignalFunc) mouse_event, NULL);
-	printf ("* button-release-event signal connected.\n");
 	gtk_signal_connect (GTK_OBJECT (mandel), "motion-notify-event", (GtkSignalFunc) mouse_event, NULL);
-	printf ("* motion-notify-event signal connected.\n");
 	gtk_signal_connect (GTK_OBJECT (mandel), "expose-event", (GtkSignalFunc) my_expose, NULL);
-	printf ("* expose-event signal connected.\n");
 
 	mpf_init (mandel->xmin_f);
 	mpf_init (mandel->xmax_f);
@@ -221,9 +216,7 @@ void
 my_realize (GtkWidget *my_img, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (my_img);
-	printf ("* realize signal triggered: win=%p\n", my_img->window);
 	mandel->pixmap = gdk_pixmap_new (my_img->window, PIXELS, PIXELS, -1);
-	printf ("* Pixmap created: %p\n", mandel->pixmap);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
 	gtk_widget_add_events (my_img, GDK_BUTTON_PRESS_MASK |
@@ -783,7 +776,6 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 int
 main (int argc, char **argv)
 {
-	printf ("* mp_bits_per_limb = %d\n", mp_bits_per_limb);
 	g_thread_init (NULL);
 	gdk_threads_init ();
 	gdk_threads_enter ();
