@@ -51,7 +51,7 @@ struct _GtkMandel
 	GtkDrawingArea widget;
 	GdkPixmap *pixmap;
 	GdkGC *gc, *pm_gc;
-	GdkColor col0, col1, black;
+	GdkColor black;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
 	mpz_t xmin, xmax, ymin, ymax;
 	unsigned w, h, maxiter;
@@ -225,10 +225,6 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	GdkColormap *cmap = gdk_colormap_get_system ();
 	gdk_color_parse ("black", &mandel->black);
 	gdk_color_alloc (cmap, &mandel->black);
-	gdk_color_parse ("red", &mandel->col0);
-	gdk_color_alloc (cmap, &mandel->col0);
-	gdk_color_parse ("green", &mandel->col1);
-	gdk_color_alloc (cmap, &mandel->col1);
 
 	mandel->data = malloc (mandel->w * mandel->h * sizeof (unsigned));
 
