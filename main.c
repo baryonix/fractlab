@@ -1,14 +1,18 @@
+// ANSI C
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
 #include <string.h>
 
+// POSIX
 #include <unistd.h>
 
+// GTK
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 
+// GMP
 #include <gmp.h>
 
 
@@ -27,7 +31,7 @@
 #define PIXELS 300
 
 #define SR_CHUNK_SIZE 32
-//#define LOG_FACTOR 100.0
+static double log_factor = 0.0;
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
@@ -458,11 +462,10 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 
 		i++;
 	}
-#ifdef LOG_FACTOR
-	return (unsigned) (log (i) * LOG_FACTOR);
-#else
-	return i;
-#endif
+	if (log_factor != 0.0)
+		return (unsigned) (log (i) * log_factor);
+	else
+		return i;
 }
 
 
@@ -477,11 +480,10 @@ mandelbrot_fp (double x0, double y0, unsigned maxiter)
 		y = 2 * xold * yold + y0;
 		i++;
 	}
-#ifdef LOG_FACTOR
-	return (unsigned) (log (i) * LOG_FACTOR);
-#else
-	return i;
-#endif
+	if (log_factor != 0.0)
+		return (unsigned) (log (i) * log_factor);
+	else
+		return i;
 }
 
 
@@ -733,6 +735,20 @@ calcpart (struct mandeldata *md, GtkMandel *mandel, int x0, int y0, int x1, int 
 }
 
 
+gboolean
+option_log_factor (const gchar *option_name, const gchar *value, gpointer data, GError **error)
+{
+	log_factor = strtod (value, NULL);
+	return true;
+}
+
+
+static GOptionEntry option_entries[] = {
+	{"log-factor", 'l', 0, G_OPTION_ARG_CALLBACK, option_log_factor, "Factor for logarithmic palette", "X"},
+	{NULL}
+};
+
+
 void
 new_maxiter (GtkWidget *widget, gpointer *data)
 {
@@ -764,6 +780,11 @@ main (int argc, char **argv)
 
 	GtkWidget *win, *img;
 	gtk_init (&argc, &argv);
+
+	GOptionContext *option_context = g_option_context_new ("Mandelbrot");
+	g_option_context_add_main_entries (option_context, option_entries, "mandelbrot");
+	g_option_context_add_group (option_context, gtk_get_option_group (true));
+	g_option_context_parse (option_context, &argc, &argv, NULL);
 
 	GtkWidget *hbox = gtk_hbox_new (false, 5);
 	GtkWidget *maxiter_label = gtk_label_new ("maxiter:");
