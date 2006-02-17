@@ -23,7 +23,7 @@
 #define INT_LIMBS 1
 
 #define USE_CENTER_MAGF
-#define MP_THRESHOLD 64
+#define MP_THRESHOLD 53
 
 #define MARIANI_SILVER 1
 #define SUCCESSIVE_REFINE 2
