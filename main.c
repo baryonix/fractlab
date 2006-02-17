@@ -24,9 +24,12 @@
 
 #define MP_THRESHOLD 53
 
-#define MARIANI_SILVER 1
-#define SUCCESSIVE_REFINE 2
-#define RENDERING_METHOD SUCCESSIVE_REFINE
+enum render_method_enum {
+	RM_MARIANI_SILVER = 1,
+	RM_SUCCESSIVE_REFINE = 2
+};
+
+typedef enum render_method_enum render_method_t;
 
 #define PIXELS 300
 
@@ -60,6 +63,7 @@ struct _GtkMandel
 	struct mandeldata *md;
 	gdouble center_x, center_y;
 	unsigned frac_limbs;
+	render_method_t render_method;
 };
 
 
@@ -75,6 +79,7 @@ struct mandeldata {
 	GtkMandel *widget;
 	GThread *join_me;
 	volatile bool terminate;
+	render_method_t render_method;
 };
 
 
@@ -193,7 +198,7 @@ gpointer * calcmandel (gpointer *data);
 
 
 void
-gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter)
+gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method)
 {
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
 	mpf_init_set (md->xmin, xmin);
@@ -202,6 +207,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	mpf_init_set (md->ymax, ymax);
 	md->maxiter = maxiter;
 	md->widget = mandel;
+	md->render_method = render_method;
 	md->join_me = mandel->thread;
 	md->terminate = false;
 
@@ -284,7 +290,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		gmp_printf ("* xmax = %.Ff\n", xmax);
 		gmp_printf ("* ymin = %.Ff\n", ymin);
 		gmp_printf ("* ymax = %.Ff\n", ymax);
-		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->maxiter);
+		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->maxiter, mandel->render_method);
 		return TRUE;
 	} else {
 		printf ("Other event!\n");
@@ -536,8 +542,6 @@ gtk_mandel_put_rect (GtkMandel *mandel, int x, int y, int d, unsigned iter)
 }
 
 
-/*void
-calcmandel (GtkWidget *widget, double xmin, double xmax, double ymin, double ymax, unsigned w, unsigned h, unsigned maxiter)*/
 gpointer *
 calcmandel (gpointer *data)
 {
@@ -562,6 +566,7 @@ calcmandel (gpointer *data)
 	mpf_clear (md->ymin);
 	mpf_clear (md->ymax);
 	mandel->maxiter = md->maxiter;
+	mandel->render_method = md->render_method;
 
 
 	// Determine the required precision.
@@ -618,62 +623,68 @@ calcmandel (gpointer *data)
 
 	mpf_clear (f);
 
-#if RENDERING_METHOD == MARIANI_SILVER
-	int x, y;
+	switch (mandel->render_method) {
+		case RM_MARIANI_SILVER: {
+			int x, y;
 
-	for (x = 0; x < mandel->w; x++) {
-		gtk_mandel_render_pixel (widget, x, 0);
-		gtk_mandel_render_pixel (widget, x, mandel->h - 1);
-	}
-
-	for (y = 1; y < mandel->h - 1; y++) {
-		gtk_mandel_render_pixel (widget, 0, y);
-		gtk_mandel_render_pixel (widget, mandel->w -1, y);
-	}
-
-	calcpart (md, widget, 0, 0, mandel->w - 1, mandel->h - 1);
-#elif RENDERING_METHOD == SUCCESSIVE_REFINE
-	unsigned x, y, chunk_size = SR_CHUNK_SIZE;
-
-	while (chunk_size != 0) {
-		for (y = 0; y < mandel->h; y += chunk_size)
-			for (x = 0; x < mandel->w && !md->terminate; x += chunk_size) {
-				unsigned parent_x, parent_y;
-				bool do_eval;
-				if (x % (2 * chunk_size) == 0)
-					parent_x = x;
-				else
-					parent_x = x - chunk_size;
-				if (y % (2 * chunk_size) == 0)
-					parent_y = y;
-				else
-					parent_y = y - chunk_size;
-
-				if (chunk_size == SR_CHUNK_SIZE) // 1st pass
-					do_eval = true;
-				else if (parent_x == x && parent_y == y)
-					do_eval = false;
-				else if (gtk_mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
-					do_eval = false;
-				else
-					do_eval = true;
-
-				if (do_eval) {
-					gtk_mandel_render_pixel (mandel, x, y);
-					gdk_threads_enter ();
-					gtk_mandel_put_rect (mandel, x, y, chunk_size, gtk_mandel_get_pixel (mandel, x, y));
-					gdk_threads_leave ();
-				} else {
-					gdk_threads_enter ();
-					gtk_mandel_put_pixel (mandel, x, y, gtk_mandel_get_pixel (mandel, parent_x, parent_y));
-					gdk_threads_leave ();
-				}
+			for (x = 0; x < mandel->w; x++) {
+				gtk_mandel_render_pixel (mandel, x, 0);
+				gtk_mandel_render_pixel (mandel, x, mandel->h - 1);
 			}
-		chunk_size >>= 1;
+
+			for (y = 1; y < mandel->h - 1; y++) {
+				gtk_mandel_render_pixel (mandel, 0, y);
+				gtk_mandel_render_pixel (mandel, mandel->w - 1, y);
+			}
+
+			calcpart (md, mandel, 0, 0, mandel->w - 1, mandel->h - 1);
+
+			break;
+		}
+
+		case RM_SUCCESSIVE_REFINE: {
+			unsigned x, y, chunk_size = SR_CHUNK_SIZE;
+
+			while (chunk_size != 0) {
+				for (y = 0; y < mandel->h; y += chunk_size)
+					for (x = 0; x < mandel->w && !md->terminate; x += chunk_size) {
+						unsigned parent_x, parent_y;
+						bool do_eval;
+						if (x % (2 * chunk_size) == 0)
+							parent_x = x;
+						else
+							parent_x = x - chunk_size;
+						if (y % (2 * chunk_size) == 0)
+							parent_y = y;
+						else
+							parent_y = y - chunk_size;
+
+						if (chunk_size == SR_CHUNK_SIZE) // 1st pass
+							do_eval = true;
+						else if (parent_x == x && parent_y == y)
+							do_eval = false;
+						else if (gtk_mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
+							do_eval = false;
+						else
+							do_eval = true;
+
+						if (do_eval) {
+							gtk_mandel_render_pixel (mandel, x, y);
+							gdk_threads_enter ();
+							gtk_mandel_put_rect (mandel, x, y, chunk_size, gtk_mandel_get_pixel (mandel, x, y));
+							gdk_threads_leave ();
+						} else {
+							gdk_threads_enter ();
+							gtk_mandel_put_pixel (mandel, x, y, gtk_mandel_get_pixel (mandel, parent_x, parent_y));
+							gdk_threads_leave ();
+						}
+					}
+				chunk_size >>= 1;
+			}
+
+			break;
+		}
 	}
-#else
-#error Unrecognized rendering method
-#endif /* RENDERING_METHOD */
 
 	gdk_threads_enter ();
 	gdk_flush ();
@@ -750,11 +761,14 @@ option_log_factor (const gchar *option_name, const gchar *value, gpointer data, 
 }
 
 gchar *option_center_coords, *option_corner_coords;
+gboolean option_mariani_silver, option_successive_refine;
 
 static GOptionEntry option_entries[] = {
 	{"center-coords", 'c', 0, G_OPTION_ARG_FILENAME, &option_center_coords, "Read center/magf coordinates from FILE", "FILE"},
 	{"corner-coords", 'C', 0, G_OPTION_ARG_FILENAME, &option_corner_coords, "Read corner coordinates from FILE", "FILE"},
 	{"log-factor", 'l', 0, G_OPTION_ARG_CALLBACK, option_log_factor, "Factor for logarithmic palette", "X"},
+	{"successive-refine", 's', 0, G_OPTION_ARG_NONE, &option_successive_refine, "Use successive refinement algorithm (default)", NULL},
+	{"mariani-silver", 'm', 0, G_OPTION_ARG_NONE, &option_mariani_silver, "Use Mariani-Silver algorithm", NULL},
 	{NULL}
 };
 
@@ -765,7 +779,7 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 	GtkMandel *mandel = GTK_MANDEL (data);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (widget)));
 	if (i > 0)
-		gtk_mandel_restart_thread (mandel, mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i);
+		gtk_mandel_restart_thread (mandel, mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, i, mandel->render_method);
 }
 
 
@@ -836,7 +850,14 @@ main (int argc, char **argv)
 		exit (3);
 	}
 
-	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000);
+	render_method_t render_method = RM_SUCCESSIVE_REFINE;
+
+	if (option_successive_refine)
+		render_method = RM_SUCCESSIVE_REFINE;
+	else if (option_mariani_silver)
+		render_method = RM_MARIANI_SILVER;
+
+	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000, render_method);
 	gtk_main ();
 	gdk_threads_leave ();
 
