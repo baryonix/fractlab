@@ -38,6 +38,8 @@ static double log_factor = 0.0;
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
 #define GTK_IS_MANDEL(obj) GET_CHECK_TYPE (obj, gtk_mandel_get_type ())
 
+unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
+
 gboolean mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data);
 void my_realize (GtkWidget *my_img, gpointer user_data);
 
@@ -470,6 +472,7 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 }
 
 
+#ifndef MANDELBROT_FP_ASM
 unsigned
 mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
 {
@@ -500,6 +503,7 @@ mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
 	else
 		return i;
 }
+#endif /* MANDELBROT_FP_ASM */
 
 
 void
