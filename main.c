@@ -17,6 +17,7 @@
 
 
 #include "file.h"
+#include "fpdefs.h"
 
 
 #define INT_LIMBS 1
@@ -470,14 +471,28 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 
 
 unsigned
-mandelbrot_fp (double x0, double y0, unsigned maxiter)
+mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
 {
-	unsigned i = 0;
-	double x = x0, y = y0;
+	unsigned i = 0, k = 1, m = 1;
+	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
 	while (i < maxiter && x * x + y * y < 4.0) {
-		double xold = x, yold = y;
+		mandel_fp_t xold = x, yold = y;
 		x = x * x - y * y + x0;
 		y = 2 * xold * yold + y0;
+
+		k--;
+		if (x == cd_x && y == cd_y) {
+			iter_saved += maxiter - i;
+			i = maxiter;
+			break;
+		}
+
+		if (k == 0) {
+			k = m <<= 1;
+			cd_x = x;
+			cd_y = y;
+		}
+
 		i++;
 	}
 	if (log_factor != 0.0)
@@ -493,10 +508,10 @@ gtk_mandel_render_pixel (GtkMandel *mandel, int x, int y)
 	unsigned i;
 	if (mandel->frac_limbs == 0) {
 		// FP
-		double xmin = mpf_get_d (mandel->xmin_f);
-		double xmax = mpf_get_d (mandel->xmax_f);
-		double ymin = mpf_get_d (mandel->ymin_f);
-		double ymax = mpf_get_d (mandel->ymax_f);
+		mandel_fp_t xmin = mpf_get_mandel_fp (mandel->xmin_f);
+		mandel_fp_t xmax = mpf_get_mandel_fp (mandel->xmax_f);
+		mandel_fp_t ymin = mpf_get_mandel_fp (mandel->ymin_f);
+		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
 		i = mandelbrot_fp (x * (xmax - xmin) / mandel->w + xmin, y * (ymin - ymax) / mandel->h + ymax, mandel->maxiter);
 	} else {
 		// MP
