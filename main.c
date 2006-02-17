@@ -22,7 +22,6 @@
 
 #define INT_LIMBS 1
 
-#define USE_CENTER_MAGF
 #define MP_THRESHOLD 53
 
 #define MARIANI_SILVER 1
@@ -761,8 +760,11 @@ option_log_factor (const gchar *option_name, const gchar *value, gpointer data, 
 	return true;
 }
 
+gchar *option_center_coords, *option_corner_coords;
 
 static GOptionEntry option_entries[] = {
+	{"center-coords", 'c', 0, G_OPTION_ARG_FILENAME, &option_center_coords, "Read center/magf coordinates from FILE", "FILE"},
+	{"corner-coords", 'C', 0, G_OPTION_ARG_FILENAME, &option_corner_coords, "Read corner coordinates from FILE", "FILE"},
 	{"log-factor", 'l', 0, G_OPTION_ARG_CALLBACK, option_log_factor, "Factor for logarithmic palette", "X"},
 	{NULL}
 };
@@ -800,7 +802,7 @@ main (int argc, char **argv)
 	GtkWidget *win, *img;
 	gtk_init (&argc, &argv);
 
-	GOptionContext *option_context = g_option_context_new ("Mandelbrot");
+	GOptionContext *option_context = g_option_context_new (NULL);
 	g_option_context_add_main_entries (option_context, option_entries, "mandelbrot");
 	g_option_context_add_group (option_context, gtk_get_option_group (true));
 	g_option_context_parse (option_context, &argc, &argv, NULL);
@@ -824,32 +826,28 @@ main (int argc, char **argv)
 
 	gtk_widget_show_all (win);
 
-	printf ("now running main loop\n");
-
 	mpf_t xmin, xmax, ymin, ymax;
-	mpf_t f;
 	mpf_init (xmin);
 	mpf_init (xmax);
 	mpf_init (ymin);
 	mpf_init (ymax);
 
-	mpf_init (f);
+	bool coords_ok;
 
+	if (option_center_coords != NULL)
+		coords_ok = read_cmag_coords_from_file (option_center_coords, xmin, xmax, ymin, ymax);
+	else if (option_corner_coords != NULL)
+		coords_ok = read_corner_coords_from_file (option_corner_coords, xmin, xmax, ymin, ymax);
+	else {
+		fprintf (stderr, "No start coordinates specified.\n");
+		exit (2);
+	}
 
-#ifdef USE_CENTER_MAGF
+	if (!coords_ok) {
+		perror ("reading coordinates file");
+		exit (3);
+	}
 
-	read_cmag_coords_from_file (argv[1], xmin, xmax, ymin, ymax);
-
-#else /* USE_CENTER_MAGF */
-
-	read_corner_coords_from_file (argv[1], xmin, xmax, ymin, ymax);
-
-#endif /* USE_CENTER_MAGF */
-
-	//my_double_to_mpz (xmin, -2.0);
-	//my_double_to_mpz (xmax, 1.0);
-	//my_double_to_mpz (ymin, -1.5);
-	//my_double_to_mpz (ymax, 1.5);
 	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000);
 	gtk_main ();
 	gdk_threads_leave ();
