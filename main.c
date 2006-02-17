@@ -21,8 +21,11 @@
 
 
 #define INT_LIMBS 1
-
 #define MP_THRESHOLD 53
+#define COLORS 256
+#define PIXELS 300
+#define SR_CHUNK_SIZE 32
+
 
 enum render_method_enum {
 	RM_MARIANI_SILVER = 1,
@@ -31,9 +34,7 @@ enum render_method_enum {
 
 typedef enum render_method_enum render_method_t;
 
-#define PIXELS 300
 
-#define SR_CHUNK_SIZE 32
 static double log_factor = 0.0;
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
@@ -123,7 +124,6 @@ gtk_mandel_convert_y_f (GtkMandel *mandel, mpf_t rop, unsigned op)
 }
 
 
-#define COLORS 256
 static GdkColor mandelcolors[COLORS];
 
 
