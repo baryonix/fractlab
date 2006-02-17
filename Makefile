@@ -9,7 +9,7 @@ MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o
 
 ifeq ($(USE_IA32_ASM),i387)
 CFLAGS += -DMANDELBROT_FP_ASM
-MANDEL_GTK_OBJECTS += mandel387.o
+MANDEL_GTK_OBJECTS += ia32/mandel387.o
 endif
 
 mandel-gtk: $(MANDEL_GTK_OBJECTS)
@@ -24,7 +24,7 @@ mandel-gtk: $(MANDEL_GTK_OBJECTS)
 .PHONY: clean newdeps
 
 clean:
-	-rm -f *.o mandel-gtk
+	-rm -f *.o ia32/*.o mandel-gtk
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
