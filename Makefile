@@ -18,10 +18,12 @@ mandel-gtk: $(MANDEL_GTK_OBJECTS)
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-%.o: %.asm
+.asm.o:
 	$(NASM) -f elf -o $@ $<
 
 .PHONY: clean newdeps
+
+.SUFFIXES: .asm
 
 clean:
 	-rm -f *.o ia32/*.o mandel-gtk
