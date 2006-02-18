@@ -185,10 +185,7 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 
 		i++;
 	}
-	if (log_factor != 0.0)
-		return (unsigned) (log (i) * log_factor);
-	else
-		return i;
+	return i;
 }
 
 
@@ -218,10 +215,7 @@ mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
 
 		i++;
 	}
-	if (log_factor != 0.0)
-		return (unsigned) (log (i) * log_factor);
-	else
-		return i;
+	return i;
 }
 #endif /* MANDELBROT_FP_ASM */
 
@@ -248,6 +242,8 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mpz_clear (xz);
 		mpz_clear (yz);
 	}
+	if (log_factor != 0.0)
+		i = log_factor * log (i);
 	mandel_put_pixel (mandel, x, y, i);
 }
 
