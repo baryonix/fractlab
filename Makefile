@@ -19,7 +19,7 @@ mandel-gtk: $(MANDEL_GTK_OBJECTS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.asm
-	$(NASM) -f elf $<
+	$(NASM) -f elf -o $@ $<
 
 .PHONY: clean newdeps
 
