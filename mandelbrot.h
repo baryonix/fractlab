@@ -13,11 +13,14 @@
 #define SR_CHUNK_SIZE 32
 
 enum render_method_enum {
+	RM_SUCCESSIVE_REFINE = 0,
 	RM_MARIANI_SILVER = 1,
-	RM_SUCCESSIVE_REFINE = 2
+	RM_MAX = 2
 };
 
 typedef enum render_method_enum render_method_t;
+
+extern const char *render_method_names[];
 
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 

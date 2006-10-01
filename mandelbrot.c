@@ -9,6 +9,12 @@
 #include "mandelbrot.h"
 
 
+const char *render_method_names[] = {
+	"Successive Refinement",
+	"Mariani-Silver"
+};
+
+
 void
 mandel_convert_x (struct mandeldata *mandel, mpz_t rop, unsigned op)
 {

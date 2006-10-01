@@ -359,6 +359,22 @@ show_area_info (GtkMenuItem *menuitem, struct area_info_data *data)
 }
 
 
+struct rm_update_data {
+	GtkMandel *mandel;
+	render_method_t method;
+};
+
+
+void
+update_render_method (GtkCheckMenuItem *menuitem, struct rm_update_data *data)
+{
+	if (!menuitem->active)
+		return;
+	GtkMandel *mandel = data->mandel;
+	gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, data->method);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -366,7 +382,6 @@ main (int argc, char **argv)
 	gdk_threads_init ();
 	gdk_threads_enter ();
 
-	//unsigned frac_limbs = 5, total_limbs = INT_LIMBS + frac_limbs;
 	parse_command_line (&argc, &argv);
 
 	mpf_set_default_prec (1024);
@@ -383,7 +398,13 @@ main (int argc, char **argv)
 
 	GtkWidget *menu_items = gtk_menu_item_new_with_label ("Area Info");
 
+	GtkWidget *render_menu = gtk_menu_new ();
+
+	GtkWidget *render_method_item = gtk_menu_item_new_with_label ("Rendering Method");
+	gtk_menu_item_set_submenu (GTK_MENU_ITEM (render_method_item), render_menu);
+
 	GtkWidget *menu = gtk_menu_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), render_method_item);
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_items);
 
 	GtkWidget *file_menu = gtk_menu_item_new_with_label ("File");
@@ -444,6 +465,19 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (area_info_data.dialog)->vbox), scrolled_win);
 
 	gtk_signal_connect (GTK_OBJECT (menu_items), "activate", (GtkSignalFunc) show_area_info, (gpointer) &area_info_data);
+
+	GSList *render_item_group = NULL;
+	for (i = 0; i < RM_MAX; i++) {
+		GtkWidget *item = gtk_radio_menu_item_new_with_label (render_item_group, render_method_names[i]);
+		render_item_group = gtk_radio_menu_item_get_group (GTK_RADIO_MENU_ITEM (item));
+		if (i == 0)
+			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
+		struct rm_update_data *d = malloc (sizeof (struct rm_update_data));
+		d->mandel = img;
+		d->method = i;
+		gtk_signal_connect (GTK_OBJECT (item), "toggled", (GtkSignalFunc) update_render_method, (gpointer) d);
+		gtk_menu_shell_append (GTK_MENU_SHELL (render_menu), item);
+	}
 
 	gtk_widget_show_all (win);
 
