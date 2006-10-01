@@ -328,6 +328,37 @@ new_maxiter (GtkWidget *widget, gpointer *data)
 }
 
 
+struct area_info_data {
+	GtkMandel *mandel;
+	GtkWidget *dialog, *xmin, *xmax, *ymin, *ymax;
+	char xmin_text[1024];
+	char xmax_text[1024];
+	char ymin_text[1024];
+	char ymax_text[1024];
+};
+
+
+void
+show_area_info (GtkMenuItem *menuitem, struct area_info_data *data)
+{
+	gmp_sprintf (data->xmin_text, "%.Ff", data->mandel->md->xmin_f);
+	gtk_label_set_text (data->xmin, data->xmin_text);
+	gmp_sprintf (data->xmax_text, "%.Ff", data->mandel->md->xmax_f);
+	gtk_label_set_text (data->xmax, data->xmax_text);
+	gmp_sprintf (data->ymin_text, "%.Ff", data->mandel->md->ymin_f);
+	gtk_label_set_text (data->ymin, data->ymin_text);
+	gmp_sprintf (data->ymax_text, "%.Ff", data->mandel->md->ymax_f);
+	gtk_label_set_text (data->ymax, data->ymax_text);
+	gtk_label_set_justify (data->xmin, GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (data->xmax, GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (data->ymin, GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (data->ymax, GTK_JUSTIFY_RIGHT);
+	gtk_widget_show_all (data->dialog);
+	gtk_dialog_run (data->dialog);
+	gtk_widget_hide_all (data->dialog);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -378,6 +409,41 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (win), vbox);
 
 	gtk_signal_connect (GTK_OBJECT (maxiter_entry), "activate", (GtkSignalFunc) new_maxiter, (gpointer) img);
+
+	GtkWidget *tbl = gtk_table_new (2, 4, false);
+
+	GtkWidget *xmin_label = gtk_label_new ("xmin");
+	GtkWidget *xmax_label = gtk_label_new ("xmax");
+	GtkWidget *ymin_label = gtk_label_new ("ymin");
+	GtkWidget *ymax_label = gtk_label_new ("ymax");
+
+	struct area_info_data area_info_data;
+
+	area_info_data.mandel = GTK_MANDEL (img);
+
+	area_info_data.xmin = gtk_label_new (NULL);
+	area_info_data.xmax = gtk_label_new (NULL);
+	area_info_data.ymin = gtk_label_new (NULL);
+	area_info_data.ymax = gtk_label_new (NULL);
+
+	gtk_table_attach_defaults (GTK_TABLE (tbl), xmin_label, 0, 1, 0, 1);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), area_info_data.xmin, 1, 2, 0, 1);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), xmax_label, 0, 1, 1, 2);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), area_info_data.xmax, 1, 2, 1, 2);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), ymin_label, 0, 1, 2, 3);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), area_info_data.ymin, 1, 2, 2, 3);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), ymax_label, 0, 1, 3, 4);
+	gtk_table_attach_defaults (GTK_TABLE (tbl), area_info_data.ymax, 1, 2, 3, 4);
+
+	area_info_data.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_NONE, NULL);
+
+	GtkWidget *scrolled_win = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+	gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolled_win), tbl);
+
+	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (area_info_data.dialog)->vbox), scrolled_win);
+
+	gtk_signal_connect (GTK_OBJECT (menu_items), "activate", (GtkSignalFunc) show_area_info, (gpointer) &area_info_data);
 
 	gtk_widget_show_all (win);
 
