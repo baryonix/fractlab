@@ -1,1 +1,4 @@
 mandel-gtk
+test_parser
+*.tab.[ch]
+*.yy.c

@@ -1,4 +1,7 @@
 cmdline.o: cmdline.c cmdline.h
+coord_lex.yy.o: coord_lex.yy.c coord_parse.tab.h
+coord_parse.tab.o: coord_parse.tab.c
 file.o: file.c file.h
 main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h
 mandelbrot.o: mandelbrot.c cmdline.h mandelbrot.h fpdefs.h
+test_parser.o: test_parser.c
