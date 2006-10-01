@@ -26,6 +26,9 @@
 #define PIXELS 300
 
 
+#define DEFAULT_RENDER_METHOD RM_SUCCESSIVE_REFINE
+
+
 void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
 void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
 
@@ -470,7 +473,7 @@ main (int argc, char **argv)
 	for (i = 0; i < RM_MAX; i++) {
 		GtkWidget *item = gtk_radio_menu_item_new_with_label (render_item_group, render_method_names[i]);
 		render_item_group = gtk_radio_menu_item_get_group (GTK_RADIO_MENU_ITEM (item));
-		if (i == 0)
+		if (i == DEFAULT_RENDER_METHOD)
 			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
 		struct rm_update_data *d = malloc (sizeof (struct rm_update_data));
 		d->mandel = img;
@@ -503,14 +506,7 @@ main (int argc, char **argv)
 		exit (3);
 	}
 
-	render_method_t render_method = RM_SUCCESSIVE_REFINE;
-
-	if (option_successive_refine)
-		render_method = RM_SUCCESSIVE_REFINE;
-	else if (option_mariani_silver)
-		render_method = RM_MARIANI_SILVER;
-
-	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000, render_method);
+	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000, DEFAULT_RENDER_METHOD);
 	gtk_main ();
 	gdk_threads_leave ();
 
