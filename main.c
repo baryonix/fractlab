@@ -22,9 +22,7 @@
 #include "mandelbrot.h"
 #include "gtkmandel.h"
 #include "defs.h"
-
-
-#define DEFAULT_RENDER_METHOD RM_SUCCESSIVE_REFINE
+#include "gui.h"
 
 
 void
@@ -32,16 +30,6 @@ my_mpz_to_mpf (mpf_t rop, mpz_t op, unsigned frac_limbs)
 {
 	mpf_set_z (rop, op);
 	mpf_div_2exp (rop, rop, frac_limbs * mp_bits_per_limb);
-}
-
-
-void
-new_maxiter (GtkWidget *widget, gpointer *data)
-{
-	GtkMandel *mandel = GTK_MANDEL (data);
-	int i = atoi (gtk_entry_get_text (GTK_ENTRY (widget)));
-	if (i > 0)
-		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, i, mandel->md->render_method);
 }
 
 
@@ -76,42 +64,6 @@ show_area_info (GtkMenuItem *menuitem, struct area_info_data *data)
 }
 
 
-struct rm_update_data {
-	GtkMandel *mandel;
-	render_method_t method;
-};
-
-
-void
-update_render_method (GtkCheckMenuItem *menuitem, struct rm_update_data *data)
-{
-	if (!menuitem->active)
-		return;
-	GtkMandel *mandel = data->mandel;
-	gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, data->method);
-}
-
-
-void
-mandel_selection_handler (GtkMandel *mandel, GtkMandelArea *area, gpointer data)
-{
-	mpf_t d;
-	mpf_init (d);
-	mpf_sub (d, area->xmin, area->xmax);
-	mpf_abs (d, d);
-	long xprec;
-	mpf_get_d_2exp (&xprec, d);
-	mpf_clear (d);
-	/* We are using %f format, so the absolute difference between
-	 * the min and max values dictates the required precision. */
-	gmp_printf ("* xmin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmin);
-	gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmax);
-	gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymin);
-	gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymax);
-	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method);
-}
-
-
 int
 main (int argc, char **argv)
 {
@@ -130,46 +82,9 @@ main (int argc, char **argv)
 		mandelcolors[i].blue = (guint16) (sin (6 * M_PI * i / COLORS) * 32767) + 32768;
 	}
 
-	GtkWidget *win, *img;
 	gtk_init (&argc, &argv);
 
-	GtkWidget *menu_items = gtk_menu_item_new_with_label ("Area Info");
-
-	GtkWidget *render_menu = gtk_menu_new ();
-
-	GtkWidget *render_method_item = gtk_menu_item_new_with_label ("Rendering Method");
-	gtk_menu_item_set_submenu (GTK_MENU_ITEM (render_method_item), render_menu);
-
-	GtkWidget *menu = gtk_menu_new ();
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), render_method_item);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_items);
-
-	GtkWidget *file_menu = gtk_menu_item_new_with_label ("File");
-	gtk_menu_item_set_submenu (GTK_MENU_ITEM (file_menu), menu);
-
-	GtkWidget *menu_bar = gtk_menu_bar_new ();
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu_bar), file_menu);
-
-	GtkWidget *hbox = gtk_hbox_new (false, 5);
-	GtkWidget *maxiter_label = gtk_label_new ("maxiter:");
-	gtk_container_add (GTK_CONTAINER (hbox), maxiter_label);
-	GtkWidget *maxiter_entry = gtk_entry_new ();
-	gtk_container_add (GTK_CONTAINER (hbox), maxiter_entry);
-
-	GtkWidget *vbox = gtk_vbox_new (false, 5);
-	gtk_container_add (GTK_CONTAINER (vbox), menu_bar);
-	gtk_container_add (GTK_CONTAINER (vbox), hbox);
-
-	win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	img = gtk_mandel_new ();
-	gtk_widget_set_size_request (img, PIXELS, PIXELS);
-	gtk_container_add (GTK_CONTAINER (vbox), img);
-	gtk_container_add (GTK_CONTAINER (win), vbox);
-
-	g_signal_connect (G_OBJECT (img), "selection", (GCallback) mandel_selection_handler, NULL);
-
-	g_signal_connect (G_OBJECT (maxiter_entry), "activate", (GCallback) new_maxiter, (gpointer) img);
-
+#if 0
 	GtkWidget *tbl = gtk_table_new (2, 4, false);
 
 	GtkWidget *xmin_label = gtk_label_new ("xmin");
@@ -202,23 +117,7 @@ main (int argc, char **argv)
 	gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolled_win), tbl);
 
 	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (area_info_data.dialog)->vbox), scrolled_win);
-
-	g_signal_connect (G_OBJECT (menu_items), "activate", (GCallback) show_area_info, (gpointer) &area_info_data);
-
-	GSList *render_item_group = NULL;
-	for (i = 0; i < RM_MAX; i++) {
-		GtkWidget *item = gtk_radio_menu_item_new_with_label (render_item_group, render_method_names[i]);
-		render_item_group = gtk_radio_menu_item_get_group (GTK_RADIO_MENU_ITEM (item));
-		if (i == DEFAULT_RENDER_METHOD)
-			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
-		struct rm_update_data *d = malloc (sizeof (struct rm_update_data));
-		d->mandel = GTK_MANDEL (img);
-		d->method = i;
-		g_signal_connect (G_OBJECT (item), "toggled", (GCallback) update_render_method, (gpointer) d);
-		gtk_menu_shell_append (GTK_MENU_SHELL (render_menu), item);
-	}
-
-	gtk_widget_show_all (win);
+#endif
 
 	mpf_t xmin, xmax, ymin, ymax;
 	mpf_init (xmin);
@@ -242,7 +141,8 @@ main (int argc, char **argv)
 		exit (3);
 	}
 
-	gtk_mandel_restart_thread (GTK_MANDEL (img), xmin, xmax, ymin, ymax, 1000, DEFAULT_RENDER_METHOD);
+	GtkMandelApplication *app = gtk_mandel_application_new ();
+	gtk_mandel_application_start (app, xmin, xmax, ymin, ymax);
 	gtk_main ();
 	gdk_threads_leave ();
 

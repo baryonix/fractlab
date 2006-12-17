@@ -33,10 +33,7 @@ static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer us
 static gpointer *calcmandel (gpointer *data);
 
 
-
-
 GdkColor mandelcolors[COLORS];
-
 
 
 GtkWidget *
