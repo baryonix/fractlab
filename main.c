@@ -92,6 +92,26 @@ update_render_method (GtkCheckMenuItem *menuitem, struct rm_update_data *data)
 }
 
 
+void
+mandel_selection_handler (GtkMandel *mandel, GtkMandelArea *area, gpointer data)
+{
+	mpf_t d;
+	mpf_init (d);
+	mpf_sub (d, area->xmin, area->xmax);
+	mpf_abs (d, d);
+	long xprec;
+	mpf_get_d_2exp (&xprec, d);
+	mpf_clear (d);
+	/* We are using %f format, so the absolute difference between
+	 * the min and max values dictates the required precision. */
+	gmp_printf ("* xmin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmin);
+	gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmax);
+	gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymin);
+	gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymax);
+	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -145,6 +165,8 @@ main (int argc, char **argv)
 	gtk_widget_set_size_request (img, PIXELS, PIXELS);
 	gtk_container_add (GTK_CONTAINER (vbox), img);
 	gtk_container_add (GTK_CONTAINER (win), vbox);
+
+	g_signal_connect (G_OBJECT (img), "selection", (GCallback) mandel_selection_handler, NULL);
 
 	g_signal_connect (G_OBJECT (maxiter_entry), "activate", (GCallback) new_maxiter, (gpointer) img);
 

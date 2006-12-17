@@ -27,6 +27,8 @@ static gboolean mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user
 static void my_realize (GtkWidget *my_img, gpointer user_data);
 static void gtk_mandel_class_init (GtkMandelClass *class);
 static void gtk_mandel_init (GtkMandel *mandel);
+static void gtk_mandel_area_class_init (GtkMandelAreaClass *class);
+static void gtk_mandel_area_init (GtkMandelArea *mandel);
 static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static gpointer *calcmandel (gpointer *data);
 
@@ -66,12 +68,41 @@ gtk_mandel_get_type ()
 }
 
 
+GType
+gtk_mandel_area_get_type ()
+{
+	static GType type = 0;
+
+	if (!type) {
+		static const GTypeInfo info = {
+			sizeof (GtkMandelAreaClass),
+			NULL, NULL,
+			(GClassInitFunc) gtk_mandel_area_class_init,
+			NULL, NULL,
+			sizeof (GtkMandelArea),
+			0,
+			(GInstanceInitFunc) gtk_mandel_area_init
+		};
+		type = g_type_register_static (G_TYPE_OBJECT, "GtkMandelArea", &info, 0);
+	}
+
+	return type;
+}
+
+
 static void
 gtk_mandel_class_init (GtkMandelClass *class)
 {
-	//GtkWidgetClass *widget_class = (GtkWidgetClass *) class;
-	//widget_class->realize = my_realize;
-	//widget_class->button_press_event = mouse_event;
+	class->selection_signal = g_signal_new (
+		"selection",
+		G_TYPE_FROM_CLASS (class),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__OBJECT,
+		G_TYPE_NONE,
+		1,
+		gtk_mandel_area_get_type ()
+	);
 }
 
 static void
@@ -84,6 +115,31 @@ gtk_mandel_init (GtkMandel *mandel)
 	g_signal_connect (G_OBJECT (mandel), "expose-event", (GCallback) my_expose, NULL);
 }
 
+
+static void
+gtk_mandel_area_class_init (GtkMandelAreaClass *class)
+{
+}
+
+static void
+gtk_mandel_area_init (GtkMandelArea *area)
+{
+	mpf_init (area->xmin);
+	mpf_init (area->xmax);
+	mpf_init (area->ymin);
+	mpf_init (area->ymax);
+}
+
+GtkMandelArea *
+gtk_mandel_area_new (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+{
+	GtkMandelArea *area = g_object_new (gtk_mandel_area_get_type (), NULL);
+	mpf_set (area->xmin, xmin);
+	mpf_set (area->xmax, xmax);
+	mpf_set (area->ymin, ymin);
+	mpf_set (area->ymax, ymax);
+	return area;
+}
 
 
 void
@@ -172,15 +228,9 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		mpf_add (xmax, cx, dx);
 		mpf_sub (ymin, cy, dx);
 		mpf_add (ymax, cy, dx);
-		long xprec;
-		mpf_get_d_2exp (&xprec, dx);
-		/* We are using %f format, so the absolute difference between
-		 * the min and max values dictates the required precision. */
-		gmp_printf ("* xmin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), xmin);
-		gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), xmax);
-		gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), ymin);
-		gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), ymax);
-		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->md->maxiter, mandel->md->render_method);
+		GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
+		g_signal_emit (mandel, G_TYPE_INSTANCE_GET_CLASS (mandel, GtkMandel, GtkMandelClass)->selection_signal, 0, area);
+		// FIXME free area!
 		return TRUE;
 	} else if (e->type == GDK_MOTION_NOTIFY) {
 		gdouble d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y));
