@@ -209,21 +209,20 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		mpf_abs (dx, dx);
 		mpf_sub (dy, cy, dy);
 		mpf_abs (dy, dy);
-		if (mpf_cmp (dx, dy) > 0) {
-			mpf_sub (xmin, cx, dx);
-			mpf_add (xmax, cx, dx);
-			mpf_sub (ymin, cy, dx);
-			mpf_add (ymax, cy, dx);
-		} else {
-			mpf_sub (xmin, cx, dy);
-			mpf_add (xmax, cx, dy);
-			mpf_sub (ymin, cy, dy);
-			mpf_add (ymax, cy, dy);
-		}
-		gmp_printf ("* xmin = %.Ff\n", xmin);
-		gmp_printf ("* xmax = %.Ff\n", xmax);
-		gmp_printf ("* ymin = %.Ff\n", ymin);
-		gmp_printf ("* ymax = %.Ff\n", ymax);
+		if (mpf_cmp (dx, dy) < 0)
+			mpf_set (dx, dy);
+		mpf_sub (xmin, cx, dx);
+		mpf_add (xmax, cx, dx);
+		mpf_sub (ymin, cy, dx);
+		mpf_add (ymax, cy, dx);
+		long xprec;
+		mpf_get_d_2exp (&xprec, dx);
+		/* We are using %f format, so the absolute difference between
+		 * the min and max values dictates the required precision. */
+		gmp_printf ("* xmin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), xmin);
+		gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), xmax);
+		gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), ymin);
+		gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), ymax);
 		gtk_mandel_restart_thread (mandel, xmin, xmax, ymin, ymax, mandel->md->maxiter, mandel->md->render_method);
 		return TRUE;
 	} else if (e->type == GDK_MOTION_NOTIFY) {
