@@ -59,19 +59,19 @@ void
 show_area_info (GtkMenuItem *menuitem, struct area_info_data *data)
 {
 	gmp_sprintf (data->xmin_text, "%.Ff", data->mandel->md->xmin_f);
-	gtk_label_set_text (data->xmin, data->xmin_text);
+	gtk_label_set_text (GTK_LABEL (data->xmin), data->xmin_text);
 	gmp_sprintf (data->xmax_text, "%.Ff", data->mandel->md->xmax_f);
-	gtk_label_set_text (data->xmax, data->xmax_text);
+	gtk_label_set_text (GTK_LABEL (data->xmax), data->xmax_text);
 	gmp_sprintf (data->ymin_text, "%.Ff", data->mandel->md->ymin_f);
-	gtk_label_set_text (data->ymin, data->ymin_text);
+	gtk_label_set_text (GTK_LABEL (data->ymin), data->ymin_text);
 	gmp_sprintf (data->ymax_text, "%.Ff", data->mandel->md->ymax_f);
-	gtk_label_set_text (data->ymax, data->ymax_text);
-	gtk_label_set_justify (data->xmin, GTK_JUSTIFY_RIGHT);
-	gtk_label_set_justify (data->xmax, GTK_JUSTIFY_RIGHT);
-	gtk_label_set_justify (data->ymin, GTK_JUSTIFY_RIGHT);
-	gtk_label_set_justify (data->ymax, GTK_JUSTIFY_RIGHT);
+	gtk_label_set_text (GTK_LABEL (data->ymax), data->ymax_text);
+	gtk_label_set_justify (GTK_LABEL (data->xmin), GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (GTK_LABEL (data->xmax), GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (GTK_LABEL (data->ymin), GTK_JUSTIFY_RIGHT);
+	gtk_label_set_justify (GTK_LABEL (data->ymax), GTK_JUSTIFY_RIGHT);
 	gtk_widget_show_all (data->dialog);
-	gtk_dialog_run (data->dialog);
+	gtk_dialog_run (GTK_DIALOG (data->dialog));
 	gtk_widget_hide_all (data->dialog);
 }
 
@@ -101,7 +101,7 @@ main (int argc, char **argv)
 
 	parse_command_line (&argc, &argv);
 
-	mpf_set_default_prec (1024);
+	mpf_set_default_prec (1024); /* ? */
 
 	int i;
 	for (i = 0; i < COLORS; i++) {
@@ -146,7 +146,7 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (vbox), img);
 	gtk_container_add (GTK_CONTAINER (win), vbox);
 
-	gtk_signal_connect (GTK_OBJECT (maxiter_entry), "activate", (GtkSignalFunc) new_maxiter, (gpointer) img);
+	g_signal_connect (G_OBJECT (maxiter_entry), "activate", (GCallback) new_maxiter, (gpointer) img);
 
 	GtkWidget *tbl = gtk_table_new (2, 4, false);
 
@@ -181,7 +181,7 @@ main (int argc, char **argv)
 
 	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (area_info_data.dialog)->vbox), scrolled_win);
 
-	gtk_signal_connect (GTK_OBJECT (menu_items), "activate", (GtkSignalFunc) show_area_info, (gpointer) &area_info_data);
+	g_signal_connect (G_OBJECT (menu_items), "activate", (GCallback) show_area_info, (gpointer) &area_info_data);
 
 	GSList *render_item_group = NULL;
 	for (i = 0; i < RM_MAX; i++) {
@@ -190,9 +190,9 @@ main (int argc, char **argv)
 		if (i == DEFAULT_RENDER_METHOD)
 			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
 		struct rm_update_data *d = malloc (sizeof (struct rm_update_data));
-		d->mandel = img;
+		d->mandel = GTK_MANDEL (img);
 		d->method = i;
-		gtk_signal_connect (GTK_OBJECT (item), "toggled", (GtkSignalFunc) update_render_method, (gpointer) d);
+		g_signal_connect (G_OBJECT (item), "toggled", (GCallback) update_render_method, (gpointer) d);
 		gtk_menu_shell_append (GTK_MENU_SHELL (render_menu), item);
 	}
 

@@ -77,11 +77,11 @@ gtk_mandel_class_init (GtkMandelClass *class)
 static void
 gtk_mandel_init (GtkMandel *mandel)
 {
-	gtk_signal_connect (GTK_OBJECT (mandel), "realize", (GtkSignalFunc) my_realize, NULL);
-	gtk_signal_connect (GTK_OBJECT (mandel), "button-press-event", (GtkSignalFunc) mouse_event, NULL);
-	gtk_signal_connect (GTK_OBJECT (mandel), "button-release-event", (GtkSignalFunc) mouse_event, NULL);
-	gtk_signal_connect (GTK_OBJECT (mandel), "motion-notify-event", (GtkSignalFunc) mouse_event, NULL);
-	gtk_signal_connect (GTK_OBJECT (mandel), "expose-event", (GtkSignalFunc) my_expose, NULL);
+	g_signal_connect (G_OBJECT (mandel), "realize", (GCallback) my_realize, NULL);
+	g_signal_connect (G_OBJECT (mandel), "button-press-event", (GCallback) mouse_event, NULL);
+	g_signal_connect (G_OBJECT (mandel), "button-release-event", (GCallback) mouse_event, NULL);
+	g_signal_connect (G_OBJECT (mandel), "motion-notify-event", (GCallback) mouse_event, NULL);
+	g_signal_connect (G_OBJECT (mandel), "expose-event", (GCallback) my_expose, NULL);
 }
 
 
