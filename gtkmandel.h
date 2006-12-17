@@ -5,11 +5,7 @@
 #include "mandelbrot.h"
 
 
-typedef struct _GtkMandel GtkMandel;
-typedef struct _GtkMandelClass GtkMandelClass;
-
-
-struct _GtkMandel
+typedef struct
 {
 	GtkDrawingArea widget;
 	GdkPixmap *pixmap;
@@ -18,14 +14,14 @@ struct _GtkMandel
 	GThread *thread;
 	struct mandeldata *md;
 	gdouble center_x, center_y, selection_size;
-};
+} GtkMandel;
 
 
-struct _GtkMandelClass
+typedef struct
 {
 	GtkDrawingAreaClass parent_class;
 	guint selection_signal;
-};
+} GtkMandelClass;
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
 #define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
