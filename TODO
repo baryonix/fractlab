@@ -1,0 +1,8 @@
+TODO
+- multithreading
+- clustering
+- dynamically adjusted precision for all calculations
+- generic coordinates to string conversion
+- area info dialog
+- save coordinates
+- dynamic widget size && non-1:1 aspect ratio
