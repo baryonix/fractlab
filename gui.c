@@ -25,11 +25,11 @@ gtk_mandel_application_get_type ()
 
 	if (!type) {
 		static const GTypeInfo info = {
-			sizeof (GObjectClass),
+			sizeof (GtkMandelApplicationClass),
 			NULL, NULL,
 			(GClassInitFunc) gtk_mandel_application_class_init,
 			NULL, NULL,
-			sizeof (GObject),
+			sizeof (GtkMandelApplication),
 			0,
 			(GInstanceInitFunc) gtk_mandel_application_init
 		};
