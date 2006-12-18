@@ -7,6 +7,7 @@
 #include "mandelbrot.h"
 #include "gtkmandel.h"
 #include "gui.h"
+#include "util.h"
 
 #define GTK_MANDEL_APPLICATION_GET_CLASS(app) G_TYPE_INSTANCE_GET_CLASS ((app), GtkMandelApplication, GtkMandelApplicationClass)
 
@@ -163,19 +164,9 @@ connect_signals (GtkMandelApplication *app)
 static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
-	mpf_t d;
-	mpf_init (d);
-	mpf_sub (d, area->xmin, area->xmax);
-	mpf_abs (d, d);
-	long xprec;
-	mpf_get_d_2exp (&xprec, d);
-	mpf_clear (d);
-	/* We are using %f format, so the absolute difference between
-	 * the min and max values dictates the required precision. */
-	gmp_printf ("* xmin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmin);
-	gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmax);
-	gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymin);
-	gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymax);
+	char xmin_buf[1024], xmax_buf[1024], ymin_buf[1024], ymax_buf[1024];
+	coords_to_string (area->xmin, area->xmax, area->ymin, area->ymax, xmin_buf, xmax_buf, ymin_buf, ymax_buf, 1024);
+	printf ("* xmin = %s\n* xmax = %s\n* ymin = %s\n* ymax = %s\n", xmin_buf, xmax_buf, ymin_buf, ymax_buf);
 	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
 }
 
