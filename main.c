@@ -25,14 +25,6 @@
 #include "gui.h"
 
 
-void
-my_mpz_to_mpf (mpf_t rop, mpz_t op, unsigned frac_limbs)
-{
-	mpf_set_z (rop, op);
-	mpf_div_2exp (rop, rop, frac_limbs * mp_bits_per_limb);
-}
-
-
 struct area_info_data {
 	GtkMandel *mandel;
 	GtkWidget *dialog, *xmin, *xmax, *ymin, *ymax;
