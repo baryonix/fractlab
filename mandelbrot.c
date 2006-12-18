@@ -248,8 +248,8 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mpz_clear (xz);
 		mpz_clear (yz);
 	}
-	if (log_factor != 0.0)
-		i = log_factor * log (i);
+	if (mandel->log_factor != 0.0)
+		i = mandel->log_factor * log (i);
 	mandel_put_pixel (mandel, x, y, i);
 }
 

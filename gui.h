@@ -8,6 +8,7 @@ typedef struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
 		GtkWidget *maxiter_hbox, *maxiter_label, *maxiter_input;
+		GtkWidget *log_colors_hbox, *log_colors_checkbox, *log_colors_input;
 		GtkWidget *mandel;
 	} mainwin;
 	struct {

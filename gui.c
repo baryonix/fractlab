@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include <gtk/gtk.h>
 
@@ -17,6 +18,8 @@ static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data);
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
 static void render_method_updated (GtkMandelApplication *app, gpointer data);
+static void log_colors_updated (GtkMandelApplication *app, gpointer data);
+
 
 GType
 gtk_mandel_application_get_type ()
@@ -105,12 +108,23 @@ static void create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_label);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_input);
 
+	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
+
+	app->mainwin.log_colors_input = gtk_entry_new ();
+	//gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "foobar");
+	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
+
+	app->mainwin.log_colors_hbox = gtk_hbox_new (false, 5);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_checkbox);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input);
+
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
 
 	app->mainwin.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -122,7 +136,7 @@ void
 gtk_mandel_application_start (GtkMandelApplication *app, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
 {
 	gtk_widget_show_all (app->mainwin.win);
-	gtk_mandel_restart_thread (GTK_MANDEL (app->mainwin.mandel), xmin, xmax, ymin, ymax, 1000, DEFAULT_RENDER_METHOD);
+	gtk_mandel_restart_thread (GTK_MANDEL (app->mainwin.mandel), xmin, xmax, ymin, ymax, 1000, DEFAULT_RENDER_METHOD, 0.0);
 }
 
 
@@ -141,6 +155,8 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
 	for (i = 0; i < RM_MAX; i++)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
 }
 
 
@@ -160,7 +176,7 @@ static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpoin
 	gmp_printf ("* xmax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->xmax);
 	gmp_printf ("* ymin = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymin);
 	gmp_printf ("* ymax = %.*Ff\n", (int) (-xprec / 3.3219 + 5), area->ymax);
-	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method);
+	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
 }
 
 
@@ -169,7 +185,7 @@ static void maxiter_updated (GtkMandelApplication *app, gpointer data)
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
 	if (i > 0)
-		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, i, mandel->md->render_method);
+		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, i, mandel->md->render_method, mandel->md->log_factor);
 }
 
 
@@ -180,5 +196,18 @@ static void render_method_updated (GtkMandelApplication *app, gpointer data)
 	if (!item->active)
 		return;
 	render_method_t *method = (render_method_t *) g_object_get_data (G_OBJECT (item), "render_method");
-	gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, *method);
+	gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, *method, mandel->md->log_factor);
+}
+
+
+static void log_colors_updated (GtkMandelApplication *app, gpointer data)
+{
+	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
+	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox));
+	gtk_widget_set_sensitive (app->mainwin.log_colors_input, active);
+	double lf = 0.0;
+	if (active)
+		lf = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
+	if (isfinite (lf))
+		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, mandel->md->render_method, lf);
 }

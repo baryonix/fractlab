@@ -46,7 +46,7 @@ extern GdkColor mandelcolors[];
 
 GType gtk_mandel_get_type ();
 GtkWidget *gtk_mandel_new (void);
-void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method);
+void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method, double log_factor);
 
 GType gtk_mandel_area_get_type ();
 GtkMandelArea *gtk_mandel_area_new (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);

@@ -33,6 +33,7 @@ struct mandeldata {
 	unsigned w, h, maxiter;
 	unsigned *data;
 	render_method_t render_method;
+	double log_factor;
 	void *user_data;
 	GThread *join_me;
 	volatile bool terminate;

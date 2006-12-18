@@ -140,7 +140,7 @@ gtk_mandel_area_new (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
 
 
 void
-gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method)
+gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method, double log_factor)
 {
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
 	mpf_init_set (md->xmin_f, xmin);
@@ -150,6 +150,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	md->maxiter = maxiter;
 	md->user_data = mandel;
 	md->render_method = render_method;
+	md->log_factor = log_factor;
 	md->join_me = mandel->thread;
 	md->terminate = false;
 	md->w = md->h = PIXELS;
