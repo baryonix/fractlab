@@ -8,11 +8,13 @@
 
 
 gchar *option_center_coords, *option_corner_coords;
+int thread_count = 1;
 
 
 static GOptionEntry option_entries[] = {
 	{"center-coords", 'c', 0, G_OPTION_ARG_FILENAME, &option_center_coords, "Read center/magf coordinates from FILE", "FILE"},
 	{"corner-coords", 'C', 0, G_OPTION_ARG_FILENAME, &option_corner_coords, "Read corner coordinates from FILE", "FILE"},
+	{"threads", 't', 0, G_OPTION_ARG_INT, &thread_count, "Number of rendering threads"},
 	{NULL}
 };
 

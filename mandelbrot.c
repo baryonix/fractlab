@@ -9,6 +9,18 @@
 #include "mandelbrot.h"
 
 
+struct sr_state {
+	struct mandeldata *md;
+	int y, chunk_size;
+	GStaticMutex mutex;
+};
+
+
+static void calc_sr_row (struct mandeldata *mandel, int y, int chunk_size);
+static void calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size);
+static gpointer sr_mt_thread_func (gpointer data);
+
+
 const char *render_method_names[] = {
 	"Successive Refinement",
 	"Mariani-Silver"
@@ -348,38 +360,14 @@ mandel_render (struct mandeldata *mandel)
 		}
 
 		case RM_SUCCESSIVE_REFINE: {
-			unsigned x, y, chunk_size = SR_CHUNK_SIZE;
+			unsigned y, chunk_size = SR_CHUNK_SIZE;
 
-			while (chunk_size != 0) {
-				for (y = 0; y < mandel->h; y += chunk_size)
-					for (x = 0; x < mandel->w && !mandel->terminate; x += chunk_size) {
-						unsigned parent_x, parent_y;
-						bool do_eval;
-						if (x % (2 * chunk_size) == 0)
-							parent_x = x;
-						else
-							parent_x = x - chunk_size;
-						if (y % (2 * chunk_size) == 0)
-							parent_y = y;
-						else
-							parent_y = y - chunk_size;
-
-						if (chunk_size == SR_CHUNK_SIZE) // 1st pass
-							do_eval = true;
-						else if (parent_x == x && parent_y == y)
-							do_eval = false;
-						else if (mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
-							do_eval = false;
-						else
-							do_eval = true;
-
-						if (do_eval) {
-							mandel_render_pixel (mandel, x, y);
-							mandel_put_rect (mandel, x, y, chunk_size, chunk_size, mandel_get_pixel (mandel, x, y));
-						} else {
-							mandel_put_pixel (mandel, x, y, mandel_get_pixel (mandel, parent_x, parent_y));
-						}
-					}
+			while (!mandel->terminate && chunk_size != 0) {
+				if (thread_count > 1)
+					calc_sr_mt_pass (mandel, chunk_size);
+				else
+					for (y = 0; !mandel->terminate && y < mandel->h; y += chunk_size)
+						calc_sr_row (mandel, y, chunk_size);
 				chunk_size >>= 1;
 			}
 
@@ -447,4 +435,72 @@ mandel_free (struct mandeldata *mandel)
 	mpz_clear (mandel->xmax);
 	mpz_clear (mandel->ymin);
 	mpz_clear (mandel->ymax);
+}
+
+
+static void
+calc_sr_row (struct mandeldata *mandel, int y, int chunk_size)
+{
+	int x;
+
+	for (x = 0; x < mandel->w && !mandel->terminate; x += chunk_size) {
+		unsigned parent_x, parent_y;
+		bool do_eval;
+		if (x % (2 * chunk_size) == 0)
+			parent_x = x;
+		else
+			parent_x = x - chunk_size;
+		if (y % (2 * chunk_size) == 0)
+			parent_y = y;
+		else
+			parent_y = y - chunk_size;
+
+		if (chunk_size == SR_CHUNK_SIZE) // 1st pass
+			do_eval = true;
+		else if (parent_x == x && parent_y == y)
+			do_eval = false;
+		else if (mandel_all_neighbors_same (mandel, parent_x, parent_y, chunk_size << 1))
+			do_eval = false;
+		else
+			do_eval = true;
+
+		if (do_eval) {
+			mandel_render_pixel (mandel, x, y);
+			mandel_put_rect (mandel, x, y, chunk_size, chunk_size, mandel_get_pixel (mandel, x, y));
+		} else {
+			mandel_put_pixel (mandel, x, y, mandel_get_pixel (mandel, parent_x, parent_y));
+		}
+	}
+}
+
+
+static void
+calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size)
+{
+	struct sr_state state = {mandel, 0, chunk_size, G_STATIC_MUTEX_INIT};
+	GThread *threads[thread_count];
+	int i;
+
+	for (i = 0; i < thread_count; i++)
+		threads[i] = g_thread_create (sr_mt_thread_func, &state, TRUE, NULL);
+	for (i = 0; i < thread_count; i++)
+		g_thread_join (threads[i]);
+}
+
+
+static gpointer
+sr_mt_thread_func (gpointer data)
+{
+	struct sr_state *state = (struct sr_state *) data;
+	while (!state->md->terminate) {
+		int y;
+		g_static_mutex_lock (&state->mutex);
+		y = state->y;
+		state->y += state->chunk_size;
+		g_static_mutex_unlock (&state->mutex);
+		if (y >= state->md->h)
+			break; /* done */
+		calc_sr_row (state->md, y, state->chunk_size);
+	}
+	return NULL;
 }
