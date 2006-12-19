@@ -4,8 +4,9 @@ LEX = lex
 YACC = yacc
 NASM = nasm
 USE_IA32_ASM = i387
-CFLAGS = -I/opt/gmp/include -O3 -march=pentium4 -std=c99 -D_XOPEN_SOURCE -Wall -g $(shell pkg-config --cflags $(PKG))
-LIBS = $(shell pkg-config --libs $(PKG)) /opt/gmp/lib/libgmp.a
+COPTS = -O3 -march=pentium4 -Wall -g
+CFLAGS = -I/opt/gmp/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(PKG)) $(COPTS)
+LIBS = $(shell pkg-config --libs $(PKG)) /opt/gmp/lib/libgmp.a -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
 TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o
