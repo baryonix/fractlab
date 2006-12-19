@@ -16,9 +16,25 @@ struct sr_state {
 };
 
 
+struct ms_state {
+	struct mandeldata *md;
+	GMutex *mutex;
+	GQueue *queue;
+	GCond *cond;
+	int idle_threads;
+};
+
+struct ms_q_entry {
+	int x0, y0, x1, y1;
+};
+
+
 static void calc_sr_row (struct mandeldata *mandel, int y, int chunk_size);
 static void calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size);
 static gpointer sr_mt_thread_func (gpointer data);
+static void calc_ms_mt (struct mandeldata *mandel);
+static gpointer ms_mt_thread_func (gpointer data);
+static void ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1);
 
 
 const char *render_method_names[] = {
@@ -342,20 +358,24 @@ mandel_render (struct mandeldata *mandel)
 
 	switch (mandel->render_method) {
 		case RM_MARIANI_SILVER: {
-			int x, y;
+			if (thread_count > 1)
+				calc_ms_mt (mandel);
+			else {
+				int x, y;
 
-			for (x = 0; x < mandel->w; x++) {
-				mandel_render_pixel (mandel, x, 0);
-				mandel_render_pixel (mandel, x, mandel->h - 1);
+				for (x = 0; x < mandel->w; x++) {
+					mandel_render_pixel (mandel, x, 0);
+					mandel_render_pixel (mandel, x, mandel->h - 1);
+				}
+
+				for (y = 1; y < mandel->h - 1; y++) {
+					mandel_render_pixel (mandel, 0, y);
+					mandel_render_pixel (mandel, mandel->w - 1, y);
+				}
+
+				calcpart (mandel, 0, 0, mandel->w - 1, mandel->h - 1);
+
 			}
-
-			for (y = 1; y < mandel->h - 1; y++) {
-				mandel_render_pixel (mandel, 0, y);
-				mandel_render_pixel (mandel, mandel->w - 1, y);
-			}
-
-			calcpart (mandel, 0, 0, mandel->w - 1, mandel->h - 1);
-
 			break;
 		}
 
@@ -503,4 +523,116 @@ sr_mt_thread_func (gpointer data)
 		calc_sr_row (state->md, y, state->chunk_size);
 	}
 	return NULL;
+}
+
+
+static void
+calc_ms_mt (struct mandeldata *mandel)
+{
+	struct ms_state state = {mandel, g_mutex_new (), g_queue_new (), g_cond_new (), 0};
+	GThread *threads[thread_count];
+	int i, x, y;
+
+	for (x = 0; x < mandel->w; x++) {
+		mandel_render_pixel (mandel, x, 0);
+		mandel_render_pixel (mandel, x, mandel->h - 1);
+	}
+
+	for (y = 1; y < mandel->h - 1; y++) {
+		mandel_render_pixel (mandel, 0, y);
+		mandel_render_pixel (mandel, mandel->w - 1, y);
+	}
+
+	ms_queue_push (&state, 0, 0, mandel->w - 1, mandel->h - 1);
+
+	for (i = 0; i < thread_count; i++)
+		threads[i] = g_thread_create (ms_mt_thread_func, &state, TRUE, NULL);
+
+	for (i = 0; i < thread_count; i++)
+		g_thread_join (threads[i]);
+
+	g_mutex_free (state.mutex);
+	g_queue_free (state.queue);
+	g_cond_free (state.cond);
+}
+
+
+/* FIXME This is mainly a copy of calcpart(). */
+static gpointer
+ms_mt_thread_func (gpointer data)
+{
+	struct ms_state *state = (struct ms_state *) data;
+	struct mandeldata *md = state->md;
+	while (TRUE) {
+		if (md->terminate)
+			return NULL;
+		g_mutex_lock (state->mutex);
+		state->idle_threads++;
+		/* Notify all waiting threads about the increase of idle_threads */
+		g_cond_broadcast (state->cond);
+		while (g_queue_is_empty (state->queue)) {
+			if (state->idle_threads == thread_count) {
+				/* Queue is empty, all threads idle. We're done. */
+				g_mutex_unlock (state->mutex);
+				return NULL;
+			}
+			g_cond_wait (state->cond, state->mutex);
+		}
+		state->idle_threads--;
+		struct ms_q_entry *entry = g_queue_pop_head (state->queue);
+		g_mutex_unlock (state->mutex);
+
+		int x0 = entry->x0, y0 = entry->y0, x1 = entry->x1, y1 = entry->y1;
+		free (entry);
+
+		int x, y;
+		bool failed = false;
+		unsigned p0 = mandel_get_pixel (md, x0, y0);
+
+		for (x = x0; !failed && x <= x1; x++)
+			failed = mandel_get_pixel (md, x, y0) != p0 || mandel_get_pixel (md, x, y1) != p0;
+
+		for (y = y0; !failed && y <= y1; y++)
+			failed = mandel_get_pixel (md, x0, y) != p0 || mandel_get_pixel (md, x1, y) != p0;
+
+		if (failed) {
+			if (x1 - x0 > y1 - y0) {
+				unsigned xm = (x0 + x1) / 2;
+				for (y = y0 + 1; y < y1; y++)
+					mandel_render_pixel (md, xm, y);
+
+				if (xm - x0 > 1)
+					ms_queue_push (state, x0, y0, xm, y1);
+				if (x1 - xm > 1)
+					ms_queue_push (state, xm, y0, x1, y1);
+			} else {
+				unsigned ym = (y0 + y1) / 2;
+				for (x = x0 + 1; x < x1; x++)
+					mandel_render_pixel (md, x, ym);
+
+				if (ym - y0 > 1)
+					ms_queue_push (state, x0, y0, x1, ym);
+				if (y1 - ym > 1)
+					ms_queue_push (state, x0, ym, x1, y1);
+			}
+		} else {
+			mandel_put_rect (md, x0 + 1, y0 + 1, x1 - x0 - 1, y1 - y0 - 1, p0);
+		}
+	}
+	return NULL;
+}
+
+
+static void
+ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1)
+{
+	struct ms_q_entry *new_job = malloc (sizeof (struct ms_q_entry));
+	new_job->x0 = x0;
+	new_job->y0 = y0;
+	new_job->x1 = x1;
+	new_job->y1 = y1;
+	g_mutex_lock (state->mutex);
+	g_queue_push_tail (state->queue, new_job);
+	g_cond_signal (state->cond);
+	g_mutex_unlock (state->mutex);
 }
