@@ -20,6 +20,9 @@ static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpoin
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
 static void render_method_updated (GtkMandelApplication *app, gpointer data);
 static void log_colors_updated (GtkMandelApplication *app, gpointer data);
+static void undo_pressed (GtkMandelApplication *app, gpointer data);
+static void redo_pressed (GtkMandelApplication *app, gpointer data);
+static void restart_thread (GtkMandelApplication *app);
 
 
 GType
@@ -50,6 +53,7 @@ gtk_mandel_application_class_init (GtkMandelApplicationClass *class)
 	render_method_t i;
 	for (i = 0; i < RM_MAX; i++)
 		class->render_methods[i] = i;
+	//class->icon_factory = gtk_icon_factory_new ();
 }
 
 
@@ -59,6 +63,9 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	create_menus (app);
 	create_mainwin (app);
 	connect_signals (app);
+	app->undo = NULL;
+	app->redo = NULL;
+	app->area = NULL;
 }
 
 
@@ -99,8 +106,19 @@ static void create_menus (GtkMandelApplication *app)
 }
 
 
-static void create_mainwin (GtkMandelApplication *app)
+static void
+create_mainwin (GtkMandelApplication *app)
 {
+	app->mainwin.undo = gtk_button_new_from_stock (GTK_STOCK_GO_BACK);
+	gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
+
+	app->mainwin.redo = gtk_button_new_from_stock (GTK_STOCK_GO_FORWARD);
+	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
+
+	app->mainwin.undo_hbox = gtk_hbox_new (5, false);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.undo_hbox), app->mainwin.undo);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.undo_hbox), app->mainwin.redo);
+
 	app->mainwin.maxiter_label = gtk_label_new ("maxiter:");
 
 	app->mainwin.maxiter_input = gtk_entry_new ();
@@ -124,6 +142,7 @@ static void create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.undo_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
@@ -134,16 +153,21 @@ static void create_mainwin (GtkMandelApplication *app)
 
 
 void
-gtk_mandel_application_start (GtkMandelApplication *app, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+gtk_mandel_application_start (GtkMandelApplication *app)
 {
 	gtk_widget_show_all (app->mainwin.win);
-	gtk_mandel_restart_thread (GTK_MANDEL (app->mainwin.mandel), xmin, xmax, ymin, ymax, 1000, DEFAULT_RENDER_METHOD, 0.0);
+	restart_thread (app);
 }
 
 
-GtkMandelApplication *gtk_mandel_application_new ()
+GtkMandelApplication *
+gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor)
 {
 	GtkMandelApplication *app = g_object_new (gtk_mandel_application_get_type (), NULL);
+	gtk_mandel_application_set_area (app, area);
+	app->maxiter = maxiter;
+	app->render_method = render_method;
+	app->log_factor = log_factor;
 	return app;
 }
 
@@ -158,47 +182,122 @@ connect_signals (GtkMandelApplication *app)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
 }
 
 
 static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	char xmin_buf[1024], xmax_buf[1024], ymin_buf[1024], ymax_buf[1024];
 	coords_to_string (area->xmin, area->xmax, area->ymin, area->ymax, xmin_buf, xmax_buf, ymin_buf, ymax_buf, 1024);
 	printf ("* xmin = %s\n* xmax = %s\n* ymin = %s\n* ymax = %s\n", xmin_buf, xmax_buf, ymin_buf, ymax_buf);
-	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
+	gtk_mandel_application_set_area (app, area);
+	restart_thread (app);
 }
 
 
 static void maxiter_updated (GtkMandelApplication *app, gpointer data)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
-	if (i > 0)
-		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, i, mandel->md->render_method, mandel->md->log_factor);
+	if (i > 0) {
+		app->maxiter = i;
+		restart_thread (app);
+	}
 }
 
 
 static void render_method_updated (GtkMandelApplication *app, gpointer data)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	GtkCheckMenuItem *item = GTK_CHECK_MENU_ITEM (data);
 	if (!item->active)
 		return;
 	render_method_t *method = (render_method_t *) g_object_get_data (G_OBJECT (item), "render_method");
-	gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, *method, mandel->md->log_factor);
+	app->render_method = *method;
+	restart_thread (app);
 }
 
 
-static void log_colors_updated (GtkMandelApplication *app, gpointer data)
+static void
+log_colors_updated (GtkMandelApplication *app, gpointer data)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox));
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, active);
 	double lf = 0.0;
 	if (active)
 		lf = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
-	if (isfinite (lf))
-		gtk_mandel_restart_thread (mandel, mandel->md->xmin_f, mandel->md->xmax_f, mandel->md->ymin_f, mandel->md->ymax_f, mandel->md->maxiter, mandel->md->render_method, lf);
+	if (isfinite (lf)) {
+		app->log_factor = lf;
+		restart_thread (app);
+	}
+}
+
+
+void
+gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
+{
+	GSList *l;
+	if (app->area != NULL) {
+		app->undo = g_slist_prepend (app->undo, (gpointer) app->area);
+		gtk_widget_set_sensitive (app->mainwin.undo, TRUE);
+	}
+	app->area = area;
+	g_object_ref (app->area);
+	l = app->redo;
+	while (l != NULL) {
+		GSList *next_l = g_slist_next (l);
+		g_object_unref (G_OBJECT (l->data));
+		g_slist_free_1 (l);
+		l = next_l;
+	}
+	app->redo = NULL;
+	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
+}
+
+
+static void
+undo_pressed (GtkMandelApplication *app, gpointer data)
+{
+	if (app->undo == NULL) {
+		fprintf (stderr, "! Undo called with empty history.\n");
+		return;
+	}
+	app->redo = g_slist_prepend (app->redo, (gpointer) app->area);
+	app->area = (GtkMandelArea *) app->undo->data;
+	GSList *old = app->undo;
+	app->undo = g_slist_next (app->undo);
+	g_slist_free_1 (old);
+	if (app->undo == NULL)
+		gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
+	gtk_widget_set_sensitive (app->mainwin.redo, TRUE);
+	restart_thread (app);
+}
+
+
+/* FIXME: This is an exact "mirror" of undo_pressed(). */
+static void
+redo_pressed (GtkMandelApplication *app, gpointer data)
+{
+	if (app->redo == NULL) {
+		fprintf (stderr, "! Redo called with empty history.\n");
+		return;
+	}
+	app->undo = g_slist_prepend (app->undo, (gpointer) app->area);
+	app->area = (GtkMandelArea *) app->redo->data;
+	GSList *old = app->redo;
+	app->redo = g_slist_next (app->redo);
+	g_slist_free_1 (old);
+	if (app->redo == NULL)
+		gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
+	gtk_widget_set_sensitive (app->mainwin.undo, TRUE);
+	restart_thread (app);
+}
+
+
+static void
+restart_thread (GtkMandelApplication *app)
+{
+	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
+	GtkMandelArea *area = app->area;
+	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, app->maxiter, app->render_method, app->log_factor);
 }

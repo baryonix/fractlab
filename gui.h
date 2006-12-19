@@ -7,6 +7,7 @@ typedef struct {
 	struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
+		GtkWidget *undo_hbox, *undo, *redo;
 		GtkWidget *maxiter_hbox, *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_hbox, *log_colors_checkbox, *log_colors_input;
 		GtkWidget *mandel;
@@ -20,11 +21,17 @@ typedef struct {
 		GtkWidget *quit_item;
 		GSList *render_item_group;
 	} menu;
+	GSList *undo, *redo;
+	GtkMandelArea *area;
+	unsigned maxiter;
+	render_method_t render_method;
+	double log_factor;
 } GtkMandelApplication;
 
 typedef struct {
 	GObjectClass parent_class;
 	render_method_t render_methods[RM_MAX];
+	//GtkIconFactory *icon_factory;
 } GtkMandelApplicationClass;
 
 #define GTK_MANDEL_APPLICATION(obj) GTK_CHECK_CAST (obj, gtk_mandel_application_get_type (), GtkMandelApplication)
@@ -32,7 +39,8 @@ typedef struct {
 #define GTK_IS_MANDEL_APPLICATION(obj) GET_CHECK_TYPE (obj, gtk_mandel_application_get_type ())
 
 GType gtk_mandel_application_get_type ();
-GtkMandelApplication *gtk_mandel_application_new ();
-void gtk_mandel_application_start (GtkMandelApplication *app, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
+GtkMandelApplication *gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor);
+void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
+void gtk_mandel_application_start (GtkMandelApplication *app);
 
 #endif /* _GTKMANDEL_GUI_H */

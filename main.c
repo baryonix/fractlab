@@ -133,8 +133,9 @@ main (int argc, char **argv)
 		exit (3);
 	}
 
-	GtkMandelApplication *app = gtk_mandel_application_new ();
-	gtk_mandel_application_start (app, xmin, xmax, ymin, ymax);
+	GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
+	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0);
+	gtk_mandel_application_start (app);
 	gtk_main ();
 	gdk_threads_leave ();
 

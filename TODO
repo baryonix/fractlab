@@ -6,4 +6,4 @@ TODO
 - save coordinates
 - dynamic widget size && non-1:1 aspect ratio
 - fix all memory leaks
-- implement history of coordinates
+- include maxiter (and maybe color settings) in history
