@@ -3,6 +3,7 @@
 #include <gmp.h>
 
 #include "file.h"
+#include "util.h"
 
 
 bool
@@ -28,12 +29,7 @@ read_cmag_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t 
 
 	fclose (f);
 
-	mpf_ui_div (magf, 1, magf);
-
-	mpf_sub (xmin, xc, magf);
-	mpf_add (xmax, xc, magf);
-	mpf_sub (ymin, yc, magf);
-	mpf_add (ymax, yc, magf);
+	center_to_corners (xmin, xmax, ymin, ymax, xc, yc, magf, 1.0);
 
 	mpf_clear (xc);
 	mpf_clear (yc);

@@ -11,7 +11,7 @@ MANDEL_GTK_LIBS = $(shell pkg-config --libs $(PKG)) $(GMP_LIBS) -lpthread -lm
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs glib-2.0) $(GMP_LIBS) -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
-MANDEL_ZOOM_OBJECTS = zoom.o file.o
+MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o
 TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o
 
 ifeq ($(USE_IA32_ASM),i387)

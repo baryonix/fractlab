@@ -2,6 +2,68 @@
 
 #include "util.h"
 
+
+static void absdiff (mpf_t d, mpf_t a, mpf_t b);
+static void center (mpf_t c, mpf_t a, mpf_t b);
+
+
+static void
+absdiff (mpf_t d, mpf_t a, mpf_t b)
+{
+	mpf_sub (d, a, b);
+	mpf_abs (d, d);
+}
+
+
+static void
+center (mpf_t c, mpf_t a, mpf_t b)
+{
+	mpf_add (c, a, b);
+	mpf_div_ui (c, c, 2);
+}
+
+
+void
+corners_to_center (mpf_t cx, mpf_t cy, mpf_t magf, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+{
+	mpf_t dx, dy;
+	mpf_init (dx);
+	mpf_init (dy);
+	absdiff (dx, xmin, xmax);
+	absdiff (dy, ymin, ymax);
+	if (mpf_cmp (dx, dy) < 0)
+		mpf_ui_div (magf, 2, dx);
+	else
+		mpf_ui_div (magf, 2, dy);
+	mpf_clear (dx);
+	mpf_clear (dy);
+	center (cx, xmin, xmax);
+	center (cy, ymin, ymax);
+}
+
+
+void
+center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, mpf_t cx, mpf_t cy, mpf_t magf, double aspect)
+{
+	mpf_t dx, dy;
+	mpf_init (dx);
+	mpf_init (dy);
+	if (aspect > 1.0) {
+		mpf_ui_div (dy, 1, magf);
+		mpf_set_d (dx, aspect);
+		mpf_mul (dx, dx, dy);
+	} else {
+		mpf_ui_div (dx, 1, magf);
+		mpf_set_d (dy, aspect);
+		mpf_div (dy, dx, dy);
+	}
+	mpf_sub (xmin, cx, dx);
+	mpf_add (xmax, cx, dx);
+	mpf_sub (ymin, cy, dy);
+	mpf_add (ymax, cy, dy);
+}
+
+
 int
 coord_pair_to_string (mpf_t a, mpf_t b, char *abuf, char *bbuf, int buf_size)
 {
@@ -11,6 +73,7 @@ coord_pair_to_string (mpf_t a, mpf_t b, char *abuf, char *bbuf, int buf_size)
 	mpf_init (d);
 	mpf_sub (d, a, b);
 	mpf_get_d_2exp (&exponent, d);
+	mpf_clear (d);
 	/* We are using %f format, so the absolute difference between
 	 * the min and max values dictates the required precision. */
 	digits = -exponent / 3.3219 + 5;
@@ -22,6 +85,7 @@ coord_pair_to_string (mpf_t a, mpf_t b, char *abuf, char *bbuf, int buf_size)
 		return -1;
 	return 0;
 }
+
 
 int
 coords_to_string (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, char *xmin_buf, char *xmax_buf, char *ymin_buf, char *ymax_buf, int buf_size)
