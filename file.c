@@ -7,17 +7,11 @@
 
 
 bool
-read_cmag_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+read_center_coords_from_file (const char *filename, mpf_t xc, mpf_t yc, mpf_t magf)
 {
 	FILE *f = fopen (filename, "r");
 	if (f == NULL)
 		return false;
-
-	mpf_t xc, yc, magf;
-
-	mpf_init (xc);
-	mpf_init (yc);
-	mpf_init (magf);
 
 	char buf[1024];
 	fgets (buf, 1024, f);
@@ -29,14 +23,9 @@ read_cmag_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t 
 
 	fclose (f);
 
-	center_to_corners (xmin, xmax, ymin, ymax, xc, yc, magf, 1.0);
-
-	mpf_clear (xc);
-	mpf_clear (yc);
-	mpf_clear (magf);
-
 	return true;
 }
+
 
 bool
 read_corner_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)

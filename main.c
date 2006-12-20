@@ -23,6 +23,7 @@
 #include "gtkmandel.h"
 #include "defs.h"
 #include "gui.h"
+#include "util.h"
 
 
 struct area_info_data {
@@ -119,9 +120,18 @@ main (int argc, char **argv)
 
 	bool coords_ok;
 
-	if (option_center_coords != NULL)
-		coords_ok = read_cmag_coords_from_file (option_center_coords, xmin, xmax, ymin, ymax);
-	else if (option_corner_coords != NULL)
+	if (option_center_coords != NULL) {
+		mpf_t cx, cy, magf;
+		mpf_init (cx);
+		mpf_init (cy);
+		mpf_init (magf);
+		coords_ok = read_center_coords_from_file (option_center_coords, cx, cy, magf);
+		if (coords_ok)
+			center_to_corners (xmin, xmax, ymin, ymax, cx, cy, magf, 1.0);
+		mpf_clear (cx);
+		mpf_clear (cy);
+		mpf_clear (magf);
+	} else if (option_corner_coords != NULL)
 		coords_ok = read_corner_coords_from_file (option_corner_coords, xmin, xmax, ymin, ymax);
 	else {
 		fprintf (stderr, "No start coordinates specified.\n");

@@ -1,9 +1,9 @@
 cmdline.o: cmdline.c cmdline.h
-file.o: file.c file.h
+file.o: file.c file.h util.h
 gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h
 gui.o: gui.c defs.h mandelbrot.h fpdefs.h gtkmandel.h gui.h util.h
 main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h gtkmandel.h defs.h \
-  gui.h
+  gui.h util.h
 mandelbrot.o: mandelbrot.c cmdline.h mandelbrot.h fpdefs.h
 test_parser.o: test_parser.c
 util.o: util.c util.h
