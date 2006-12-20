@@ -46,4 +46,5 @@ main (int argc, char **argv)
 		fprintf (stderr, "* Error: No target coordinates specified.\n");
 		return 1;
 	}
+	return 0;
 }
