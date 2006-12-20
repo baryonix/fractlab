@@ -7,3 +7,4 @@ main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h gtkmandel.h defs.h \
 mandelbrot.o: mandelbrot.c cmdline.h mandelbrot.h fpdefs.h
 test_parser.o: test_parser.c
 util.o: util.c util.h
+zoom.o: zoom.c file.h

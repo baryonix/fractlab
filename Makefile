@@ -5,10 +5,13 @@ YACC = yacc
 NASM = nasm
 USE_IA32_ASM = i387
 COPTS = -O3 -march=pentium4 -Wall -g
-CFLAGS = -I/opt/gmp/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(PKG)) $(COPTS)
-LIBS = $(shell pkg-config --libs $(PKG)) /opt/gmp/lib/libgmp.a -lm
+CFLAGS = -pthread -I/opt/gmp/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(PKG)) $(COPTS)
+GMP_LIBS = /opt/gmp/lib/libgmp.a
+MANDEL_GTK_LIBS = $(shell pkg-config --libs $(PKG)) $(GMP_LIBS) -lpthread -lm
+MANDEL_ZOOM_LIBS = $(shell pkg-config --libs glib-2.0) $(GMP_LIBS) -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
+MANDEL_ZOOM_OBJECTS = zoom.o file.o
 TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o
 
 ifeq ($(USE_IA32_ASM),i387)
@@ -16,8 +19,13 @@ CFLAGS += -DMANDELBROT_FP_ASM
 MANDEL_GTK_OBJECTS += ia32/mandel387.o
 endif
 
+all: mandel-gtk mandel-zoom
+
 mandel-gtk: $(MANDEL_GTK_OBJECTS)
-	$(CC) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(MANDEL_GTK_LIBS)
+
+mandel-zoom: $(MANDEL_ZOOM_OBJECTS)
+	$(CC) -o $@ $^ $(MANDEL_ZOOM_LIBS)
 
 test_parser: $(TEST_PARSER_OBJECTS)
 	$(CC) -o $@ $^ -ly -ll
@@ -39,7 +47,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .SUFFIXES: .asm
 
 clean:
-	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk
+	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
