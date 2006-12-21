@@ -25,9 +25,11 @@ struct zoom_state {
 
 const int thread_count = 1;
 
-struct {
+struct color {
 	unsigned char r, g, b;
-} colors[COLORS];
+};
+
+struct color colors[COLORS];
 
 
 static gchar *start_coords = NULL, *target_coords = NULL;
