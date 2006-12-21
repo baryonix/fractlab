@@ -1,5 +1,5 @@
 MANDEL_GTK_PKG = gtk+-2.0 gthread-2.0
-MANDEL_ZOOM_PKG = glib-2.0 libpng
+MANDEL_ZOOM_PKG = glib-2.0 gthread-2.0 libpng
 CC = gcc
 LEX = lex
 YACC = yacc

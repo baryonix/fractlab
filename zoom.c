@@ -23,21 +23,34 @@ struct zoom_state {
 	mpfr_t x0, xn, d0, dn, a, ln_a, b, c;
 };
 
-const int thread_count = 1;
-
 struct color {
 	unsigned char r, g, b;
 };
 
+struct thread_state {
+	GMutex *mutex;
+	struct zoom_state xstate, ystate;
+	unsigned i;
+};
+
+static void write_png (const struct mandeldata *md, const char *filename);
+static void init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n);
+static void get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d);
+static void render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned long i);
+static gpointer thread_func (gpointer data);
+
 struct color colors[COLORS];
 
+const int thread_count = 1;
 
 static gchar *start_coords = NULL, *target_coords = NULL;
 static gint maxiter = DEFAULT_MAXITER, frame_count = 0;
 static gdouble log_factor = 0.0;
 static gint img_width = 200, img_height = 200;
+static gint zoom_threads = 1;
 
 static double aspect;
+
 
 static GOptionEntry option_entries [] = {
 	{"start-coords", 's', 0, G_OPTION_ARG_FILENAME, &start_coords, "Start coordinates", "FILE"},
@@ -47,14 +60,14 @@ static GOptionEntry option_entries [] = {
 	{"log-factor", 'l', 0, G_OPTION_ARG_DOUBLE, &log_factor, "Use logarithmic colors, color = LF * ln (iter)", "LF"},
 	{"width", 'W', 0, G_OPTION_ARG_INT, &img_width, "Image width", "PIXELS"},
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
+	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
 	{NULL}
 };
 
 
-void write_png (const struct mandeldata *md, const char *filename);
 
 
-void
+static void
 parse_command_line (int *argc, char ***argv)
 {
 	GOptionContext *context = g_option_context_new (NULL);
@@ -67,7 +80,7 @@ parse_command_line (int *argc, char ***argv)
  * Note that this function initializes the state for the calculation
  * of frames 0 .. n, so we'll actually generate n + 1 frames.
  */
-void
+static void
 init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n)
 {
 	mpfr_t a_n; /* a^n */
@@ -112,7 +125,7 @@ init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_
 }
 
 
-void
+static void
 get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
 {
 	mpfr_t a_i;
@@ -134,7 +147,7 @@ get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
 }
 
 
-void
+static void
 render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned long i)
 {
 	mpfr_t cfr, dfr, tmp0;
@@ -191,7 +204,7 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 }
 
 
-void
+static void
 write_png (const struct mandeldata *md, const char *filename)
 {
 	FILE *f = fopen (filename, "wb");
@@ -243,12 +256,29 @@ write_png (const struct mandeldata *md, const char *filename)
 }
 
 
+static gpointer
+thread_func (gpointer data)
+{
+	struct thread_state *state = (struct thread_state *) data;
+	while (TRUE) {
+		int i;
+		g_mutex_lock (state->mutex);
+		i = state->i++;
+		g_mutex_unlock (state->mutex);
+		if (i >= frame_count)
+			break;
+		render_frame (&state->xstate, &state->ystate, i);
+	}
+	return NULL;
+}
+
+
 int
 main (int argc, char **argv)
 {
 	mpf_set_default_prec (1024); /* ! */
 	mpfr_set_default_prec (1024); /* ! */
-	struct zoom_state xstate, ystate;
+	struct thread_state state[1];
 	mpf_t cx0, cy0, magf0, cxn, cyn, magfn;
 	mpf_t mpaspect;
 	int i;
@@ -278,19 +308,30 @@ main (int argc, char **argv)
 	aspect = (double) img_width / img_height;
 	mpf_set_d (mpaspect, aspect);
 	if (aspect > 1.0) {
-		init_zoom_state (&ystate, cy0, magf0, cyn, magfn, frame_count - 1);
+		init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
 		mpf_div (magf0, magf0, mpaspect);
 		mpf_div (magfn, magfn, mpaspect);
-		init_zoom_state (&xstate, cx0, magf0, cxn, magfn, frame_count - 1);
+		init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
 	} else {
-		init_zoom_state (&xstate, cx0, magf0, cxn, magfn, frame_count - 1);
+		init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
 		mpf_mul (magf0, magf0, mpaspect);
 		mpf_mul (magfn, magfn, mpaspect);
-		init_zoom_state (&ystate, cy0, magf0, cyn, magfn, frame_count - 1);
+		init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
 	}
 
-	for (i = 0; i < frame_count; i++)
-		render_frame (&xstate, &ystate, i);
+	if (zoom_threads > 1) {
+		g_thread_init (NULL);
+		GThread *threads[zoom_threads];
+		state->mutex = g_mutex_new ();
+		state->i = 0;
+		for (i = 0; i < zoom_threads; i++)
+			threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
+		for (i = 0; i < zoom_threads; i++)
+			g_thread_join (threads[i]);
+		g_mutex_free (state->mutex);
+	} else
+		for (i = 0; i < frame_count; i++)
+			render_frame (&state->xstate, &state->ystate, i);
 
 	return 0;
 }
