@@ -1,6 +1,9 @@
 #ifndef _GTKMANDEL_UTIL_H
 #define _GTKMANDEL_UTIL_H
 
+#define MY_MIN(a, b) ((a)<(b)?(a):(b))
+#define MY_MAX(a, b) ((a)>(b)?(a):(b))
+
 void corners_to_center (mpf_t cx, mpf_t cy, mpf_t magf, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
 void center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, mpf_t cx, mpf_t cy, mpf_t magf, double aspect);
 
