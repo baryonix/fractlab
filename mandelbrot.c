@@ -489,7 +489,7 @@ calc_sr_row (struct mandeldata *mandel, int y, int chunk_size)
 
 		if (do_eval) {
 			mandel_render_pixel (mandel, x, y);
-			mandel_put_rect (mandel, x, y, chunk_size, chunk_size, mandel_get_pixel (mandel, x, y));
+			mandel_put_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_pixel (mandel, x, y));
 		} else {
 			mandel_put_pixel (mandel, x, y, mandel_get_pixel (mandel, parent_x, parent_y));
 		}
