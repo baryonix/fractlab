@@ -6,6 +6,11 @@
 #include "file.h"
 
 
+struct zoom_state {
+	mpf_t c0, cn, d0, dn;
+};
+
+
 static gchar *start_coords = NULL, *target_coords = NULL;
 
 static GOptionEntry option_entries [] = {
@@ -19,7 +24,7 @@ void
 parse_command_line (int *argc, char ***argv)
 {
 	GOptionContext *context = g_option_context_new (NULL);
-	g_option_context_add_main_entries (context, option_entries, "mande-zoom");
+	g_option_context_add_main_entries (context, option_entries, "mandel-zoom");
 	g_option_context_parse (context, argc, argv, NULL);
 }
 
@@ -28,7 +33,7 @@ int
 main (int argc, char **argv)
 {
 	mpf_set_default_prec (1024); /* ! */
-	mpf_t xmin0, xmax0, ymin0, ymax0, xminn, xmaxn, yminn, ymaxn;
+	mpf_t cx0, cy0, magf0, cx1, cy1, magf1;
 	mpf_init (xmin0);
 	mpf_init (xmax0);
 	mpf_init (ymin0);
