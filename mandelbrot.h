@@ -50,7 +50,7 @@ void mandel_convert_y_f (struct mandeldata *mandel, mpf_t rop, unsigned op);
 void mandel_set_pixel (struct mandeldata *mandel, int x, int y, unsigned iter);
 void mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned iter);
 
-unsigned mandel_get_pixel (struct mandeldata *mandel, int x, int y);
+unsigned mandel_get_pixel (const struct mandeldata *mandel, int x, int y);
 bool mandel_all_neighbors_same (struct mandeldata *mandel, unsigned x, unsigned y, unsigned d);
 void my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs);
 bool my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs);

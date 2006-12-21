@@ -1,14 +1,30 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include <glib.h>
 
+#include <gmp.h>
+#include <mpfr.h>
 
+#include <png.h>
+
+
+#include "util.h"
 #include "file.h"
+#include "defs.h"
+#include "mandelbrot.h"
 
 
 struct zoom_state {
-	mpf_t c0, cn, d0, dn;
+	mpfr_t x0, xn, d0, dn, a, ln_a, b, c;
 };
+
+const int thread_count = 1;
+
+struct {
+	unsigned short r, g, b;
+} colors[COLORS];
 
 
 static gchar *start_coords = NULL, *target_coords = NULL;
@@ -20,6 +36,9 @@ static GOptionEntry option_entries [] = {
 };
 
 
+void write_png (const struct mandeldata *md, const char *filename);
+
+
 void
 parse_command_line (int *argc, char ***argv)
 {
@@ -29,27 +48,217 @@ parse_command_line (int *argc, char ***argv)
 }
 
 
+void
+init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n)
+{
+	mpfr_t a_n; /* a^n */
+
+	mpfr_init (state->x0);
+	mpfr_init (state->xn);
+	mpfr_init (state->d0);
+	mpfr_init (state->dn);
+	mpfr_init (state->a);
+	mpfr_init (state->ln_a);
+	mpfr_init (state->b);
+	mpfr_init (state->c);
+	mpfr_init (a_n);
+
+	mpfr_set_f (state->x0, x0, GMP_RNDN);
+	mpfr_set_f (state->xn, xn, GMP_RNDN);
+
+	/* d0 = 1 / magf0 */
+	mpfr_set_f (state->d0, magf0, GMP_RNDN);
+	mpfr_ui_div (state->d0, 1, state->d0, GMP_RNDN);
+	/* dn = 1 / magfn */
+	mpfr_set_f (state->dn, magfn, GMP_RNDN);
+	mpfr_ui_div (state->dn, 1, state->dn, GMP_RNDN);
+
+	/* a_n = dn / d0 */
+	mpfr_div (a_n, state->dn, state->d0, GMP_RNDN);
+
+	/* ln_a = ln (a_n) / n */
+	mpfr_log (state->ln_a, a_n, GMP_RNDN);
+	mpfr_div_ui (state->ln_a, state->ln_a, n, GMP_RNDN);
+
+	/* b = (x0 * a_n - xn) / (a_n - 1) */
+	mpfr_mul (state->b, state->x0, a_n, GMP_RNDN);
+	mpfr_sub (state->b, state->b, state->xn, GMP_RNDN);
+	mpfr_sub_ui (a_n, a_n, 1, GMP_RNDN);
+	mpfr_div (state->b, state->b, a_n, GMP_RNDN);
+
+	/* c = x0 - b */
+	mpfr_sub (state->c, state->x0, state->b, GMP_RNDN);
+
+	mpfr_clear (a_n);
+}
+
+
+void
+get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
+{
+	mpfr_t a_i;
+
+	mpfr_init (a_i);
+
+	/* a_i = exp (ln_a * i) */
+	mpfr_mul_ui (a_i, state->ln_a, i, GMP_RNDN);
+	mpfr_exp (a_i, a_i, GMP_RNDN);
+
+	/* d = d0 * a_i */
+	mpfr_mul (d, state->d0, a_i, GMP_RNDN);
+
+	/* x = c * a_i + b */
+	mpfr_mul (x, state->c, a_i, GMP_RNDN);
+	mpfr_add (x, x, state->b, GMP_RNDN);
+
+	mpfr_clear (a_i);
+}
+
+
+void
+render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned long i)
+{
+	mpfr_t cfr, dfr, tmp0;
+	struct mandeldata md[1];
+
+	memset (md, 0, sizeof (*md));
+
+	mpf_init (md->xmin_f);
+	mpf_init (md->xmax_f);
+	mpf_init (md->ymin_f);
+	mpf_init (md->ymax_f);
+	mpfr_init (cfr);
+	mpfr_init (dfr);
+	mpfr_init (tmp0);
+
+	get_frame (xstate, i, cfr, dfr);
+	mpfr_sub (tmp0, cfr, dfr, GMP_RNDN);
+	mpfr_get_f (md->xmin_f, tmp0, GMP_RNDN);
+	mpfr_add (tmp0, cfr, dfr, GMP_RNDN);
+	mpfr_get_f (md->xmax_f, tmp0, GMP_RNDN);
+	get_frame (ystate, i, cfr, dfr);
+	mpfr_sub (tmp0, cfr, dfr, GMP_RNDN);
+	mpfr_get_f (md->ymin_f, tmp0, GMP_RNDN);
+	mpfr_add (tmp0, cfr, dfr, GMP_RNDN);
+	mpfr_get_f (md->ymax_f, tmp0, GMP_RNDN);
+
+	md->data = malloc (200 * 200 * sizeof (unsigned));
+	md->w = 200;
+	md->h = 200;
+	md->maxiter = 10000;
+	md->render_method = RM_MARIANI_SILVER;
+	md->log_factor = 0.0;
+
+	/*char xminc[1024], xmaxc[1024], yminc[1024], ymaxc[1024];
+	coords_to_string (xmin, xmax, ymin, ymax, xminc, xmaxc, yminc, ymaxc, 1024);
+	printf ("xmin=%s xmax=%s ymin=%s ymax=%s\n", xminc, xmaxc, yminc, ymaxc);*/
+
+	fprintf (stderr, "Starting to render...\n");
+	mandel_render (md);
+	fprintf (stderr, "Rendering finished...\n");
+
+	mpf_clear (md->xmin_f);
+	mpf_clear (md->xmax_f);
+	mpf_clear (md->ymin_f);
+	mpf_clear (md->ymax_f);
+	mpfr_clear (cfr);
+	mpfr_clear (dfr);
+	mpfr_clear (tmp0);
+
+	char name[64];
+	sprintf (name, "file%06lu.png", i);
+	write_png (md, name);
+	free (md->data);
+}
+
+
+void
+write_png (const struct mandeldata *md, const char *filename)
+{
+	FILE *f = fopen (filename, "wb");
+
+	png_structp png_ptr = png_create_write_struct (PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	png_infop info_ptr = png_create_info_struct (png_ptr);
+
+	if (setjmp (png_jmpbuf (png_ptr)))
+		fprintf (stderr, "PNG longjmp!\n");
+
+	png_set_swap (png_ptr); /* FIXME this should only be done on little-endian systems */
+	png_init_io (png_ptr, f);
+	png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
+	png_set_compression_level (png_ptr, 0);
+	png_set_IHDR (png_ptr, info_ptr, md->w, md->h, 16, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	png_write_info (png_ptr, info_ptr);
+	//png_set_flush (png_ptr, 16);
+
+	unsigned short row[md->w * 3];
+	png_bytep row_ptr[] = {(png_bytep) row};
+
+	unsigned int x, y;
+	//int opct = -1;
+
+	for (y = 0; y < md->h; y++) {
+		for (x = 0; x < md->w; x++) {
+			unsigned int i = mandel_get_pixel (md, x, y);
+
+			i %= 256;
+
+			row[3 * x + 0] = colors[i].r;
+			row[3 * x + 1] = colors[i].g;
+			row[3 * x + 2] = colors[i].b;
+		}
+		png_write_rows (png_ptr, row_ptr, 1);
+		/*int pct = rint ((y + 1) * 100.0 / imgheight);
+		if (pct != opct) {
+			printf ("[%3d%%]\r", pct);
+			fflush (stdout);
+			opct = pct;
+		}*/
+	}
+
+	png_write_end (png_ptr, info_ptr);
+	png_destroy_write_struct (&png_ptr, &info_ptr);
+
+	fclose (f);
+}
+
+
 int
 main (int argc, char **argv)
 {
 	mpf_set_default_prec (1024); /* ! */
-	mpf_t cx0, cy0, magf0, cx1, cy1, magf1;
-	mpf_init (xmin0);
-	mpf_init (xmax0);
-	mpf_init (ymin0);
-	mpf_init (ymax0);
-	mpf_init (xminn);
-	mpf_init (xmaxn);
-	mpf_init (yminn);
-	mpf_init (ymaxn);
+	mpfr_set_default_prec (1024); /* ! */
+	struct zoom_state xstate, ystate;
+	mpf_t cx0, cy0, magf0, cxn, cyn, magfn;
+	int i;
+	mpf_init (cx0);
+	mpf_init (cy0);
+	mpf_init (magf0);
+	mpf_init (cxn);
+	mpf_init (cyn);
+	mpf_init (magfn);
 	parse_command_line (&argc, &argv);
-	if (start_coords == NULL || !read_corner_coords_from_file (start_coords, xmin0, xmax0, ymin0, ymax0)) {
+	if (start_coords == NULL || !read_center_coords_from_file (start_coords, cx0, cy0, magf0)) {
 		fprintf (stderr, "* Error: No start coordinates specified.\n");
 		return 1;
 	}
-	if (target_coords == NULL || !read_corner_coords_from_file (target_coords, xminn, xmaxn, yminn, ymaxn)) {
+	if (target_coords == NULL || !read_center_coords_from_file (target_coords, cxn, cyn, magfn)) {
 		fprintf (stderr, "* Error: No target coordinates specified.\n");
 		return 1;
 	}
+
+	for (i = 0; i < COLORS; i++) {
+		colors[i].r = (unsigned short) (sin (2 * M_PI * i / COLORS) * 32767) + 32768;
+		colors[i].g = (unsigned short) (sin (4 * M_PI * i / COLORS) * 32767) + 32768;
+		colors[i].b = (unsigned short) (sin (6 * M_PI * i / COLORS) * 32767) + 32768;
+	}
+
+	init_zoom_state (&xstate, cx0, magf0, cxn, magfn, 100);
+	init_zoom_state (&ystate, cy0, magf0, cyn, magfn, 100);
+
+	for (i = 0; i < 100; i++)
+		render_frame (&xstate, &ystate, i);
+
 	return 0;
 }

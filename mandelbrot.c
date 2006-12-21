@@ -99,7 +99,7 @@ mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned it
 
 
 unsigned
-mandel_get_pixel (struct mandeldata *mandel, int x, int y)
+mandel_get_pixel (const struct mandeldata *mandel, int x, int y)
 {
 	return mandel->data[x * mandel->h + y];
 }
