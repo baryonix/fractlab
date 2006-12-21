@@ -286,7 +286,10 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 void
 mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter)
 {
-	mandel_set_pixel (mandel, x, y, iter);
+	int xc, yc;
+	for (xc = x; xc < x + w; xc++)
+		for (yc = y; yc < y + h; yc++)
+			mandel_set_pixel (mandel, xc, yc, iter);
 	if (mandel->display_rect != NULL)
 		mandel->display_rect (x, y, w, h, iter, mandel->user_data);
 	else if (mandel->display_pixel != NULL)
