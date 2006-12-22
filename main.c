@@ -119,8 +119,6 @@ main (int argc, char **argv)
 	mpf_init (ymin);
 	mpf_init (ymax);
 
-	bool coords_ok;
-
 	if (option_start_coords == NULL) {
 		fprintf (stderr, "No start coordinates specified.\n");
 		exit (2);
@@ -133,7 +131,7 @@ main (int argc, char **argv)
 	}
 
 	if (!fread_coords_as_corners (f, xmin, xmax, ymin, ymax, 1.0)) {
-		fprintf (stderr, "%s: cannot read coordinates.\n");
+		fprintf (stderr, "%s: cannot read coordinates.\n", option_start_coords);
 		fclose (f);
 		exit (2);
 	}
