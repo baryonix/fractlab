@@ -19,6 +19,7 @@
 #include "gtkmandel.h"
 #include "mandelbrot.h"
 #include "defs.h"
+#include "file.h"
 
 
 static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
@@ -336,3 +337,30 @@ calcmandel (gpointer data)
 }
 
 
+GtkMandelArea *
+gtk_mandel_area_new_from_file (const char *filename)
+{
+	FILE *f = fopen (filename, "r");
+	if (f == NULL)
+		return NULL;
+	mpf_t xmin, xmax, ymin, ymax;
+	mpf_init (xmin);
+	mpf_init (xmax);
+	mpf_init (ymin);
+	mpf_init (ymax);
+	if (!fread_coords_as_corners (f, xmin, xmax, ymin, ymax, 1.0 /* FIXME */)) {
+		fclose (f);
+		mpf_clear (xmin);
+		mpf_clear (xmax);
+		mpf_clear (ymin);
+		mpf_clear (ymax);
+		return NULL;
+	}
+	fclose (f);
+	GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
+	mpf_clear (xmin);
+	mpf_clear (xmax);
+	mpf_clear (ymin);
+	mpf_clear (ymax);
+	return area;
+}

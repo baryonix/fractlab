@@ -51,5 +51,6 @@ void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t
 
 GType gtk_mandel_area_get_type ();
 GtkMandelArea *gtk_mandel_area_new (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
+GtkMandelArea *gtk_mandel_area_new_from_file (const char *filename);
 
 #endif /* _GTKMANDEL_H */

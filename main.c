@@ -113,32 +113,17 @@ main (int argc, char **argv)
 	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (area_info_data.dialog)->vbox), scrolled_win);
 #endif
 
-	mpf_t xmin, xmax, ymin, ymax;
-	mpf_init (xmin);
-	mpf_init (xmax);
-	mpf_init (ymin);
-	mpf_init (ymax);
-
 	if (option_start_coords == NULL) {
 		fprintf (stderr, "No start coordinates specified.\n");
 		exit (2);
 	}
 
-	FILE *f = fopen (option_start_coords, "r");
-	if (f == NULL) {
-		fprintf (stderr, "%s: cannot open: %s\n", option_start_coords, strerror (errno));
+	GtkMandelArea *area = gtk_mandel_area_new_from_file (option_start_coords);
+	if (area == NULL) {
+		fprintf (stderr, "%s: Something went wrong reading the file.\n", option_start_coords);
 		exit (2);
 	}
 
-	if (!fread_coords_as_corners (f, xmin, xmax, ymin, ymax, 1.0)) {
-		fprintf (stderr, "%s: cannot read coordinates.\n", option_start_coords);
-		fclose (f);
-		exit (2);
-	}
-
-	fclose (f);
-
-	GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
 	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0);
 	gtk_mandel_application_start (app);
 	gtk_main ();

@@ -15,6 +15,7 @@ static void gtk_mandel_application_class_init (GtkMandelApplicationClass *class)
 static void gtk_mandel_application_init (GtkMandelApplication *app);
 static void create_menus (GtkMandelApplication *app);
 static void create_mainwin (GtkMandelApplication *app);
+static void create_dialogs (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data);
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
@@ -24,6 +25,8 @@ static void undo_pressed (GtkMandelApplication *app, gpointer data);
 static void redo_pressed (GtkMandelApplication *app, gpointer data);
 static void restart_thread (GtkMandelApplication *app);
 static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer data);
+static void open_coord_file (GtkMandelApplication *app, gpointer data);
+static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 
 
 GType
@@ -63,6 +66,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 {
 	create_menus (app);
 	create_mainwin (app);
+	create_dialogs (app);
 	connect_signals (app);
 	app->undo = NULL;
 	app->redo = NULL;
@@ -81,6 +85,9 @@ static void create_menus (GtkMandelApplication *app)
 
 	app->menu.file_menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu (GTK_MENU_ITEM (app->menu.file_item), app->menu.file_menu);
+
+	app->menu.open_coord_item = gtk_menu_item_new_with_label ("Open coordinate file...");
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.open_coord_item);
 
 	app->menu.area_info_item = gtk_menu_item_new_with_label ("Area Info");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.area_info_item);
@@ -142,6 +149,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
 
 	app->mainwin.info_area = gtk_label_new ("");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.info_area), 0.0, 0.5);
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
@@ -153,6 +161,13 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.win), app->mainwin.main_vbox);
+}
+
+
+static void
+create_dialogs (GtkMandelApplication *app)
+{
+	app->open_coord_chooser = gtk_file_chooser_dialog_new ("Open coordinate file", GTK_WINDOW (app->mainwin.win), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
 }
 
 
@@ -180,19 +195,37 @@ static void
 connect_signals (GtkMandelApplication *app)
 {
 	int i;
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "selection", (GCallback) area_selected, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "precision-changed", (GCallback) precision_changed, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app);
+
 	for (i = 0; i < RM_MAX; i++)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app);
+
+	/*
+	 * This prevents the window from being destroyed
+	 * when the close button is clicked.
+	 */
+	g_signal_connect (G_OBJECT (app->open_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 }
 
 
-static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
+static void
+area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 {
 	char xmin_buf[1024], xmax_buf[1024], ymin_buf[1024], ymax_buf[1024];
 	coords_to_string (area->xmin, area->xmax, area->ymin, area->ymax, xmin_buf, xmax_buf, ymin_buf, ymax_buf, 1024);
@@ -321,4 +354,30 @@ precision_changed (GtkMandelApplication *app, gulong bits, gpointer data)
 			return;
 		gtk_label_set_text (GTK_LABEL (app->mainwin.info_area), buf);
 	}
+}
+
+
+static void
+open_coord_file (GtkMandelApplication *app, gpointer data)
+{
+	gtk_widget_show_all (app->open_coord_chooser);
+}
+
+
+static void
+open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
+{
+	gtk_widget_hide (app->open_coord_chooser);
+
+	if (response != GTK_RESPONSE_ACCEPT)
+		return;
+
+	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->open_coord_chooser));
+	GtkMandelArea *area = gtk_mandel_area_new_from_file (filename);
+	if (area != NULL) {
+		gtk_mandel_application_set_area (app, area);
+		g_object_unref (G_OBJECT (area));
+		restart_thread (app);
+	} else
+		fprintf (stderr, "%s: Something went wrong reading the file.\n", filename);
 }
