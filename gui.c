@@ -16,6 +16,7 @@ static void gtk_mandel_application_init (GtkMandelApplication *app);
 static void create_menus (GtkMandelApplication *app);
 static void create_mainwin (GtkMandelApplication *app);
 static void create_dialogs (GtkMandelApplication *app);
+static void create_area_info (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data);
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
@@ -28,6 +29,10 @@ static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer 
 static void open_coord_file (GtkMandelApplication *app, gpointer data);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void quit_selected (GtkMandelApplication *app, gpointer data);
+static void update_area_info (GtkMandelApplication *app);
+static void area_info_selected (GtkMandelApplication *app, gpointer data);
+static void create_area_info_item (GtkMandelApplication *app, int i, const char *label);
+static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -170,6 +175,36 @@ static void
 create_dialogs (GtkMandelApplication *app)
 {
 	app->open_coord_chooser = gtk_file_chooser_dialog_new ("Open coordinate file", GTK_WINDOW (app->mainwin.win), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+	create_area_info (app);
+}
+
+
+static void
+create_area_info (GtkMandelApplication *app)
+{
+	app->area_info.table = gtk_table_new (2, 4, false);
+	create_area_info_item (app, 0, "xmin");
+	create_area_info_item (app, 1, "xmax");
+	create_area_info_item (app, 2, "ymin");
+	create_area_info_item (app, 3, "ymax");
+
+	app->area_info.scroller = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (app->area_info.scroller), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+	gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (app->area_info.scroller), app->area_info.table);
+
+	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
+	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.scroller);
+}
+
+
+static void
+create_area_info_item (GtkMandelApplication *app, int i, const char *label)
+{
+	struct area_info_item *item = app->area_info.items + i;
+	item->label = gtk_label_new (label);
+	item->value = gtk_label_new ("");
+	gtk_table_attach_defaults (GTK_TABLE (app->area_info.table), item->label, 0, 1, i, i + 1);
+	gtk_table_attach_defaults (GTK_TABLE (app->area_info.table), item->value, 1, 2, i, i + 1);
 }
 
 
@@ -203,6 +238,8 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
 
+	g_signal_connect_swapped (G_OBJECT (app->menu.area_info_item), "activate", (GCallback) area_info_selected, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app);
 
 	for (i = 0; i < RM_MAX; i++)
@@ -218,15 +255,17 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
 
-	g_signal_connect_swapped (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app);
-
 	/*
 	 * This prevents the window from being destroyed
 	 * when the close button is clicked.
 	 */
 	g_signal_connect (G_OBJECT (app->open_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_swapped (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app);
+
+	g_signal_connect (G_OBJECT (app->area_info.dialog), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_swapped (G_OBJECT (app->area_info.dialog), "response", (GCallback) area_info_dlg_response, app);
 }
 
 
@@ -297,6 +336,7 @@ gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
 	}
 	app->redo = NULL;
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
+	update_area_info (app);
 }
 
 
@@ -316,6 +356,7 @@ undo_pressed (GtkMandelApplication *app, gpointer data)
 		gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
 	gtk_widget_set_sensitive (app->mainwin.redo, TRUE);
 	restart_thread (app);
+	update_area_info (app);
 }
 
 
@@ -336,6 +377,7 @@ redo_pressed (GtkMandelApplication *app, gpointer data)
 		gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 	gtk_widget_set_sensitive (app->mainwin.undo, TRUE);
 	restart_thread (app);
+	update_area_info (app);
 }
 
 
@@ -394,4 +436,33 @@ static void
 quit_selected (GtkMandelApplication *app, gpointer data)
 {
 	gtk_main_quit ();
+}
+
+
+static void
+update_area_info (GtkMandelApplication *app)
+{
+	char min[1024], max[1024];
+	if (coord_pair_to_string (app->area->xmin, app->area->xmax, min, max, 1024) >= 0) {
+		gtk_label_set_text (GTK_LABEL (app->area_info.items[0].value), min);
+		gtk_label_set_text (GTK_LABEL (app->area_info.items[1].value), max);
+	}
+	if (coord_pair_to_string (app->area->ymin, app->area->ymax, min, max, 1024) >= 0) {
+		gtk_label_set_text (GTK_LABEL (app->area_info.items[2].value), min);
+		gtk_label_set_text (GTK_LABEL (app->area_info.items[3].value), max);
+	}
+}
+
+
+static void
+area_info_dlg_response (GtkMandelApplication *app, gpointer data)
+{
+	gtk_widget_hide (app->area_info.dialog);
+}
+
+
+static void
+area_info_selected (GtkMandelApplication *app, gpointer data)
+{
+	gtk_widget_show_all (app->area_info.dialog);
 }

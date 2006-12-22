@@ -1,6 +1,9 @@
 #ifndef _GTKMANDEL_GUI_H
 #define _GTKMANDEL_GUI_H
 
+struct area_info_item {
+	GtkWidget *label, *value;
+};
 
 typedef struct {
 	GObject parent;
@@ -23,6 +26,12 @@ typedef struct {
 		GtkWidget *quit_item;
 		GSList *render_item_group;
 	} menu;
+	struct {
+		GtkWidget *dialog;
+		GtkWidget *table;
+		GtkWidget *scroller;
+		struct area_info_item items[4];
+	} area_info;
 	GtkWidget *open_coord_chooser;
 	GSList *undo, *redo;
 	GtkMandelArea *area;
