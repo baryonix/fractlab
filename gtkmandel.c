@@ -30,7 +30,7 @@ static void gtk_mandel_init (GtkMandel *mandel);
 static void gtk_mandel_area_class_init (GtkMandelAreaClass *class);
 static void gtk_mandel_area_init (GtkMandelArea *mandel);
 static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
-static gpointer *calcmandel (gpointer *data);
+static gpointer calcmandel (gpointer data);
 
 
 GdkColor mandelcolors[COLORS];
@@ -100,6 +100,16 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		gtk_mandel_area_get_type ()
 	);
+	class->precision_change_signal = g_signal_new (
+		"precision-changed",
+		G_TYPE_FROM_CLASS (class),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__ULONG,
+		G_TYPE_NONE,
+		1,
+		G_TYPE_ULONG
+	);
 }
 
 static void
@@ -158,10 +168,13 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	md->display_pixel = gtk_mandel_display_pixel;
 	md->display_rect = gtk_mandel_display_rect;
 
+	mandel_init_coords (md);
+	g_signal_emit (mandel, G_TYPE_INSTANCE_GET_CLASS (mandel, GtkMandel, GtkMandelClass)->precision_change_signal, 0, (gulong) ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb))); /* FIXME make this readable */
+
 	if (mandel->md != NULL)
 		mandel->md->terminate = true;
 
-	mandel->thread = g_thread_create ((GThreadFunc) calcmandel, (gpointer) md, true, NULL);
+	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
 }
 
 static void
@@ -196,13 +209,11 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (my_img);
 	if (e->type == GDK_BUTTON_PRESS) {
-		printf ("* Button pressed, x=%f, y=%f\n", e->x, e->y);
 		mandel->center_x = e->x;
 		mandel->center_y = e->y;
 		mandel->selection_size = 0.0;
 		return TRUE;
 	} else if (e->type == GDK_BUTTON_RELEASE) {
-		printf ("* Button released!\n");
 		mpf_t xmin, xmax, ymin, ymax, cx, cy, dx, dy;
 		mpf_init (xmin);
 		mpf_init (xmax);
@@ -292,8 +303,8 @@ gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigne
 }
 
 
-static gpointer *
-calcmandel (gpointer *data)
+static gpointer
+calcmandel (gpointer data)
 {
 	struct mandeldata *md = (struct mandeldata *) data;
 	GtkMandel *mandel = GTK_MANDEL (md->user_data);

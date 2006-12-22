@@ -298,7 +298,7 @@ mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned
 
 
 void
-mandel_render (struct mandeldata *mandel)
+mandel_init_coords (struct mandeldata *mandel)
 {
 	// Determine the required precision.
 	mpf_t dx, dy;
@@ -334,8 +334,6 @@ mandel_render (struct mandeldata *mandel)
 	unsigned frac_limbs = mandel->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 
-	fprintf (stderr, "* Using %d fractional limbs.\n", frac_limbs);
-
 	// Convert coordinates to integer values.
 	mpf_t f;
 	mpf_init2 (f, total_limbs * mp_bits_per_limb);
@@ -358,7 +356,12 @@ mandel_render (struct mandeldata *mandel)
 	mpz_set_f (mandel->ymax, f);
 
 	mpf_clear (f);
+}
 
+
+void
+mandel_render (struct mandeldata *mandel)
+{
 	switch (mandel->render_method) {
 		case RM_MARIANI_SILVER: {
 			if (thread_count > 1)
@@ -397,8 +400,6 @@ mandel_render (struct mandeldata *mandel)
 			break;
 		}
 	}
-
-	printf ("* Iterations saved by cycle detection: %u\n", iter_saved);
 }
 
 

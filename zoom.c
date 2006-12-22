@@ -181,13 +181,8 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 	md->render_method = RM_MARIANI_SILVER;
 	md->log_factor = log_factor;
 
-	/*char xminc[1024], xmaxc[1024], yminc[1024], ymaxc[1024];
-	coords_to_string (xmin, xmax, ymin, ymax, xminc, xmaxc, yminc, ymaxc, 1024);
-	printf ("xmin=%s xmax=%s ymin=%s ymax=%s\n", xminc, xmaxc, yminc, ymaxc);*/
-
-	fprintf (stderr, "Starting to render...\n");
+	mandel_init_coords (md);
 	mandel_render (md);
-	fprintf (stderr, "Rendering finished...\n");
 
 	mpf_clear (md->xmin_f);
 	mpf_clear (md->xmax_f);
@@ -201,6 +196,13 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 	sprintf (name, "file%06lu.png", i);
 	write_png (md, name);
 	free (md->data);
+
+	fprintf (stderr, "* Frame %ld done", i);
+	if (md->frac_limbs == 0)
+		fprintf (stderr, ", using FP arithmetic");
+	else
+		fprintf (stderr, ", using MP arithmetic (%d bits precision)", (INT_LIMBS + md->frac_limbs) * mp_bits_per_limb);
+	fprintf (stderr, ".\n");
 }
 
 

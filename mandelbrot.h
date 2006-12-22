@@ -61,6 +61,7 @@ void mandel_render_pixel (struct mandeldata *mandel, int x, int y);
 void calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1);
 void mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_render (struct mandeldata *mandel);
+void mandel_init_coords (struct mandeldata *mandel);
 void mandel_free (struct mandeldata *mandel);
 
 extern unsigned iter_saved;

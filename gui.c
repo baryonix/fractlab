@@ -23,6 +23,7 @@ static void log_colors_updated (GtkMandelApplication *app, gpointer data);
 static void undo_pressed (GtkMandelApplication *app, gpointer data);
 static void redo_pressed (GtkMandelApplication *app, gpointer data);
 static void restart_thread (GtkMandelApplication *app);
+static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer data);
 
 
 GType
@@ -140,12 +141,15 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
 
+	app->mainwin.info_area = gtk_label_new ("");
+
 	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.undo_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.info_area);
 
 	app->mainwin.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.win), app->mainwin.main_vbox);
@@ -177,6 +181,7 @@ connect_signals (GtkMandelApplication *app)
 {
 	int i;
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "selection", (GCallback) area_selected, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "precision-changed", (GCallback) precision_changed, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
 	for (i = 0; i < RM_MAX; i++)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
@@ -300,4 +305,20 @@ restart_thread (GtkMandelApplication *app)
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	GtkMandelArea *area = app->area;
 	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, app->maxiter, app->render_method, app->log_factor);
+}
+
+
+static void
+precision_changed (GtkMandelApplication *app, gulong bits, gpointer data)
+{
+	char buf[64];
+	int r;
+	if (bits == 0)
+		gtk_label_set_text (GTK_LABEL (app->mainwin.info_area), "FP");
+	else {
+		r = snprintf (buf, sizeof (buf), "MP (%lu bits)", bits);
+		if (r < 0 || r >= sizeof (buf))
+			return;
+		gtk_label_set_text (GTK_LABEL (app->mainwin.info_area), buf);
+	}
 }

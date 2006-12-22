@@ -21,6 +21,7 @@ typedef struct
 {
 	GtkDrawingAreaClass parent_class;
 	guint selection_signal;
+	guint precision_change_signal;
 } GtkMandelClass;
 
 #define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
