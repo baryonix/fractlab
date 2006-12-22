@@ -74,7 +74,8 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 }
 
 
-static void create_menus (GtkMandelApplication *app)
+static void
+create_menus (GtkMandelApplication *app)
 {
 	render_method_t i;
 
@@ -245,7 +246,8 @@ static void maxiter_updated (GtkMandelApplication *app, gpointer data)
 }
 
 
-static void render_method_updated (GtkMandelApplication *app, gpointer data)
+static void
+render_method_updated (GtkMandelApplication *app, gpointer data)
 {
 	GtkCheckMenuItem *item = GTK_CHECK_MENU_ITEM (data);
 	if (!item->active)
