@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
+#include <errno.h>
 
 #include <gtk/gtk.h>
 
@@ -8,6 +10,7 @@
 #include "gtkmandel.h"
 #include "gui.h"
 #include "util.h"
+#include "file.h"
 
 #define GTK_MANDEL_APPLICATION_GET_CLASS(app) G_TYPE_INSTANCE_GET_CLASS ((app), GtkMandelApplication, GtkMandelApplicationClass)
 
@@ -28,6 +31,8 @@ static void restart_thread (GtkMandelApplication *app);
 static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer data);
 static void open_coord_file (GtkMandelApplication *app, gpointer data);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
+static void save_coord_file (GtkMandelApplication *app, gpointer data);
+static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void quit_selected (GtkMandelApplication *app, gpointer data);
 static void update_area_info (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
@@ -95,6 +100,9 @@ create_menus (GtkMandelApplication *app)
 
 	app->menu.open_coord_item = gtk_menu_item_new_with_label ("Open coordinate file...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.open_coord_item);
+
+	app->menu.save_coord_item = gtk_menu_item_new_with_label ("Save coordinate file...");
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.save_coord_item);
 
 	app->menu.area_info_item = gtk_menu_item_new_with_label ("Area Info");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.area_info_item);
@@ -175,6 +183,10 @@ static void
 create_dialogs (GtkMandelApplication *app)
 {
 	app->open_coord_chooser = gtk_file_chooser_dialog_new ("Open coordinate file", GTK_WINDOW (app->mainwin.win), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+
+	app->save_coord_chooser = gtk_file_chooser_dialog_new ("Save coordinate file", GTK_WINDOW (app->mainwin.win), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+	gtk_window_set_modal (GTK_WINDOW (app->save_coord_chooser), TRUE);
+
 	create_area_info (app);
 }
 
@@ -242,6 +254,8 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app);
 
+	g_signal_connect_swapped (G_OBJECT (app->menu.save_coord_item), "activate", (GCallback) save_coord_file, app);
+
 	for (i = 0; i < RM_MAX; i++)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
 
@@ -262,6 +276,9 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect (G_OBJECT (app->open_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 	g_signal_connect_swapped (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app);
 
+	g_signal_connect (G_OBJECT (app->save_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_swapped (G_OBJECT (app->save_coord_chooser), "response", (GCallback) save_coord_dlg_response, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app);
 
 	g_signal_connect (G_OBJECT (app->area_info.dialog), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
@@ -272,9 +289,6 @@ connect_signals (GtkMandelApplication *app)
 static void
 area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 {
-	char xmin_buf[1024], xmax_buf[1024], ymin_buf[1024], ymax_buf[1024];
-	coords_to_string (area->xmin, area->xmax, area->ymin, area->ymax, xmin_buf, xmax_buf, ymin_buf, ymax_buf, 1024);
-	printf ("* xmin = %s\n* xmax = %s\n* ymin = %s\n* ymax = %s\n", xmin_buf, xmax_buf, ymin_buf, ymax_buf);
 	gtk_mandel_application_set_area (app, area);
 	restart_thread (app);
 }
@@ -465,4 +479,33 @@ static void
 area_info_selected (GtkMandelApplication *app, gpointer data)
 {
 	gtk_widget_show_all (app->area_info.dialog);
+}
+
+
+static void
+save_coord_file (GtkMandelApplication *app, gpointer data)
+{
+	gtk_widget_show_all (app->save_coord_chooser);
+}
+
+
+static void
+save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
+{
+	gtk_widget_hide (app->save_coord_chooser);
+
+	if (response != GTK_RESPONSE_ACCEPT)
+		return;
+
+	/* FIXME check for existing file */
+
+	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
+	FILE *f = fopen (filename, "w");
+	if (f == NULL) {
+		fprintf (stderr, "%s: %s\n", filename, strerror (errno));
+		return;
+	}
+
+	fwrite_corner_coords (f, app->area->xmin, app->area->xmax, app->area->ymin, app->area->ymax);
+	fclose (f);
 }

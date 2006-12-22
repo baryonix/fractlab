@@ -20,6 +20,7 @@ typedef struct {
 		GtkWidget *bar;
 		GtkWidget *file_item, *file_menu;
 		GtkWidget *open_coord_item;
+		GtkWidget *save_coord_item;
 		GtkWidget *area_info_item;
 		GtkWidget *render_item, *render_menu;
 		GtkWidget *render_method_items[RM_MAX];
@@ -33,6 +34,7 @@ typedef struct {
 		struct area_info_item items[4];
 	} area_info;
 	GtkWidget *open_coord_chooser;
+	GtkWidget *save_coord_chooser;
 	GSList *undo, *redo;
 	GtkMandelArea *area;
 	unsigned maxiter;

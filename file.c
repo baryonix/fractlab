@@ -91,3 +91,14 @@ fread_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
 	mpf_set_str (ymax, buf, 10);
 	return true;
 }
+
+
+bool
+fwrite_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+{
+	char xminc[1024], xmaxc[1024], yminc[1024], ymaxc[1024];
+	if (coords_to_string (xmin, xmax, ymin, ymax, xminc, xmaxc, yminc, ymaxc, 1024) < 0)
+		return false;
+	fprintf (f, "corners\n%s\n%s\n%s\n%s\n", xminc, xmaxc, yminc, ymaxc);
+	return true;
+}
