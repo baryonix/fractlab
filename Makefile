@@ -4,12 +4,15 @@ CC = gcc
 LEX = lex
 YACC = yacc
 NASM = nasm
-USE_IA32_ASM = i387
 COPTS = -O3 -march=pentium4 -Wall -g
-CFLAGS = -pthread -I/opt/gmp/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
-GMP_LIBS = /opt/gmp/lib/libgmp.a
+USE_IA32_ASM = i387
+GMP_DIR = /opt/gmp
+MPFR_DIR = $(GMP_DIR)
+CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
+GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
+MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(GMP_LIBS) -lpthread -lm
-MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) -lmpfr $(GMP_LIBS) -lpthread -lm
+MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
 MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o mandelbrot.o
