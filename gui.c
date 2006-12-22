@@ -27,6 +27,7 @@ static void restart_thread (GtkMandelApplication *app);
 static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer data);
 static void open_coord_file (GtkMandelApplication *app, gpointer data);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
+static void quit_selected (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -207,6 +208,8 @@ connect_signals (GtkMandelApplication *app)
 	for (i = 0; i < RM_MAX; i++)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
 
+	g_signal_connect_swapped (G_OBJECT (app->menu.quit_item), "activate", (GCallback) quit_selected, app);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
@@ -222,6 +225,8 @@ connect_signals (GtkMandelApplication *app)
 	 * when the close button is clicked.
 	 */
 	g_signal_connect (G_OBJECT (app->open_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app);
 }
 
 
@@ -382,4 +387,11 @@ open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		restart_thread (app);
 	} else
 		fprintf (stderr, "%s: Something went wrong reading the file.\n", filename);
+}
+
+
+static void
+quit_selected (GtkMandelApplication *app, gpointer data)
+{
+	gtk_main_quit ();
 }
