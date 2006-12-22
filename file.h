@@ -5,7 +5,9 @@
 
 #include <gmp.h>
 
-bool read_center_coords_from_file (const char *filename, mpf_t xc, mpf_t yc, mpf_t magf);
-bool read_corner_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
+bool fread_coords_as_center (FILE *f, mpf_t xc, mpf_t yc, mpf_t magf);
+bool fread_coords_as_corners (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, double aspect);
+bool fread_center_coords (FILE *f, mpf_t xc, mpf_t yc, mpf_t magf);
+bool fread_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
 
 #endif /* _MANDEL_FILE_H */

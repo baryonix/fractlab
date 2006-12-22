@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include <gmp.h>
 
@@ -7,12 +8,64 @@
 
 
 bool
-read_center_coords_from_file (const char *filename, mpf_t xc, mpf_t yc, mpf_t magf)
+fread_coords_as_center (FILE *f, mpf_t xc, mpf_t yc, mpf_t magf)
 {
-	FILE *f = fopen (filename, "r");
-	if (f == NULL)
+	char buf[64];
+	fgets (buf, 64, f);
+	if (strcmp (buf, "center\n") == 0)
+		return fread_center_coords (f, xc, yc, magf);
+	else if (strcmp (buf, "corners\n") == 0) {
+		mpf_t xmin, xmax, ymin, ymax;
+		mpf_init (xmin);
+		mpf_init (xmax);
+		mpf_init (ymin);
+		mpf_init (ymax);
+		if (!fread_corner_coords (f, xmin, xmax, ymin, ymax)) {
+			mpf_clear (xmin);
+			mpf_clear (xmax);
+			mpf_clear (ymin);
+			mpf_clear (ymax);
+			return false;
+		}
+		corners_to_center (xc, yc, magf, xmin, xmax, ymin, ymax);
+		mpf_clear (xmin);
+		mpf_clear (xmax);
+		mpf_clear (ymin);
+		mpf_clear (ymax);
+		return true;
+	} else
 		return false;
+}
 
+
+bool
+fread_coords_as_corners (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, double aspect)
+{
+	char buf[64];
+	fgets (buf, 64, f);
+	if (strcmp (buf, "center\n") == 0) {
+		mpf_t cx, cy, magf;
+		mpf_init (cx);
+		mpf_init (cy);
+		mpf_init (magf);
+		if (!fread_center_coords (f, cx, cy, magf)) {
+			mpf_clear (cx);
+			mpf_clear (cy);
+			mpf_clear (magf);
+			return false;
+		}
+		center_to_corners (xmin, xmax, ymin, ymax, cx, cy, magf, aspect);
+		return true;
+	} else if (strcmp (buf, "corners\n") == 0)
+		return fread_corner_coords (f, xmin, xmax, ymin, ymax);
+	else
+		return false;
+}
+
+
+bool
+fread_center_coords (FILE *f, mpf_t xc, mpf_t yc, mpf_t magf)
+{
 	char buf[1024];
 	fgets (buf, 1024, f);
 	mpf_set_str (xc, buf, 10);
@@ -20,20 +73,13 @@ read_center_coords_from_file (const char *filename, mpf_t xc, mpf_t yc, mpf_t ma
 	mpf_set_str (yc, buf, 10);
 	fgets (buf, 1024, f);
 	mpf_set_str (magf, buf, 10);
-
-	fclose (f);
-
 	return true;
 }
 
 
 bool
-read_corner_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+fread_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
 {
-	FILE *f = fopen (filename, "r");
-	if (f == NULL)
-		return false;
-
 	char buf[1024];
 	fgets (buf, 1024, f);
 	mpf_set_str (xmin, buf, 10);
@@ -43,8 +89,5 @@ read_corner_coords_from_file (const char *filename, mpf_t xmin, mpf_t xmax, mpf_
 	mpf_set_str (ymin, buf, 10);
 	fgets (buf, 1024, f);
 	mpf_set_str (ymax, buf, 10);
-
-	fclose (f);
-
 	return true;
 }

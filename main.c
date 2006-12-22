@@ -7,6 +7,7 @@
 
 // POSIX
 #include <unistd.h>
+#include <errno.h>
 
 // GTK
 #include <gtk/gtk.h>
@@ -120,28 +121,24 @@ main (int argc, char **argv)
 
 	bool coords_ok;
 
-	if (option_center_coords != NULL) {
-		mpf_t cx, cy, magf;
-		mpf_init (cx);
-		mpf_init (cy);
-		mpf_init (magf);
-		coords_ok = read_center_coords_from_file (option_center_coords, cx, cy, magf);
-		if (coords_ok)
-			center_to_corners (xmin, xmax, ymin, ymax, cx, cy, magf, 1.0);
-		mpf_clear (cx);
-		mpf_clear (cy);
-		mpf_clear (magf);
-	} else if (option_corner_coords != NULL)
-		coords_ok = read_corner_coords_from_file (option_corner_coords, xmin, xmax, ymin, ymax);
-	else {
+	if (option_start_coords == NULL) {
 		fprintf (stderr, "No start coordinates specified.\n");
 		exit (2);
 	}
 
-	if (!coords_ok) {
-		perror ("reading coordinates file");
-		exit (3);
+	FILE *f = fopen (option_start_coords, "r");
+	if (f == NULL) {
+		fprintf (stderr, "%s: cannot open: %s\n", option_start_coords, strerror (errno));
+		exit (2);
 	}
+
+	if (!fread_coords_as_corners (f, xmin, xmax, ymin, ymax, 1.0)) {
+		fprintf (stderr, "%s: cannot read coordinates.\n");
+		fclose (f);
+		exit (2);
+	}
+
+	fclose (f);
 
 	GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
 	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0);

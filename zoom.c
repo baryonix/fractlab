@@ -290,14 +290,22 @@ main (int argc, char **argv)
 	mpf_init (magfn);
 	mpf_init (mpaspect);
 	parse_command_line (&argc, &argv);
-	if (start_coords == NULL || !read_center_coords_from_file (start_coords, cx0, cy0, magf0)) {
+	FILE *f = NULL;
+	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_coords_as_center (f, cx0, cy0, magf0)) {
+		if (f != NULL)
+			fclose (f);
 		fprintf (stderr, "* Error: No start coordinates specified.\n");
 		return 1;
 	}
-	if (target_coords == NULL || !read_center_coords_from_file (target_coords, cxn, cyn, magfn)) {
+	fclose (f);
+	f = NULL;
+	if (target_coords == NULL || !(f = fopen (target_coords, "r")) || !fread_coords_as_center (f, cxn, cyn, magfn)) {
+		if (f != NULL)
+			fclose (f);
 		fprintf (stderr, "* Error: No target coordinates specified.\n");
 		return 1;
 	}
+	fclose (f);
 
 	for (i = 0; i < COLORS; i++) {
 		colors[i].r = (unsigned short) (sin (2 * M_PI * i / COLORS) * 127) + 128;

@@ -3,7 +3,7 @@
 
 #include <glib.h>
 
-extern gchar *option_center_coords, *option_corner_coords;
+extern gchar *option_start_coords;
 extern int thread_count;
 
 void parse_command_line (int *argc, char ***argv);
