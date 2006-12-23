@@ -4,11 +4,11 @@ CC = gcc
 LEX = lex
 YACC = yacc
 NASM = nasm
-COPTS = -O3 -march=pentium4 -Wall -g
+COPTS = -O3 -march=pentium4 -Wall -g -std=c99
 USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
-CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -std=c99 -D_XOPEN_SOURCE $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
+CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -D_XOPEN_SOURCE $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
 GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
 MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(GMP_LIBS) -lpthread -lm
