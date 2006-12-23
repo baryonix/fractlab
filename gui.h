@@ -2,7 +2,7 @@
 #define _GTKMANDEL_GUI_H
 
 struct area_info_item {
-	GtkWidget *label, *value;
+	GtkWidget *label, *value, *value_frame;
 };
 
 typedef struct {
