@@ -30,9 +30,12 @@ typedef struct {
 	} menu;
 	struct {
 		GtkWidget *dialog;
-		GtkWidget *table;
-		GtkWidget *scroller;
-		struct area_info_item items[4];
+		GtkWidget *notebook;
+		GtkWidget *corners_label, *center_label;
+		struct {
+			GtkWidget *table;
+			struct area_info_item items[4];
+		} corners;
 	} area_info;
 	GtkWidget *open_coord_chooser;
 	GtkWidget *save_coord_chooser;
@@ -56,6 +59,7 @@ typedef struct {
 GType gtk_mandel_application_get_type ();
 GtkMandelApplication *gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor);
 void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
+void gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter);
 void gtk_mandel_application_start (GtkMandelApplication *app);
 
 #endif /* _GTKMANDEL_GUI_H */

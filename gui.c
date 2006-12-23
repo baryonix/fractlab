@@ -38,6 +38,7 @@ static void update_area_info (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void create_area_info_item (GtkMandelApplication *app, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
+static void update_maxiter_entry (GtkMandelApplication *app);
 
 
 GType
@@ -194,29 +195,34 @@ create_dialogs (GtkMandelApplication *app)
 static void
 create_area_info (GtkMandelApplication *app)
 {
-	app->area_info.table = gtk_table_new (2, 4, false);
+	app->area_info.corners.table = gtk_table_new (2, 4, false);
 	create_area_info_item (app, 0, "xmin");
 	create_area_info_item (app, 1, "xmax");
 	create_area_info_item (app, 2, "ymin");
 	create_area_info_item (app, 3, "ymax");
 
-	app->area_info.scroller = gtk_scrolled_window_new (NULL, NULL);
-	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (app->area_info.scroller), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
-	gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (app->area_info.scroller), app->area_info.table);
+	app->area_info.corners_label = gtk_label_new ("Corners");
+	app->area_info.center_label = gtk_label_new ("Center");
+
+	app->area_info.notebook = gtk_notebook_new ();
+	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.corners.table, app->area_info.corners_label);
 
 	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
-	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.scroller);
+	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.notebook);
 }
 
 
 static void
 create_area_info_item (GtkMandelApplication *app, int i, const char *label)
 {
-	struct area_info_item *item = app->area_info.items + i;
+	struct area_info_item *item = app->area_info.corners.items + i;
 	item->label = gtk_label_new (label);
 	item->value = gtk_label_new ("");
-	gtk_table_attach_defaults (GTK_TABLE (app->area_info.table), item->label, 0, 1, i, i + 1);
-	gtk_table_attach_defaults (GTK_TABLE (app->area_info.table), item->value, 1, 2, i, i + 1);
+	gtk_label_set_line_wrap (GTK_LABEL (item->value), TRUE);
+	gtk_label_set_line_wrap_mode (GTK_LABEL (item->value), PANGO_WRAP_CHAR);
+	gtk_label_set_selectable (GTK_LABEL (item->value), TRUE);
+	gtk_table_attach_defaults (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1);
+	gtk_table_attach_defaults (GTK_TABLE (app->area_info.corners.table), item->value, 1, 2, i, i + 1);
 }
 
 
@@ -233,7 +239,7 @@ gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method
 {
 	GtkMandelApplication *app = g_object_new (gtk_mandel_application_get_type (), NULL);
 	gtk_mandel_application_set_area (app, area);
-	app->maxiter = maxiter;
+	gtk_mandel_application_set_maxiter (app, maxiter);
 	app->render_method = render_method;
 	app->log_factor = log_factor;
 	return app;
@@ -458,12 +464,12 @@ update_area_info (GtkMandelApplication *app)
 {
 	char min[1024], max[1024];
 	if (coord_pair_to_string (app->area->xmin, app->area->xmax, min, max, 1024) >= 0) {
-		gtk_label_set_text (GTK_LABEL (app->area_info.items[0].value), min);
-		gtk_label_set_text (GTK_LABEL (app->area_info.items[1].value), max);
+		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[0].value), min);
+		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[1].value), max);
 	}
 	if (coord_pair_to_string (app->area->ymin, app->area->ymax, min, max, 1024) >= 0) {
-		gtk_label_set_text (GTK_LABEL (app->area_info.items[2].value), min);
-		gtk_label_set_text (GTK_LABEL (app->area_info.items[3].value), max);
+		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[2].value), min);
+		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[3].value), max);
 	}
 }
 
@@ -508,4 +514,24 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 
 	fwrite_corner_coords (f, app->area->xmin, app->area->xmax, app->area->ymin, app->area->ymax);
 	fclose (f);
+}
+
+
+void
+gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter)
+{
+	app->maxiter = maxiter;
+	update_maxiter_entry (app);
+}
+
+
+static void
+update_maxiter_entry (GtkMandelApplication *app)
+{
+	char buf[64];
+	int r;
+	r = snprintf (buf, sizeof (buf), "%u", app->maxiter);
+	if (r < 0 || r >= sizeof (buf))
+		return;
+	gtk_entry_set_text (GTK_ENTRY (app->mainwin.maxiter_input), buf);
 }
