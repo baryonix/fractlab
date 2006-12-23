@@ -4,6 +4,7 @@
 #include <errno.h>
 
 #include <gtk/gtk.h>
+#include <pango/pango.h>
 
 #include "defs.h"
 #include "mandelbrot.h"
@@ -147,7 +148,7 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.maxiter_input = gtk_entry_new ();
 
-	app->mainwin.maxiter_hbox = gtk_hbox_new (false, 5);
+	app->mainwin.maxiter_hbox = gtk_hbox_new (false, 2);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_label);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_input);
 
@@ -157,7 +158,7 @@ create_mainwin (GtkMandelApplication *app)
 	//gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "foobar");
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
 
-	app->mainwin.log_colors_hbox = gtk_hbox_new (false, 5);
+	app->mainwin.log_colors_hbox = gtk_hbox_new (false, 2);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_checkbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input);
 
@@ -165,9 +166,9 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
 
 	app->mainwin.info_area = gtk_label_new ("");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.info_area), 0.0, 0.5);
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.info_area), 0.0, 0.2);
 
-	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
+	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.tool_bar);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
@@ -199,6 +200,7 @@ create_area_info (GtkMandelApplication *app)
 	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.corners.table), FALSE);
 	gtk_table_set_row_spacings (GTK_TABLE (app->area_info.corners.table), 2);
 	gtk_table_set_col_spacings (GTK_TABLE (app->area_info.corners.table), 2);
+	gtk_container_set_border_width (GTK_CONTAINER (app->area_info.corners.table), 2);
 	create_area_info_item (app, 0, "xmin");
 	create_area_info_item (app, 1, "xmax");
 	create_area_info_item (app, 2, "ymin");
@@ -212,6 +214,11 @@ create_area_info (GtkMandelApplication *app)
 
 	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
 	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.notebook);
+
+	GdkGeometry geom;
+	geom.max_width = 1000000; /* FIXME how to set max_width = unlimited? */
+	geom.max_height = -1;
+	gtk_window_set_geometry_hints (GTK_WINDOW (app->area_info.dialog), NULL, &geom, GDK_HINT_MAX_SIZE);
 }
 
 
