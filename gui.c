@@ -132,15 +132,15 @@ create_menus (GtkMandelApplication *app)
 static void
 create_mainwin (GtkMandelApplication *app)
 {
-	app->mainwin.undo = gtk_button_new_from_stock (GTK_STOCK_GO_BACK);
+	app->mainwin.undo = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_BACK));
 	gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
 
-	app->mainwin.redo = gtk_button_new_from_stock (GTK_STOCK_GO_FORWARD);
+	app->mainwin.redo = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 
-	app->mainwin.undo_hbox = gtk_hbox_new (5, false);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.undo_hbox), app->mainwin.undo);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.undo_hbox), app->mainwin.redo);
+	app->mainwin.tool_bar = gtk_toolbar_new ();
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.redo);
 
 	app->mainwin.maxiter_label = gtk_label_new ("maxiter:");
 
@@ -168,7 +168,7 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 5);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.undo_hbox);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.tool_bar);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
