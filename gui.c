@@ -196,6 +196,7 @@ static void
 create_area_info (GtkMandelApplication *app)
 {
 	app->area_info.corners.table = gtk_table_new (2, 4, false);
+	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.corners.table), FALSE);
 	create_area_info_item (app, 0, "xmin");
 	create_area_info_item (app, 1, "xmax");
 	create_area_info_item (app, 2, "ymin");
@@ -222,7 +223,7 @@ create_area_info_item (GtkMandelApplication *app, int i, const char *label)
 	gtk_label_set_line_wrap_mode (GTK_LABEL (item->value), PANGO_WRAP_CHAR);
 	gtk_label_set_selectable (GTK_LABEL (item->value), TRUE);
 	gtk_table_attach_defaults (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1);
-	gtk_table_attach_defaults (GTK_TABLE (app->area_info.corners.table), item->value, 1, 2, i, i + 1);
+	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->value, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 }
 
 
