@@ -477,11 +477,11 @@ update_area_info (GtkMandelApplication *app)
 	char min[1024], max[1024];
 	if (coord_pair_to_string (app->area->xmin, app->area->xmax, min, max, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, min, strlen (min));
-		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, max, strlen (min));
+		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, max, strlen (max));
 	}
 	if (coord_pair_to_string (app->area->ymin, app->area->ymax, min, max, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, min, strlen (min));
-		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, max, strlen (min));
+		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, max, strlen (max));
 	}
 }
 
