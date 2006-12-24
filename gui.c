@@ -29,7 +29,7 @@ static void log_colors_updated (GtkMandelApplication *app, gpointer data);
 static void undo_pressed (GtkMandelApplication *app, gpointer data);
 static void redo_pressed (GtkMandelApplication *app, gpointer data);
 static void restart_thread (GtkMandelApplication *app);
-static void precision_changed (GtkMandelApplication *app, gulong bits, gpointer data);
+static void rendering_started (GtkMandelApplication *app, gulong bits, gpointer data);
 static void open_coord_file (GtkMandelApplication *app, gpointer data);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void save_coord_file (GtkMandelApplication *app, gpointer data);
@@ -40,6 +40,9 @@ static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void create_area_info_item (GtkMandelApplication *app, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void update_maxiter_entry (GtkMandelApplication *app);
+static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
+static void restart_pressed (GtkMandelApplication *app, gpointer data);
+static void stop_pressed (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -140,10 +143,20 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.redo = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 
+	app->mainwin.toolbar_sep1 = GTK_WIDGET (gtk_separator_tool_item_new ());
+
+	app->mainwin.restart = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_REFRESH));
+
+	app->mainwin.stop = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_STOP));
+	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
+
 	app->mainwin.tool_bar = gtk_toolbar_new ();
 	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.tool_bar), GTK_TOOLBAR_ICONS);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.redo);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep1);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.restart);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.stop);
 
 	app->mainwin.maxiter_label = gtk_label_new ("maxiter:");
 
@@ -166,8 +179,15 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
 
-	app->mainwin.info_area = gtk_label_new ("");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.info_area), 0.0, 0.2);
+	app->mainwin.status_info = gtk_label_new ("");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.status_info), 0.0, 0.5);
+
+	app->mainwin.math_info = gtk_label_new ("");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.math_info), 1.0, 0.5);
+
+	app->mainwin.status_hbox = gtk_hbox_new (false, 2);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.status_hbox), app->mainwin.status_info);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.status_hbox), app->mainwin.math_info);
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
@@ -175,7 +195,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.info_area);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.status_hbox);
 
 	app->mainwin.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.win), app->mainwin.main_vbox);
@@ -264,7 +284,8 @@ connect_signals (GtkMandelApplication *app)
 	int i;
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "selection", (GCallback) area_selected, app);
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "precision-changed", (GCallback) precision_changed, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
 
@@ -286,6 +307,10 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.stop), "clicked", (GCallback) stop_pressed, app);
 
 	/*
 	 * This prevents the window from being destroyed
@@ -423,18 +448,24 @@ restart_thread (GtkMandelApplication *app)
 
 
 static void
-precision_changed (GtkMandelApplication *app, gulong bits, gpointer data)
+rendering_started (GtkMandelApplication *app, gulong bits, gpointer data)
 {
 	char buf[64];
 	int r;
+
+	/* XXX same issue here as with rendering_stopped() */
+	gdk_threads_enter ();
+	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Rendering");
+	gtk_widget_set_sensitive (app->mainwin.stop, TRUE);
 	if (bits == 0)
-		gtk_label_set_text (GTK_LABEL (app->mainwin.info_area), "FP");
+		gtk_label_set_text (GTK_LABEL (app->mainwin.math_info), "FP");
 	else {
 		r = snprintf (buf, sizeof (buf), "MP (%lu bits)", bits);
 		if (r < 0 || r >= sizeof (buf))
 			return;
-		gtk_label_set_text (GTK_LABEL (app->mainwin.info_area), buf);
+		gtk_label_set_text (GTK_LABEL (app->mainwin.math_info), buf);
 	}
+	gdk_threads_leave ();
 }
 
 
@@ -546,4 +577,41 @@ update_maxiter_entry (GtkMandelApplication *app)
 	if (r < 0 || r >= sizeof (buf))
 		return;
 	gtk_entry_set_text (GTK_ENTRY (app->mainwin.maxiter_input), buf);
+}
+
+
+static void
+rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data)
+{
+	const char *msg;
+	if (completed)
+		msg = "Finished";
+	else
+		msg = "Stopped";
+
+	/*
+	 * XXX Why do we have a concurrency issue here? I'd expect the callback
+	 * to be called in the thread executing the main loop, but it obviously
+	 * isn't.
+	 */
+	gdk_threads_enter ();
+	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
+	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), msg);
+	gdk_threads_leave ();
+}
+
+
+static void
+restart_pressed (GtkMandelApplication *app, gpointer data)
+{
+	restart_thread (app);
+}
+
+
+static void
+stop_pressed (GtkMandelApplication *app, gpointer data)
+{
+	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
+	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Stopping...");
+	mandel->md->terminate = TRUE;
 }

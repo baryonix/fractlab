@@ -12,11 +12,11 @@ typedef struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
 		GtkWidget *tool_bar;
-		GtkWidget *undo, *redo;
+		GtkWidget *undo, *redo, *toolbar_sep1, *restart, *stop;
 		GtkWidget *maxiter_hbox, *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_hbox, *log_colors_checkbox, *log_colors_input;
 		GtkWidget *mandel;
-		GtkWidget *info_area;
+		GtkWidget *status_hbox, *status_info, *math_info;
 	} mainwin;
 	struct {
 		GtkWidget *bar;

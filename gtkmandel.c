@@ -101,8 +101,8 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		gtk_mandel_area_get_type ()
 	);
-	class->precision_change_signal = g_signal_new (
-		"precision-changed",
+	class->rendering_started_signal = g_signal_new (
+		"rendering-started",
 		G_TYPE_FROM_CLASS (class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
@@ -110,6 +110,16 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		G_TYPE_NONE,
 		1,
 		G_TYPE_ULONG
+	);
+	class->rendering_stopped_signal = g_signal_new (
+		"rendering-stopped",
+		G_TYPE_FROM_CLASS (class),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__BOOLEAN,
+		G_TYPE_NONE,
+		1,
+		G_TYPE_BOOLEAN
 	);
 }
 
@@ -170,7 +180,6 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	md->display_rect = gtk_mandel_display_rect;
 
 	mandel_init_coords (md);
-	g_signal_emit (mandel, G_TYPE_INSTANCE_GET_CLASS (mandel, GtkMandel, GtkMandelClass)->precision_change_signal, 0, (gulong) ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb))); /* FIXME make this readable */
 
 	if (mandel->md != NULL)
 		mandel->md->terminate = true;
@@ -239,7 +248,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		mpf_sub (ymin, cy, dx);
 		mpf_add (ymax, cy, dx);
 		GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
-		g_signal_emit (mandel, G_TYPE_INSTANCE_GET_CLASS (mandel, GtkMandel, GtkMandelClass)->selection_signal, 0, area);
+		g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->selection_signal, 0, area);
 		// FIXME free area!
 		return TRUE;
 	} else if (e->type == GDK_MOTION_NOTIFY) {
@@ -318,6 +327,8 @@ calcmandel (gpointer data)
 		mandel_free (mandel->md);
 	}
 
+	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_started_signal, 0, (gulong) ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb))); /* FIXME make this readable */
+
 	mandel->md = md;
 
 	gdk_threads_enter ();
@@ -332,6 +343,8 @@ calcmandel (gpointer data)
 	gdk_threads_enter ();
 	gdk_flush ();
 	gdk_threads_leave ();
+
+	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_stopped_signal, 0, (gboolean) !md->terminate);
 
 	return NULL;
 }

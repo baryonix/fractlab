@@ -21,12 +21,14 @@ typedef struct
 {
 	GtkDrawingAreaClass parent_class;
 	guint selection_signal;
-	guint precision_change_signal;
+	guint rendering_started_signal;
+	guint rendering_stopped_signal;
 } GtkMandelClass;
 
-#define GTK_MANDEL(obj) GTK_CHECK_CAST (obj, gtk_mandel_get_type (), GtkMandel)
-#define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_get_type (), GtkMandel)
-#define GTK_IS_MANDEL(obj) GET_CHECK_TYPE (obj, gtk_mandel_get_type ())
+#define GTK_MANDEL(obj) GTK_CHECK_CAST ((obj), gtk_mandel_get_type (), GtkMandel)
+#define GTK_MANDEL_CLASS(klass) GTK_CHECK_CLASS_CAST ((klass), gtk_mandel_get_type (), GtkMandel)
+#define GTK_IS_MANDEL(obj) GET_CHECK_TYPE ((obj), gtk_mandel_get_type ())
+#define GTK_MANDEL_GET_CLASS(obj) G_TYPE_INSTANCE_GET_CLASS ((obj), GtkMandel, GtkMandelClass)
 
 
 typedef struct {
