@@ -163,18 +163,18 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.maxiter_input = gtk_entry_new ();
 
 	app->mainwin.maxiter_hbox = gtk_hbox_new (false, 2);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_label);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.maxiter_hbox), app->mainwin.maxiter_input);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.maxiter_hbox), app->mainwin.maxiter_label, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.maxiter_hbox), app->mainwin.maxiter_input, TRUE, TRUE, 0);
 
 	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
 
 	app->mainwin.log_colors_input = gtk_entry_new ();
-	//gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "foobar");
+	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "100"); /* FIXME get default value in a sensible way */
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
 
 	app->mainwin.log_colors_hbox = gtk_hbox_new (false, 2);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_checkbox);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_checkbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input, TRUE, TRUE, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
@@ -182,20 +182,28 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.status_info = gtk_label_new ("");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.status_info), 0.0, 0.5);
 
+	app->mainwin.status_info_frame = gtk_frame_new (NULL);
+	gtk_frame_set_shadow_type (GTK_FRAME (app->mainwin.status_info_frame), GTK_SHADOW_IN);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.status_info_frame), app->mainwin.status_info);
+
 	app->mainwin.math_info = gtk_label_new ("");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.math_info), 1.0, 0.5);
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.math_info), 0.0, 0.5);
+
+	app->mainwin.math_info_frame = gtk_frame_new (NULL);
+	gtk_frame_set_shadow_type (GTK_FRAME (app->mainwin.math_info_frame), GTK_SHADOW_IN);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.math_info_frame), app->mainwin.math_info);
 
 	app->mainwin.status_hbox = gtk_hbox_new (false, 2);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.status_hbox), app->mainwin.status_info);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.status_hbox), app->mainwin.math_info);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.status_hbox), app->mainwin.status_info_frame, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.status_hbox), app->mainwin.math_info_frame, FALSE, FALSE, 0);
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->menu.bar);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.tool_bar);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.maxiter_hbox);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.log_colors_hbox);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.mandel);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.main_vbox), app->mainwin.status_hbox);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->menu.bar, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.tool_bar, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.maxiter_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.log_colors_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.mandel, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.status_hbox, FALSE, FALSE, 0);
 
 	app->mainwin.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.win), app->mainwin.main_vbox);
@@ -253,7 +261,7 @@ create_area_info_item (GtkMandelApplication *app, int i, const char *label)
 	item->view = gtk_text_view_new_with_buffer (item->buffer);
 	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (item->view), GTK_WRAP_CHAR);
 	gtk_text_view_set_editable (GTK_TEXT_VIEW (item->view), FALSE);
-	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1, 0, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1, GTK_FILL, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->view, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 }
 

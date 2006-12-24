@@ -16,7 +16,7 @@ typedef struct {
 		GtkWidget *maxiter_hbox, *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_hbox, *log_colors_checkbox, *log_colors_input;
 		GtkWidget *mandel;
-		GtkWidget *status_hbox, *status_info, *math_info;
+		GtkWidget *status_hbox, *status_info, *status_info_frame, *math_info, *math_info_frame;
 	} mainwin;
 	struct {
 		GtkWidget *bar;
