@@ -35,6 +35,9 @@ static gpointer sr_mt_thread_func (gpointer data);
 static void calc_ms_mt (struct mandeldata *mandel);
 static gpointer ms_mt_thread_func (gpointer data);
 static void ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1);
+static void ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data);
+static void ms_enqueue (int x0, int y0, int x1, int y1, void *data);
+static void ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data);
 
 
 const char *render_method_names[] = {
@@ -364,24 +367,26 @@ mandel_render (struct mandeldata *mandel)
 {
 	switch (mandel->render_method) {
 		case RM_MARIANI_SILVER: {
+			int x, y;
+
+			for (x = 0; !mandel->terminate && x < mandel->w; x++) {
+				mandel_render_pixel (mandel, x, 0);
+				mandel_render_pixel (mandel, x, mandel->h - 1);
+			}
+
+			for (y = 1; !mandel->terminate && y < mandel->h - 1; y++) {
+				mandel_render_pixel (mandel, 0, y);
+				mandel_render_pixel (mandel, mandel->w - 1, y);
+			}
+
+			if (mandel->terminate)
+				break;
+
 			if (thread_count > 1)
 				calc_ms_mt (mandel);
-			else {
-				int x, y;
-
-				for (x = 0; x < mandel->w; x++) {
-					mandel_render_pixel (mandel, x, 0);
-					mandel_render_pixel (mandel, x, mandel->h - 1);
-				}
-
-				for (y = 1; y < mandel->h - 1; y++) {
-					mandel_render_pixel (mandel, 0, y);
-					mandel_render_pixel (mandel, mandel->w - 1, y);
-				}
-
+			else
 				calcpart (mandel, 0, 0, mandel->w - 1, mandel->h - 1);
 
-			}
 			break;
 		}
 
@@ -413,40 +418,7 @@ calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1)
 {
 	if (md->terminate)
 		return;
-
-	int x, y;
-	bool failed = false;
-	unsigned p0 = mandel_get_pixel (md, x0, y0);
-
-	for (x = x0; !failed && x <= x1; x++)
-		failed = mandel_get_pixel (md, x, y0) != p0 || mandel_get_pixel (md, x, y1) != p0;
-
-	for (y = y0; !failed && y <= y1; y++)
-		failed = mandel_get_pixel (md, x0, y) != p0 || mandel_get_pixel (md, x1, y) != p0;
-
-	if (failed) {
-		if (x1 - x0 > y1 - y0) {
-			unsigned xm = (x0 + x1) / 2;
-			for (y = y0 + 1; y < y1; y++)
-				mandel_render_pixel (md, xm, y);
-
-			if (xm - x0 > 1)
-				calcpart (md, x0, y0, xm, y1);
-			if (x1 - xm > 1)
-				calcpart (md, xm, y0, x1, y1);
-		} else {
-			unsigned ym = (y0 + y1) / 2;
-			for (x = x0 + 1; x < x1; x++)
-				mandel_render_pixel (md, x, ym);
-
-			if (ym - y0 > 1)
-				calcpart (md, x0, y0, x1, ym);
-			if (y1 - ym > 1)
-				calcpart (md, x0, ym, x1, y1);
-		}
-	} else {
-		mandel_put_rect (md, x0 + 1, y0 + 1, x1 - x0 - 1, y1 - y0 - 1, p0);
-	}
+	ms_do_work (md, x0, y0, x1, y1, ms_enqueue, md);
 }
 
 
@@ -540,17 +512,7 @@ calc_ms_mt (struct mandeldata *mandel)
 {
 	struct ms_state state = {mandel, g_mutex_new (), g_queue_new (), g_cond_new (), 0};
 	GThread *threads[thread_count];
-	int i, x, y;
-
-	for (x = 0; x < mandel->w; x++) {
-		mandel_render_pixel (mandel, x, 0);
-		mandel_render_pixel (mandel, x, mandel->h - 1);
-	}
-
-	for (y = 1; y < mandel->h - 1; y++) {
-		mandel_render_pixel (mandel, 0, y);
-		mandel_render_pixel (mandel, mandel->w - 1, y);
-	}
+	int i;
 
 	ms_queue_push (&state, 0, 0, mandel->w - 1, mandel->h - 1);
 
@@ -566,15 +528,12 @@ calc_ms_mt (struct mandeldata *mandel)
 }
 
 
-/* FIXME This is mainly a copy of calcpart(). */
 static gpointer
 ms_mt_thread_func (gpointer data)
 {
 	struct ms_state *state = (struct ms_state *) data;
 	struct mandeldata *md = state->md;
-	while (TRUE) {
-		if (md->terminate)
-			return NULL;
+	while (!md->terminate) {
 		g_mutex_lock (state->mutex);
 		state->idle_threads++;
 		/* Notify all waiting threads about the increase of idle_threads */
@@ -594,39 +553,7 @@ ms_mt_thread_func (gpointer data)
 		int x0 = entry->x0, y0 = entry->y0, x1 = entry->x1, y1 = entry->y1;
 		free (entry);
 
-		int x, y;
-		bool failed = false;
-		unsigned p0 = mandel_get_pixel (md, x0, y0);
-
-		for (x = x0; !failed && x <= x1; x++)
-			failed = mandel_get_pixel (md, x, y0) != p0 || mandel_get_pixel (md, x, y1) != p0;
-
-		for (y = y0; !failed && y <= y1; y++)
-			failed = mandel_get_pixel (md, x0, y) != p0 || mandel_get_pixel (md, x1, y) != p0;
-
-		if (failed) {
-			if (x1 - x0 > y1 - y0) {
-				unsigned xm = (x0 + x1) / 2;
-				for (y = y0 + 1; y < y1; y++)
-					mandel_render_pixel (md, xm, y);
-
-				if (xm - x0 > 1)
-					ms_queue_push (state, x0, y0, xm, y1);
-				if (x1 - xm > 1)
-					ms_queue_push (state, xm, y0, x1, y1);
-			} else {
-				unsigned ym = (y0 + y1) / 2;
-				for (x = x0 + 1; x < x1; x++)
-					mandel_render_pixel (md, x, ym);
-
-				if (ym - y0 > 1)
-					ms_queue_push (state, x0, y0, x1, ym);
-				if (y1 - ym > 1)
-					ms_queue_push (state, x0, ym, x1, y1);
-			}
-		} else {
-			mandel_put_rect (md, x0 + 1, y0 + 1, x1 - x0 - 1, y1 - y0 - 1, p0);
-		}
+		ms_do_work (md, x0, y0, x1, y1, ms_mt_enqueue, state);
 	}
 	return NULL;
 }
@@ -644,4 +571,59 @@ ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1)
 	g_queue_push_tail (state->queue, new_job);
 	g_cond_signal (state->cond);
 	g_mutex_unlock (state->mutex);
+}
+
+
+static void
+ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data)
+{
+	int x, y;
+	bool failed = false;
+	unsigned p0 = mandel_get_pixel (md, x0, y0);
+
+	for (x = x0; !failed && x <= x1; x++)
+		failed = mandel_get_pixel (md, x, y0) != p0 || mandel_get_pixel (md, x, y1) != p0;
+
+	for (y = y0; !failed && y <= y1; y++)
+		failed = mandel_get_pixel (md, x0, y) != p0 || mandel_get_pixel (md, x1, y) != p0;
+
+	if (failed) {
+		if (x1 - x0 > y1 - y0) {
+			unsigned xm = (x0 + x1) / 2;
+			for (y = y0 + 1; y < y1; y++)
+				mandel_render_pixel (md, xm, y);
+
+			if (xm - x0 > 1)
+				enqueue (x0, y0, xm, y1, data);
+			if (x1 - xm > 1)
+				enqueue (xm, y0, x1, y1, data);
+		} else {
+			unsigned ym = (y0 + y1) / 2;
+			for (x = x0 + 1; x < x1; x++)
+				mandel_render_pixel (md, x, ym);
+
+			if (ym - y0 > 1)
+				enqueue (x0, y0, x1, ym, data);
+			if (y1 - ym > 1)
+				enqueue (x0, ym, x1, y1, data);
+		}
+	} else {
+		mandel_put_rect (md, x0 + 1, y0 + 1, x1 - x0 - 1, y1 - y0 - 1, p0);
+	}
+}
+
+
+static void
+ms_enqueue (int x0, int y0, int x1, int y1, void *data)
+{
+	struct mandeldata *md = (struct mandeldata *) data;
+	calcpart (md, x0, y0, x1, y1);
+}
+
+
+static void
+ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data)
+{
+	struct ms_state *state = (struct ms_state *) data;
+	ms_queue_push (state, x0, y0, x1, y1);
 }
