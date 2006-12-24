@@ -35,7 +35,6 @@ struct mandeldata {
 	render_method_t render_method;
 	double log_factor;
 	void *user_data;
-	GThread *join_me;
 	volatile bool terminate;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);

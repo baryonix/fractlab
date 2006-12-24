@@ -172,7 +172,6 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 	md->user_data = mandel;
 	md->render_method = render_method;
 	md->log_factor = log_factor;
-	md->join_me = mandel->thread;
 	md->terminate = false;
 	md->w = md->h = PIXELS;
 	md->data = malloc (md->w * md->h * sizeof (unsigned));
@@ -181,8 +180,15 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 
 	mandel_init_coords (md);
 
-	if (mandel->md != NULL)
+	if (mandel->thread != NULL) {
 		mandel->md->terminate = true;
+		gdk_threads_leave (); /* XXX Is it safe to do this? */
+		g_thread_join (mandel->thread);
+		gdk_threads_enter ();
+		mandel->thread = NULL;
+		free (mandel->md);
+		mandel->md = NULL;
+	}
 
 	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
 }
@@ -320,16 +326,9 @@ calcmandel (gpointer data)
 	GtkMandel *mandel = GTK_MANDEL (md->user_data);
 	GtkWidget *widget = GTK_WIDGET (mandel);
 
-	if (md->join_me != NULL)
-		g_thread_join (md->join_me);
-
-	if (mandel->md != NULL) {
-		mandel_free (mandel->md);
-	}
+	mandel->md = md;
 
 	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_started_signal, 0, (gulong) ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb))); /* FIXME make this readable */
-
-	mandel->md = md;
 
 	gdk_threads_enter ();
 	gdk_gc_set_foreground (mandel->gc, &mandel->black);
