@@ -228,15 +228,12 @@ create_area_info_item (GtkMandelApplication *app, int i, const char *label)
 	struct area_info_item *item = app->area_info.corners.items + i;
 	item->label = gtk_label_new (label);
 	gtk_misc_set_alignment (GTK_MISC (item->label), 0.0, 0.5);
-	item->value = gtk_label_new ("");
-	gtk_label_set_line_wrap (GTK_LABEL (item->value), TRUE);
-	gtk_label_set_line_wrap_mode (GTK_LABEL (item->value), PANGO_WRAP_CHAR);
-	gtk_label_set_selectable (GTK_LABEL (item->value), TRUE);
-	item->value_frame = gtk_frame_new (NULL);
-	gtk_frame_set_shadow_type (GTK_FRAME (item->value_frame), GTK_SHADOW_IN);
-	gtk_container_add (GTK_CONTAINER (item->value_frame), item->value);
+	item->buffer = gtk_text_buffer_new (NULL);
+	item->view = gtk_text_view_new_with_buffer (item->buffer);
+	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (item->view), GTK_WRAP_CHAR);
+	gtk_text_view_set_editable (GTK_TEXT_VIEW (item->view), FALSE);
 	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->value_frame, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->view, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 }
 
 
@@ -478,12 +475,12 @@ update_area_info (GtkMandelApplication *app)
 {
 	char min[1024], max[1024];
 	if (coord_pair_to_string (app->area->xmin, app->area->xmax, min, max, 1024) >= 0) {
-		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[0].value), min);
-		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[1].value), max);
+		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, min, strlen (min));
+		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, max, strlen (min));
 	}
 	if (coord_pair_to_string (app->area->ymin, app->area->ymax, min, max, 1024) >= 0) {
-		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[2].value), min);
-		gtk_label_set_text (GTK_LABEL (app->area_info.corners.items[3].value), max);
+		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, min, strlen (min));
+		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, max, strlen (min));
 	}
 }
 
