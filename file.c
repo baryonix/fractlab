@@ -97,8 +97,20 @@ bool
 fwrite_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
 {
 	char xminc[1024], xmaxc[1024], yminc[1024], ymaxc[1024];
-	if (coords_to_string (xmin, xmax, ymin, ymax, xminc, xmaxc, yminc, ymaxc, 1024) < 0)
+	if (corner_coords_to_string (xmin, xmax, ymin, ymax, xminc, xmaxc, yminc, ymaxc, 1024) < 0)
 		return false;
 	fprintf (f, "corners\n%s\n%s\n%s\n%s\n", xminc, xmaxc, yminc, ymaxc);
+	return true;
+}
+
+
+bool
+fwrite_center_coords (FILE *f, mpf_t cx, mpf_t cy, mpf_t magf)
+{
+	char cxc[1024], cyc[1024], magfc[1024];
+
+	if (center_coords_to_string (cx, cy, magf, cxc, cyc, magfc, 1024) < 0)
+		return false;
+	fprintf (f, "center\n%s\n%s\n%s\n", cxc, cyc, magfc);
 	return true;
 }

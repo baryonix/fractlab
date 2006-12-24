@@ -32,6 +32,7 @@ static void gtk_mandel_area_class_init (GtkMandelAreaClass *class);
 static void gtk_mandel_area_init (GtkMandelArea *mandel);
 static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static gpointer calcmandel (gpointer data);
+static void size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data);
 
 
 GdkColor mandelcolors[COLORS];
@@ -131,6 +132,7 @@ gtk_mandel_init (GtkMandel *mandel)
 	g_signal_connect (G_OBJECT (mandel), "button-release-event", (GCallback) mouse_event, NULL);
 	g_signal_connect (G_OBJECT (mandel), "motion-notify-event", (GCallback) mouse_event, NULL);
 	g_signal_connect (G_OBJECT (mandel), "expose-event", (GCallback) my_expose, NULL);
+	g_signal_connect (G_OBJECT (mandel), "size-allocate", (GCallback) size_allocate, NULL);
 }
 
 
@@ -142,38 +144,39 @@ gtk_mandel_area_class_init (GtkMandelAreaClass *class)
 static void
 gtk_mandel_area_init (GtkMandelArea *area)
 {
-	mpf_init (area->xmin);
-	mpf_init (area->xmax);
-	mpf_init (area->ymin);
-	mpf_init (area->ymax);
+	mpf_init (area->cx);
+	mpf_init (area->cy);
+	mpf_init (area->magf);
 }
 
 GtkMandelArea *
-gtk_mandel_area_new (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf)
 {
 	GtkMandelArea *area = g_object_new (gtk_mandel_area_get_type (), NULL);
-	mpf_set (area->xmin, xmin);
-	mpf_set (area->xmax, xmax);
-	mpf_set (area->ymin, ymin);
-	mpf_set (area->ymax, ymax);
+	mpf_set (area->cx, cx);
+	mpf_set (area->cy, cy);
+	mpf_set (area->magf, magf);
 	return area;
 }
 
 
 void
-gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, unsigned maxiter, render_method_t render_method, double log_factor)
+gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor)
 {
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
-	mpf_init_set (md->xmin_f, xmin);
-	mpf_init_set (md->xmax_f, xmax);
-	mpf_init_set (md->ymin_f, ymin);
-	mpf_init_set (md->ymax_f, ymax);
+	int oldw = -1, oldh = -1;
+	memset (md, 0, sizeof (*md));
+
+	mpf_init_set (md->cx, cx);
+	mpf_init_set (md->cy, cy);
+	mpf_init_set (md->magf, magf);
 	md->maxiter = maxiter;
 	md->user_data = mandel;
 	md->render_method = render_method;
 	md->log_factor = log_factor;
 	md->terminate = false;
-	md->w = md->h = PIXELS;
+	md->w = GTK_WIDGET (mandel)->allocation.width;
+	md->h = GTK_WIDGET (mandel)->allocation.height;
 	md->data = malloc (md->w * md->h * sizeof (unsigned));
 	md->display_pixel = gtk_mandel_display_pixel;
 	md->display_rect = gtk_mandel_display_rect;
@@ -186,8 +189,19 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t xmin, mpf_t xmax, mpf_t ymin
 		g_thread_join (mandel->thread);
 		gdk_threads_enter ();
 		mandel->thread = NULL;
+		oldw = mandel->md->w;
+		oldh = mandel->md->h;
 		free (mandel->md);
 		mandel->md = NULL;
+	}
+
+	if (mandel->pixmap == NULL || md->w != oldw || md->h != oldh) {
+		if (mandel->pixmap != NULL) {
+			g_object_unref (G_OBJECT (mandel->pm_gc));
+			g_object_unref (G_OBJECT (mandel->pixmap));
+		}
+		mandel->pixmap = gdk_pixmap_new (GTK_WIDGET (mandel)->window, md->w, md->h, -1);
+		mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
 	}
 
 	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
@@ -197,10 +211,8 @@ static void
 my_realize (GtkWidget *my_img, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (my_img);
-	mandel->pixmap = gdk_pixmap_new (my_img->window, PIXELS, PIXELS, -1);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->frame_gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
-	mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
 	gtk_widget_add_events (my_img, GDK_BUTTON_PRESS_MASK |
 		GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK |
 		GDK_EXPOSURE_MASK);
@@ -230,11 +242,7 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		mandel->selection_size = 0.0;
 		return TRUE;
 	} else if (e->type == GDK_BUTTON_RELEASE) {
-		mpf_t xmin, xmax, ymin, ymax, cx, cy, dx, dy;
-		mpf_init (xmin);
-		mpf_init (xmax);
-		mpf_init (ymin);
-		mpf_init (ymax);
+		mpf_t cx, cy, dx, dy;
 		mpf_init (cx);
 		mpf_init (cy);
 		mpf_init (dx);
@@ -249,11 +257,8 @@ mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
 		mpf_abs (dy, dy);
 		if (mpf_cmp (dx, dy) < 0)
 			mpf_set (dx, dy);
-		mpf_sub (xmin, cx, dx);
-		mpf_add (xmax, cx, dx);
-		mpf_sub (ymin, cy, dx);
-		mpf_add (ymax, cy, dx);
-		GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
+		mpf_ui_div (dx, 1, dx);
+		GtkMandelArea *area = gtk_mandel_area_new (cx, cy, dx);
 		g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->selection_signal, 0, area);
 		// FIXME free area!
 		return TRUE;
@@ -355,24 +360,31 @@ gtk_mandel_area_new_from_file (const char *filename)
 	FILE *f = fopen (filename, "r");
 	if (f == NULL)
 		return NULL;
-	mpf_t xmin, xmax, ymin, ymax;
-	mpf_init (xmin);
-	mpf_init (xmax);
-	mpf_init (ymin);
-	mpf_init (ymax);
-	if (!fread_coords_as_corners (f, xmin, xmax, ymin, ymax, 1.0 /* FIXME */)) {
+	mpf_t cx, cy, magf;
+	mpf_init (cx);
+	mpf_init (cy);
+	mpf_init (magf);
+	if (!fread_coords_as_center (f, cx, cy, magf)) {
 		fclose (f);
-		mpf_clear (xmin);
-		mpf_clear (xmax);
-		mpf_clear (ymin);
-		mpf_clear (ymax);
+		mpf_clear (cx);
+		mpf_clear (cy);
+		mpf_clear (magf);
 		return NULL;
 	}
 	fclose (f);
-	GtkMandelArea *area = gtk_mandel_area_new (xmin, xmax, ymin, ymax);
-	mpf_clear (xmin);
-	mpf_clear (xmax);
-	mpf_clear (ymin);
-	mpf_clear (ymax);
+	GtkMandelArea *area = gtk_mandel_area_new (cx, cy, magf);
+	mpf_clear (cx);
+	mpf_clear (cy);
+	mpf_clear (magf);
 	return area;
+}
+
+
+static void
+size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data)
+{
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	if (mandel->md != NULL) {
+		gtk_mandel_restart_thread (mandel, mandel->md->cx, mandel->md->cy, mandel->md->magf, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
+	}
 }

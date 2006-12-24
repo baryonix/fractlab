@@ -177,7 +177,8 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input, TRUE, TRUE, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
-	gtk_widget_set_size_request (app->mainwin.mandel, PIXELS, PIXELS); // FIXME
+	gtk_widget_set_size_request (app->mainwin.mandel, 50, 50);
+	/* FIXME how to set initial widget size? */
 
 	app->mainwin.status_info = gtk_label_new ("");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.status_info), 0.0, 0.5);
@@ -451,7 +452,7 @@ restart_thread (GtkMandelApplication *app)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	GtkMandelArea *area = app->area;
-	gtk_mandel_restart_thread (mandel, area->xmin, area->xmax, area->ymin, area->ymax, app->maxiter, app->render_method, app->log_factor);
+	gtk_mandel_restart_thread (mandel, area->cx, area->cy, area->magf, app->maxiter, app->render_method, app->log_factor);
 }
 
 
@@ -514,14 +515,28 @@ static void
 update_area_info (GtkMandelApplication *app)
 {
 	char min[1024], max[1024];
-	if (coord_pair_to_string (app->area->xmin, app->area->xmax, min, max, 1024) >= 0) {
+	mpf_t xmin, xmax, ymin, ymax;
+
+	mpf_init (xmin);
+	mpf_init (xmax);
+	mpf_init (ymin);
+	mpf_init (ymax);
+
+	center_to_corners (xmin, xmax, ymin, ymax, app->area->cx, app->area->cy, app->area->magf, (double) app->mainwin.mandel->allocation.width / app->mainwin.mandel->allocation.height);
+
+	if (coord_pair_to_string (xmin, xmax, min, max, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, min, strlen (min));
 		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, max, strlen (max));
 	}
-	if (coord_pair_to_string (app->area->ymin, app->area->ymax, min, max, 1024) >= 0) {
+	if (coord_pair_to_string (ymin, ymax, min, max, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, min, strlen (min));
 		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, max, strlen (max));
 	}
+
+	mpf_clear (xmin);
+	mpf_clear (xmax);
+	mpf_clear (ymin);
+	mpf_clear (ymax);
 }
 
 
@@ -563,7 +578,7 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 	}
 
-	fwrite_corner_coords (f, app->area->xmin, app->area->xmax, app->area->ymin, app->area->ymax);
+	fwrite_center_coords (f, app->area->cx, app->area->cy, app->area->magf);
 	fclose (f);
 }
 

@@ -27,15 +27,18 @@ unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 
 
 struct mandeldata {
+	mpf_t cx, cy, magf;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
 	mpz_t xmin, xmax, ymin, ymax;
 	unsigned frac_limbs;
 	unsigned w, h, maxiter;
+	double aspect;
 	unsigned *data;
 	render_method_t render_method;
 	double log_factor;
 	void *user_data;
 	volatile bool terminate;
+	bool allocate_done;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
 };

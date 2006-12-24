@@ -11,5 +11,6 @@ bool fread_center_coords (FILE *f, mpf_t xc, mpf_t yc, mpf_t magf);
 bool fread_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
 
 bool fwrite_corner_coords (FILE *f, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax);
+bool fwrite_center_coords (FILE *f, mpf_t cx, mpf_t cy, mpf_t magf);
 
 #endif /* _MANDEL_FILE_H */

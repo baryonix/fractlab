@@ -7,6 +7,7 @@
 
 #include "cmdline.h"
 #include "mandelbrot.h"
+#include "util.h"
 
 
 struct sr_state {
@@ -303,25 +304,32 @@ mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned
 void
 mandel_init_coords (struct mandeldata *mandel)
 {
+	if (!mandel->allocate_done) {
+		mpf_init (mandel->xmin_f);
+		mpf_init (mandel->xmax_f);
+		mpf_init (mandel->ymin_f);
+		mpf_init (mandel->ymax_f);
+		mpz_init (mandel->xmin);
+		mpz_init (mandel->xmax);
+		mpz_init (mandel->ymin);
+		mpz_init (mandel->ymax);
+		mandel->allocate_done = TRUE;
+	}
+
+	mandel->aspect = (double) mandel->w / mandel->h;
+	center_to_corners (mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, mandel->cx, mandel->cy, mandel->magf, mandel->aspect);
+
 	// Determine the required precision.
-	mpf_t dx, dy;
+	mpf_t dx;
 	mpf_init (dx);
-	mpf_init (dy);
 
 	mpf_sub (dx, mandel->xmax_f, mandel->xmin_f);
 	mpf_div_ui (dx, dx, mandel->w);
 
-	mpf_sub (dy, mandel->ymin_f, mandel->ymax_f);
-	mpf_div_ui (dy, dy, mandel->h);
-
 	long exponent;
-	if (mpf_cmp (dx, dy) > 1)
-		mpf_get_d_2exp (&exponent, dx);
-	else
-		mpf_get_d_2exp (&exponent, dy);
+	mpf_get_d_2exp (&exponent, dx);
 
 	mpf_clear (dx);
-	mpf_clear (dy);
 
 	if (exponent > 0)
 		exponent = 0;
@@ -332,7 +340,7 @@ mandel_init_coords (struct mandeldata *mandel)
 	if (required_bits < MP_THRESHOLD)
 		mandel->frac_limbs = 0;
 	else
-		mandel->frac_limbs = required_bits / mp_bits_per_limb + 1;
+		mandel->frac_limbs = required_bits / mp_bits_per_limb + INT_LIMBS;
 
 	unsigned frac_limbs = mandel->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
@@ -340,11 +348,6 @@ mandel_init_coords (struct mandeldata *mandel)
 	// Convert coordinates to integer values.
 	mpf_t f;
 	mpf_init2 (f, total_limbs * mp_bits_per_limb);
-
-	mpz_init (mandel->xmin);
-	mpz_init (mandel->xmax);
-	mpz_init (mandel->ymin);
-	mpz_init (mandel->ymax);
 
 	mpf_mul_2exp (f, mandel->xmin_f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (mandel->xmin, f);
