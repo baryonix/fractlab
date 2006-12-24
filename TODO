@@ -7,3 +7,4 @@ TODO
 - do all GDK/GTK calls in the main thread (this will make the program work
   on Win32, where GDK calls from multiple threads are not allowed)
 - implement real color palette handling, get rid of global variable mandelcolors
+- z^n + c, with n > 2
