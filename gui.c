@@ -5,7 +5,6 @@
 #include <errno.h>
 
 #include <gtk/gtk.h>
-#include <pango/pango.h>
 
 #include "defs.h"
 #include "mandelbrot.h"
