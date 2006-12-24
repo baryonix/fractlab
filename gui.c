@@ -37,7 +37,7 @@ static void save_coord_dlg_response (GtkMandelApplication *app, gint response, g
 static void quit_selected (GtkMandelApplication *app, gpointer data);
 static void update_area_info (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
-static void create_area_info_item (GtkMandelApplication *app, int i, const char *label);
+static void create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void update_maxiter_entry (GtkMandelApplication *app);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
@@ -226,20 +226,30 @@ create_dialogs (GtkMandelApplication *app)
 static void
 create_area_info (GtkMandelApplication *app)
 {
+	app->area_info.center.table = gtk_table_new (2, 4, false);
+	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.center.table), FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (app->area_info.center.table), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (app->area_info.center.table), 2);
+	gtk_container_set_border_width (GTK_CONTAINER (app->area_info.center.table), 2);
+	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 0, 0, "cx");
+	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 1, 1, "cy");
+	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 2, 2, "magf");
+
 	app->area_info.corners.table = gtk_table_new (2, 4, false);
 	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.corners.table), FALSE);
 	gtk_table_set_row_spacings (GTK_TABLE (app->area_info.corners.table), 2);
 	gtk_table_set_col_spacings (GTK_TABLE (app->area_info.corners.table), 2);
 	gtk_container_set_border_width (GTK_CONTAINER (app->area_info.corners.table), 2);
-	create_area_info_item (app, 0, "xmin");
-	create_area_info_item (app, 1, "xmax");
-	create_area_info_item (app, 2, "ymin");
-	create_area_info_item (app, 3, "ymax");
+	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 0, 0, "xmin");
+	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 1, 1, "xmax");
+	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 2, 2, "ymin");
+	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 3, 3, "ymax");
 
-	app->area_info.corners_label = gtk_label_new ("Corners");
 	app->area_info.center_label = gtk_label_new ("Center");
+	app->area_info.corners_label = gtk_label_new ("Corners");
 
 	app->area_info.notebook = gtk_notebook_new ();
+	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.center.table, app->area_info.center_label);
 	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.corners.table, app->area_info.corners_label);
 
 	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
@@ -253,17 +263,16 @@ create_area_info (GtkMandelApplication *app)
 
 
 static void
-create_area_info_item (GtkMandelApplication *app, int i, const char *label)
+create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label)
 {
-	struct area_info_item *item = app->area_info.corners.items + i;
 	item->label = gtk_label_new (label);
 	gtk_misc_set_alignment (GTK_MISC (item->label), 0.0, 0.5);
 	item->buffer = gtk_text_buffer_new (NULL);
 	item->view = gtk_text_view_new_with_buffer (item->buffer);
 	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (item->view), GTK_WRAP_CHAR);
 	gtk_text_view_set_editable (GTK_TEXT_VIEW (item->view), FALSE);
-	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->label, 0, 1, i, i + 1, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->area_info.corners.table), item->view, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (table), item->label, 0, 1, i, i + 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (table), item->view, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 }
 
 
@@ -514,8 +523,14 @@ quit_selected (GtkMandelApplication *app, gpointer data)
 static void
 update_area_info (GtkMandelApplication *app)
 {
-	char min[1024], max[1024];
+	char b0[1024], b1[1024], b2[1024];
 	mpf_t xmin, xmax, ymin, ymax;
+
+	if (center_coords_to_string (app->area->cx, app->area->cy, app->area->magf, b0, b1, b2, 1024) >= 0) {
+		gtk_text_buffer_set_text (app->area_info.center.items[0].buffer, b0, strlen (b0));
+		gtk_text_buffer_set_text (app->area_info.center.items[1].buffer, b1, strlen (b1));
+		gtk_text_buffer_set_text (app->area_info.center.items[2].buffer, b2, strlen (b2));
+	}
 
 	mpf_init (xmin);
 	mpf_init (xmax);
@@ -524,13 +539,13 @@ update_area_info (GtkMandelApplication *app)
 
 	center_to_corners (xmin, xmax, ymin, ymax, app->area->cx, app->area->cy, app->area->magf, (double) app->mainwin.mandel->allocation.width / app->mainwin.mandel->allocation.height);
 
-	if (coord_pair_to_string (xmin, xmax, min, max, 1024) >= 0) {
-		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, min, strlen (min));
-		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, max, strlen (max));
+	if (coord_pair_to_string (xmin, xmax, b0, b1, 1024) >= 0) {
+		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, b0, strlen (b0));
+		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, b1, strlen (b1));
 	}
-	if (coord_pair_to_string (ymin, ymax, min, max, 1024) >= 0) {
-		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, min, strlen (min));
-		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, max, strlen (max));
+	if (coord_pair_to_string (ymin, ymax, b0, b1, 1024) >= 0) {
+		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, b0, strlen (b0));
+		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, b1, strlen (b1));
 	}
 
 	mpf_clear (xmin);

@@ -35,6 +35,10 @@ typedef struct {
 		GtkWidget *corners_label, *center_label;
 		struct {
 			GtkWidget *table;
+			struct area_info_item items[3];
+		} center;
+		struct {
+			GtkWidget *table;
 			struct area_info_item items[4];
 		} corners;
 	} area_info;
