@@ -399,6 +399,11 @@ mandel_render (struct mandeldata *mandel)
 
 			break;
 		}
+
+		default: {
+			fprintf (stderr, "* BUG: invalid case value at %s:%d\n", __FILE__, __LINE__);
+			break;
+		}
 	}
 }
 
