@@ -141,6 +141,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 
 	app->mainwin.tool_bar = gtk_toolbar_new ();
+	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.tool_bar), GTK_TOOLBAR_ICONS);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.redo);
 
