@@ -265,7 +265,8 @@ create_area_info (GtkMandelApplication *app)
 	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.corners.table, app->area_info.corners_label);
 
 	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
-	gtk_container_add (GTK_CONTAINER (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.notebook);
+	gtk_dialog_set_has_separator (GTK_DIALOG (app->area_info.dialog), FALSE);
+	gtk_box_pack_start (GTK_BOX (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.notebook, FALSE, FALSE, 0);
 
 	GdkGeometry geom;
 	geom.max_width = 1000000; /* FIXME how to set max_width = unlimited? */
