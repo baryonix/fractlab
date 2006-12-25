@@ -24,7 +24,7 @@
 
 static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
 static void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
-static gboolean mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data);
+static gboolean mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data);
 static void my_realize (GtkWidget *my_img, gpointer user_data);
 static void gtk_mandel_class_init (GtkMandelClass *class);
 static void gtk_mandel_init (GtkMandel *mandel);
@@ -233,44 +233,72 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 
 
 static gboolean
-mouse_event (GtkWidget *my_img, GdkEventButton *e, gpointer user_data)
+mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 {
-	GtkMandel *mandel = GTK_MANDEL (my_img);
-	if (e->type == GDK_BUTTON_PRESS) {
-		mandel->center_x = e->x;
-		mandel->center_y = e->y;
-		mandel->selection_size = 0.0;
-		return TRUE;
-	} else if (e->type == GDK_BUTTON_RELEASE) {
-		mpf_t cx, cy, dx, dy;
-		mpf_init (cx);
-		mpf_init (cy);
-		mpf_init (dx);
-		mpf_init (dy);
-		mandel_convert_x_f (mandel->md, cx, mandel->center_x);
-		mandel_convert_y_f (mandel->md, cy, mandel->center_y);
-		mandel_convert_x_f (mandel->md, dx, e->x);
-		mandel_convert_y_f (mandel->md, dy, e->y);
-		mpf_sub (dx, cx, dx);
-		mpf_abs (dx, dx);
-		mpf_sub (dy, cy, dy);
-		mpf_abs (dy, dy);
-		if (mpf_cmp (dx, dy) < 0)
-			mpf_set (dx, dy);
-		mpf_ui_div (dx, 1, dx);
-		GtkMandelArea *area = gtk_mandel_area_new (cx, cy, dx);
-		g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->selection_signal, 0, area);
-		// FIXME free area!
-		return TRUE;
-	} else if (e->type == GDK_MOTION_NOTIFY) {
-		gdouble d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y));
-		gdk_draw_drawable (GDK_DRAWABLE (my_img->window), mandel->gc, GDK_DRAWABLE (mandel->pixmap), mandel->center_x - mandel->selection_size, mandel->center_y - mandel->selection_size, mandel->center_x - mandel->selection_size, mandel->center_y - mandel->selection_size, 2 * mandel->selection_size + 1, 2 * mandel->selection_size + 1);
-		gdk_draw_rectangle (GDK_DRAWABLE (my_img->window), mandel->frame_gc, false, mandel->center_x - d, mandel->center_y - d, 2 * d, 2 * d);
-		mandel->selection_size = d;
-		return true;
-	} else {
-		printf ("Other event!\n");
-		return FALSE;
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	switch (e->type) {
+		case GDK_BUTTON_PRESS: {
+			mandel->center_x = e->x;
+			mandel->center_y = e->y;
+			mandel->selection_size = 0.0;
+			return TRUE;
+		}
+		case GDK_BUTTON_RELEASE: {
+			if (mandel->center_x == e->x && mandel->center_y == e->y)
+				return TRUE; /* avoid zero size selections */
+			mpf_t cx, cy, dx, dy, mpaspect;
+			mpf_init (cx);
+			mpf_init (cy);
+			mpf_init (dx);
+			mpf_init (dy);
+			mpf_init (mpaspect);
+			mpf_set_d (mpaspect, mandel->md->aspect);
+			mandel_convert_x_f (mandel->md, cx, mandel->center_x);
+			mandel_convert_y_f (mandel->md, cy, mandel->center_y);
+			mandel_convert_x_f (mandel->md, dx, e->x);
+			mandel_convert_y_f (mandel->md, dy, e->y);
+			mpf_sub (dx, cx, dx);
+			mpf_abs (dx, dx);
+			mpf_sub (dy, cy, dy);
+			mpf_abs (dy, dy);
+			if (mandel->md->aspect > 1.0)
+				mpf_div (dx, dx, mpaspect);
+			else
+				mpf_mul (dy, dy, mpaspect);
+			if (mpf_cmp (dx, dy) < 0)
+				mpf_set (dx, dy);
+			mpf_ui_div (dx, 1, dx);
+			GtkMandelArea *area = gtk_mandel_area_new (cx, cy, dx);
+			mpf_clear (cx);
+			mpf_clear (cy);
+			mpf_clear (dx);
+			mpf_clear (dy);
+			mpf_clear (mpaspect);
+			g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->selection_signal, 0, area);
+			g_object_unref (G_OBJECT (area));
+			return TRUE;
+		}
+		case GDK_MOTION_NOTIFY: {
+			double d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->md->aspect);
+			gdk_draw_drawable (GDK_DRAWABLE (widget->window), mandel->gc, GDK_DRAWABLE (mandel->pixmap),
+				mandel->center_x - mandel->selection_size,
+				mandel->center_y - mandel->selection_size / mandel->md->aspect,
+				mandel->center_x - mandel->selection_size,
+				mandel->center_y - mandel->selection_size / mandel->md->aspect,
+				2 * mandel->selection_size + 1,
+				2 * mandel->selection_size / mandel->md->aspect + 1);
+			gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->frame_gc, false,
+				mandel->center_x - d,
+				mandel->center_y - d / mandel->md->aspect,
+				2 * d,
+				2 * d / mandel->md->aspect);
+			mandel->selection_size = d;
+			return TRUE;
+		}
+		default: {
+			printf ("Other event!\n");
+			return FALSE;
+		}
 	}
 }
 
