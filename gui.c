@@ -43,6 +43,9 @@ static void update_maxiter_entry (GtkMandelApplication *app);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
+static void zoom_2exp (GtkMandelApplication *app, long exponent);
+static void zoomed_in (GtkMandelApplication *app, gpointer data);
+static void zoomed_out (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -150,6 +153,12 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.stop = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_STOP));
 	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
 
+	app->mainwin.toolbar_sep2 = GTK_WIDGET (gtk_separator_tool_item_new ());
+
+	app->mainwin.zoom_in = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_IN));
+
+	app->mainwin.zoom_out = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_OUT));
+
 	app->mainwin.tool_bar = gtk_toolbar_new ();
 	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.tool_bar), GTK_TOOLBAR_ICONS);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
@@ -157,6 +166,9 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep1);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.restart);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.stop);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep2);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_in);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_out);
 
 	app->mainwin.maxiter_label = gtk_label_new ("maxiter:");
 
@@ -325,6 +337,10 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_in), "clicked", (GCallback) zoomed_in, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app);
 
@@ -652,4 +668,32 @@ stop_pressed (GtkMandelApplication *app, gpointer data)
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Stopping...");
 	mandel->md->terminate = TRUE;
+}
+
+
+static void zoom_2exp (GtkMandelApplication *app, long exponent)
+{
+	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
+	mpf_t magf;
+	mpf_init (magf);
+	if (exponent >= 0)
+		mpf_mul_2exp (magf, mandel->md->magf, exponent);
+	else
+		mpf_div_2exp (magf, mandel->md->magf, -exponent);
+	GtkMandelArea *area = gtk_mandel_area_new (mandel->md->cx, mandel->md->cy, magf);
+	mpf_clear (magf);
+	gtk_mandel_application_set_area (app, area);
+	restart_thread (app);
+}
+
+
+static void zoomed_in (GtkMandelApplication *app, gpointer data)
+{
+	zoom_2exp (app, 1);
+}
+
+
+static void zoomed_out (GtkMandelApplication *app, gpointer data)
+{
+	zoom_2exp (app, -1);
 }
