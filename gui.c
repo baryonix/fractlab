@@ -671,7 +671,8 @@ stop_pressed (GtkMandelApplication *app, gpointer data)
 }
 
 
-static void zoom_2exp (GtkMandelApplication *app, long exponent)
+static void
+zoom_2exp (GtkMandelApplication *app, long exponent)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	mpf_t magf;
@@ -687,13 +688,15 @@ static void zoom_2exp (GtkMandelApplication *app, long exponent)
 }
 
 
-static void zoomed_in (GtkMandelApplication *app, gpointer data)
+static void
+zoomed_in (GtkMandelApplication *app, gpointer data)
 {
 	zoom_2exp (app, 1);
 }
 
 
-static void zoomed_out (GtkMandelApplication *app, gpointer data)
+static void
+zoomed_out (GtkMandelApplication *app, gpointer data)
 {
 	zoom_2exp (app, -1);
 }
