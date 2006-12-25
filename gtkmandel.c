@@ -415,24 +415,24 @@ GtkMandelArea *
 gtk_mandel_area_new_from_file (const char *filename)
 {
 	FILE *f = fopen (filename, "r");
+	GtkMandelArea *area = NULL;
+	mpf_t cx, cy, magf;
+
 	if (f == NULL)
 		return NULL;
-	mpf_t cx, cy, magf;
+
 	mpf_init (cx);
 	mpf_init (cy);
 	mpf_init (magf);
-	if (!fread_coords_as_center (f, cx, cy, magf)) {
-		fclose (f);
-		mpf_clear (cx);
-		mpf_clear (cy);
-		mpf_clear (magf);
-		return NULL;
-	}
+
+	if (fread_coords_as_center (f, cx, cy, magf))
+		area = gtk_mandel_area_new (cx, cy, magf);
 	fclose (f);
-	GtkMandelArea *area = gtk_mandel_area_new (cx, cy, magf);
+
 	mpf_clear (cx);
 	mpf_clear (cy);
 	mpf_clear (magf);
+
 	return area;
 }
 
