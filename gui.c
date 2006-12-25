@@ -487,8 +487,6 @@ rendering_started (GtkMandelApplication *app, gulong bits, gpointer data)
 	char buf[64];
 	int r;
 
-	/* XXX same issue here as with rendering_stopped() */
-	gdk_threads_enter ();
 	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Rendering");
 	gtk_widget_set_sensitive (app->mainwin.stop, TRUE);
 	if (bits == 0)
@@ -499,7 +497,6 @@ rendering_started (GtkMandelApplication *app, gulong bits, gpointer data)
 			return;
 		gtk_label_set_text (GTK_LABEL (app->mainwin.math_info), buf);
 	}
-	gdk_threads_leave ();
 }
 
 
@@ -643,15 +640,8 @@ rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data)
 	else
 		msg = "Stopped";
 
-	/*
-	 * XXX Why do we have a concurrency issue here? I'd expect the callback
-	 * to be called in the thread executing the main loop, but it obviously
-	 * isn't.
-	 */
-	gdk_threads_enter ();
 	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
 	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), msg);
-	gdk_threads_leave ();
 }
 
 

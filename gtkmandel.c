@@ -22,6 +22,17 @@
 #include "file.h"
 
 
+struct rendering_started_info {
+	GtkMandel *mandel;
+	int bits;
+};
+
+struct rendering_stopped_info {
+	GtkMandel *mandel;
+	bool completed;
+};
+
+
 static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
 static void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
 static gboolean mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data);
@@ -33,6 +44,8 @@ static void gtk_mandel_area_init (GtkMandelArea *mandel);
 static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static gpointer calcmandel (gpointer data);
 static void size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data);
+static gboolean do_emit_rendering_started (gpointer data);
+static gboolean do_emit_rendering_stopped (gpointer data);
 
 
 GdkColor mandelcolors[COLORS];
@@ -44,6 +57,7 @@ gtk_mandel_new (void)
 	GtkMandel *mandel = g_object_new (gtk_mandel_get_type (), NULL);
 	return GTK_WIDGET (mandel);
 }
+
 
 GType
 gtk_mandel_get_type ()
@@ -141,6 +155,7 @@ gtk_mandel_area_class_init (GtkMandelAreaClass *class)
 {
 }
 
+
 static void
 gtk_mandel_area_init (GtkMandelArea *area)
 {
@@ -148,6 +163,7 @@ gtk_mandel_area_init (GtkMandelArea *area)
 	mpf_init (area->cy);
 	mpf_init (area->magf);
 }
+
 
 GtkMandelArea *
 gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf)
@@ -163,6 +179,7 @@ gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf)
 void
 gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor)
 {
+	GtkWidget *widget = GTK_WIDGET (mandel);
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
 	int oldw = -1, oldh = -1;
 	memset (md, 0, sizeof (*md));
@@ -204,8 +221,27 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 		mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
 	}
 
+	/* Clear image */
+	gdk_gc_set_foreground (mandel->gc, &mandel->black);
+	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, 0, 0, md->w, md->h);
+	gdk_gc_set_foreground (mandel->pm_gc, &mandel->black);
+	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, 0, 0, md->w, md->h);
+
+	/*
+	 * Emit the "rendering-started" signal.
+	 * We enqueue it to the main loop instead of calling g_signal_emit()
+	 * directly from here. This is required because the "rendering-stopped"
+	 * signal has been enqueued in the same way, and "rendering-started"
+	 * must be emitted _after_ it.
+	 */
+	struct rendering_started_info *info = malloc (sizeof (struct rendering_started_info));
+	info->mandel = mandel;
+	info->bits = ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb)); /* FIXME make this readable */
+	g_idle_add (do_emit_rendering_started, info);
+
 	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
 }
+
 
 static void
 my_realize (GtkWidget *my_img, gpointer user_data)
@@ -357,18 +393,8 @@ calcmandel (gpointer data)
 {
 	struct mandeldata *md = (struct mandeldata *) data;
 	GtkMandel *mandel = GTK_MANDEL (md->user_data);
-	GtkWidget *widget = GTK_WIDGET (mandel);
 
 	mandel->md = md;
-
-	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_started_signal, 0, (gulong) ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb))); /* FIXME make this readable */
-
-	gdk_threads_enter ();
-	gdk_gc_set_foreground (mandel->gc, &mandel->black);
-	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, 0, 0, md->w, md->h);
-	gdk_gc_set_foreground (mandel->pm_gc, &mandel->black);
-	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, 0, 0, md->w, md->h);
-	gdk_threads_leave ();
 
 	mandel_render (md);
 
@@ -376,7 +402,10 @@ calcmandel (gpointer data)
 	gdk_flush ();
 	gdk_threads_leave ();
 
-	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_stopped_signal, 0, (gboolean) !md->terminate);
+	struct rendering_stopped_info *info = malloc (sizeof (struct rendering_stopped_info));
+	info->mandel = mandel;
+	info->completed = !md->terminate;
+	g_idle_add (do_emit_rendering_stopped, info);
 
 	return NULL;
 }
@@ -415,4 +444,28 @@ size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data)
 	if (mandel->md != NULL) {
 		gtk_mandel_restart_thread (mandel, mandel->md->cx, mandel->md->cy, mandel->md->magf, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
 	}
+}
+
+
+static gboolean
+do_emit_rendering_started (gpointer data)
+{
+	struct rendering_started_info *info = (struct rendering_started_info *) data;
+	GtkMandel *mandel = info->mandel;
+	gulong bits = info->bits;
+	free (info);
+	g_signal_emit (G_OBJECT (mandel), GTK_MANDEL_GET_CLASS (mandel)->rendering_started_signal, 0, bits);
+	return FALSE;
+}
+
+
+static gboolean
+do_emit_rendering_stopped (gpointer data)
+{
+	struct rendering_stopped_info *info = (struct rendering_stopped_info *) data;
+	GtkMandel *mandel = info->mandel;
+	gboolean completed = info->completed;
+	free (info);
+	g_signal_emit (G_OBJECT (mandel), GTK_MANDEL_GET_CLASS (mandel)->rendering_stopped_signal, 0, completed);
+	return FALSE;
 }
