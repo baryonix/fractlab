@@ -155,24 +155,19 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 
 	memset (md, 0, sizeof (*md));
 
-	mpf_init (md->xmin_f);
-	mpf_init (md->xmax_f);
-	mpf_init (md->ymin_f);
-	mpf_init (md->ymax_f);
+	mpf_init (md->cx);
+	mpf_init (md->cy);
+	mpf_init (md->magf);
 	mpfr_init (cfr);
 	mpfr_init (dfr);
 	mpfr_init (tmp0);
 
 	get_frame (xstate, i, cfr, dfr);
-	mpfr_sub (tmp0, cfr, dfr, GMP_RNDN);
-	mpfr_get_f (md->xmin_f, tmp0, GMP_RNDN);
-	mpfr_add (tmp0, cfr, dfr, GMP_RNDN);
-	mpfr_get_f (md->xmax_f, tmp0, GMP_RNDN);
+	mpfr_ui_div (dfr, 1, dfr, GMP_RNDN);
+	mpfr_get_f (md->cx, cfr, GMP_RNDN);
+	mpfr_get_f (md->magf, dfr, GMP_RNDN);
 	get_frame (ystate, i, cfr, dfr);
-	mpfr_sub (tmp0, cfr, dfr, GMP_RNDN);
-	mpfr_get_f (md->ymin_f, tmp0, GMP_RNDN);
-	mpfr_add (tmp0, cfr, dfr, GMP_RNDN);
-	mpfr_get_f (md->ymax_f, tmp0, GMP_RNDN);
+	mpfr_get_f (md->cy, cfr, GMP_RNDN);
 
 	md->data = malloc (img_width * img_height * sizeof (unsigned));
 	md->w = img_width;
