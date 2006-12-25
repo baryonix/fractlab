@@ -630,3 +630,13 @@ ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data)
 	struct ms_state *state = (struct ms_state *) data;
 	ms_queue_push (state, x0, y0, x1, y1);
 }
+
+
+unsigned
+get_precision (const struct mandeldata *mandel)
+{
+	if (mandel->frac_limbs == 0)
+		return 0;
+	else
+		return (mandel->frac_limbs + INT_LIMBS) * mp_bits_per_limb;
+}

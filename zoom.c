@@ -198,10 +198,11 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 	free (md->data);
 
 	fprintf (stderr, "* Frame %ld done", i);
-	if (md->frac_limbs == 0)
+	unsigned bits = get_precision (md);
+	if (bits == 0)
 		fprintf (stderr, ", using FP arithmetic");
 	else
-		fprintf (stderr, ", using MP arithmetic (%d bits precision)", (INT_LIMBS + md->frac_limbs) * mp_bits_per_limb);
+		fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
 	fprintf (stderr, ".\n");
 }
 

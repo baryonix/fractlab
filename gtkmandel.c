@@ -236,7 +236,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	 */
 	struct rendering_started_info *info = malloc (sizeof (struct rendering_started_info));
 	info->mandel = mandel;
-	info->bits = ((md->frac_limbs == 0) ? 0 : ((INT_LIMBS + md->frac_limbs) * mp_bits_per_limb)); /* FIXME make this readable */
+	info->bits = get_precision (md);
 	g_idle_add (do_emit_rendering_started, info);
 
 	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);

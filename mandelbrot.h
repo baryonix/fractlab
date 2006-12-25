@@ -66,6 +66,8 @@ void mandel_render (struct mandeldata *mandel);
 void mandel_init_coords (struct mandeldata *mandel);
 void mandel_free (struct mandeldata *mandel);
 
+unsigned get_precision (const struct mandeldata *mandel);
+
 extern unsigned iter_saved;
 
 #endif /* _MANDEL_MANDELBROT_H */
