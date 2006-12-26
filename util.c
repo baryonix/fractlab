@@ -61,6 +61,8 @@ center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, mpf_t cx, mpf
 	mpf_add (xmax, cx, dx);
 	mpf_sub (ymin, cy, dy);
 	mpf_add (ymax, cy, dy);
+	mpf_clear (dx);
+	mpf_clear (dy);
 }
 
 
