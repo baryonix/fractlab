@@ -1,5 +1,6 @@
 mandel-gtk
 mandel-zoom
+stupidmng
 test_parser
 *.tab.[ch]
 *.yy.c
