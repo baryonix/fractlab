@@ -208,6 +208,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 		mandel->thread = NULL;
 		oldw = mandel->md->w;
 		oldh = mandel->md->h;
+		free (mandel->md->data);
 		free (mandel->md);
 		mandel->md = NULL;
 	}
