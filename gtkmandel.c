@@ -397,11 +397,17 @@ calcmandel (gpointer data)
 
 	mandel->md = md;
 
+	g_object_ref (G_OBJECT (mandel->pixmap));
+	g_object_ref (G_OBJECT (mandel->pm_gc));
+
 	mandel_render (md);
 
 	gdk_threads_enter ();
 	gdk_flush ();
 	gdk_threads_leave ();
+
+	g_object_unref (G_OBJECT (mandel->pm_gc));
+	g_object_unref (G_OBJECT (mandel->pixmap));
 
 	struct rendering_stopped_info *info = malloc (sizeof (struct rendering_stopped_info));
 	info->mandel = mandel;
