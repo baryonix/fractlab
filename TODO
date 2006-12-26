@@ -1,7 +1,6 @@
 TODO
 - clustering
 - dynamically adjusted precision for all calculations
-- dynamic widget size && non-1:1 aspect ratio
 - fix all memory leaks
 - include maxiter (and maybe color settings) in history and coord files
 - do all GDK/GTK calls in the main thread (this will make the program work
