@@ -31,12 +31,13 @@ struct thread_state {
 	GMutex *mutex;
 	struct zoom_state xstate, ystate;
 	unsigned i;
+	int compression;
 };
 
-static void write_png (const struct mandeldata *md, const char *filename);
+static void write_png (const struct thread_state *state, const struct mandeldata *md, const char *filename);
 static void init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n);
-static void get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d);
-static void render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned long i);
+static void get_frame (const struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d);
+static void render_frame (const struct thread_state *state, unsigned long i);
 static gpointer thread_func (gpointer data);
 
 struct color colors[COLORS];
@@ -48,6 +49,7 @@ static gint maxiter = DEFAULT_MAXITER, frame_count = 0;
 static gdouble log_factor = 0.0;
 static gint img_width = 200, img_height = 200;
 static gint zoom_threads = 1;
+static gint compression = -1;
 
 static double aspect;
 
@@ -61,6 +63,7 @@ static GOptionEntry option_entries [] = {
 	{"width", 'W', 0, G_OPTION_ARG_INT, &img_width, "Image width", "PIXELS"},
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
+	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
 	{NULL}
 };
 
@@ -73,6 +76,11 @@ parse_command_line (int *argc, char ***argv)
 	GOptionContext *context = g_option_context_new (NULL);
 	g_option_context_add_main_entries (context, option_entries, "mandel-zoom");
 	g_option_context_parse (context, argc, argv, NULL);
+	if (compression < -1 || compression > 9) {
+		/* -1 means to use the default value, if the option wasn't specified. */
+		fprintf (stderr, "* Error: PNG compression level must be from 0 to 9.\n");
+		exit (1);
+	}
 }
 
 
@@ -126,7 +134,7 @@ init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_
 
 
 static void
-get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
+get_frame (const struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
 {
 	mpfr_t a_i;
 
@@ -148,7 +156,7 @@ get_frame (struct zoom_state *state, unsigned long i, mpfr_t x, mpfr_t d)
 
 
 static void
-render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned long i)
+render_frame (const struct thread_state *state, unsigned long i)
 {
 	mpfr_t cfr, dfr, tmp0;
 	struct mandeldata md[1];
@@ -162,11 +170,11 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 	mpfr_init (dfr);
 	mpfr_init (tmp0);
 
-	get_frame (xstate, i, cfr, dfr);
+	get_frame (&state->xstate, i, cfr, dfr);
 	mpfr_ui_div (dfr, 1, dfr, GMP_RNDN);
 	mpfr_get_f (md->cx, cfr, GMP_RNDN);
 	mpfr_get_f (md->magf, dfr, GMP_RNDN);
-	get_frame (ystate, i, cfr, dfr);
+	get_frame (&state->ystate, i, cfr, dfr);
 	mpfr_get_f (md->cy, cfr, GMP_RNDN);
 
 	md->data = malloc (img_width * img_height * sizeof (unsigned));
@@ -189,7 +197,7 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 
 	char name[64];
 	sprintf (name, "file%06lu.png", i);
-	write_png (md, name);
+	write_png (state, md, name);
 	free (md->data);
 
 	fprintf (stderr, "* Frame %ld done", i);
@@ -203,7 +211,7 @@ render_frame (struct zoom_state *xstate, struct zoom_state *ystate, unsigned lon
 
 
 static void
-write_png (const struct mandeldata *md, const char *filename)
+write_png (const struct thread_state *state, const struct mandeldata *md, const char *filename)
 {
 	FILE *f = fopen (filename, "wb");
 
@@ -215,8 +223,10 @@ write_png (const struct mandeldata *md, const char *filename)
 
 	//png_set_swap (png_ptr); /* FIXME this should only be done on little-endian systems */
 	png_init_io (png_ptr, f);
-	png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
-	png_set_compression_level (png_ptr, 0);
+	if (state->compression == 0)
+		png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
+	if (state->compression >= 0)
+		png_set_compression_level (png_ptr, state->compression);
 	png_set_IHDR (png_ptr, info_ptr, md->w, md->h, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
 		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	png_write_info (png_ptr, info_ptr);
@@ -265,7 +275,7 @@ thread_func (gpointer data)
 		g_mutex_unlock (state->mutex);
 		if (i >= frame_count)
 			break;
-		render_frame (&state->xstate, &state->ystate, i);
+		render_frame (state, i);
 	}
 	return NULL;
 }
@@ -325,6 +335,8 @@ main (int argc, char **argv)
 		init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
 	}
 
+	state->compression = compression;
+
 	if (zoom_threads > 1) {
 		g_thread_init (NULL);
 		GThread *threads[zoom_threads];
@@ -337,7 +349,7 @@ main (int argc, char **argv)
 		g_mutex_free (state->mutex);
 	} else
 		for (i = 0; i < frame_count; i++)
-			render_frame (&state->xstate, &state->ystate, i);
+			render_frame (state, i);
 
 	return 0;
 }
