@@ -46,6 +46,8 @@ static gpointer calcmandel (gpointer data);
 static void size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data);
 static gboolean do_emit_rendering_started (gpointer data);
 static gboolean do_emit_rendering_stopped (gpointer data);
+static gboolean redraw_source_func (gpointer data);
+static gboolean redraw_source_func_once (gpointer data);
 
 
 GdkColor mandelcolors[COLORS];
@@ -141,6 +143,9 @@ gtk_mandel_class_init (GtkMandelClass *class)
 static void
 gtk_mandel_init (GtkMandel *mandel)
 {
+	mandel->need_redraw = false;
+	mandel->pb_mutex = g_mutex_new ();
+
 	g_signal_connect (G_OBJECT (mandel), "realize", (GCallback) my_realize, NULL);
 	g_signal_connect (G_OBJECT (mandel), "button-press-event", (GCallback) mouse_event, NULL);
 	g_signal_connect (G_OBJECT (mandel), "button-release-event", (GCallback) mouse_event, NULL);
@@ -202,9 +207,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 
 	if (mandel->thread != NULL) {
 		mandel->md->terminate = true;
-		gdk_threads_leave (); /* XXX Is it safe to do this? */
 		g_thread_join (mandel->thread);
-		gdk_threads_enter ();
 		mandel->thread = NULL;
 		oldw = mandel->md->w;
 		oldh = mandel->md->h;
@@ -213,20 +216,24 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 		mandel->md = NULL;
 	}
 
-	if (mandel->pixmap == NULL || md->w != oldw || md->h != oldh) {
-		if (mandel->pixmap != NULL) {
-			g_object_unref (G_OBJECT (mandel->pm_gc));
-			g_object_unref (G_OBJECT (mandel->pixmap));
-		}
-		mandel->pixmap = gdk_pixmap_new (GTK_WIDGET (mandel)->window, md->w, md->h, -1);
-		mandel->pm_gc = gdk_gc_new (GDK_DRAWABLE (mandel->pixmap));
+	/*
+	 * The rendering thread has terminated, so we can touch the pixbuf
+	 * and related fields without locking the pb_mutex.
+	 */
+
+	if (mandel->pixbuf == NULL || md->w != oldw || md->h != oldh) {
+		if (mandel->pixbuf != NULL)
+			g_object_unref (G_OBJECT (mandel->pixbuf));
+		mandel->pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, FALSE, 8, md->w, md->h);
+		mandel->pb_rowstride = gdk_pixbuf_get_rowstride (mandel->pixbuf);
+		mandel->pb_nchan = gdk_pixbuf_get_n_channels (mandel->pixbuf);
+		mandel->pb_data = gdk_pixbuf_get_pixels (mandel->pixbuf);
 	}
 
 	/* Clear image */
+	gdk_pixbuf_fill (mandel->pixbuf, 0);
 	gdk_gc_set_foreground (mandel->gc, &mandel->black);
 	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, 0, 0, md->w, md->h);
-	gdk_gc_set_foreground (mandel->pm_gc, &mandel->black);
-	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, 0, 0, md->w, md->h);
 
 	/*
 	 * Emit the "rendering-started" signal.
@@ -239,6 +246,8 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	info->mandel = mandel;
 	info->bits = get_precision (md);
 	g_idle_add (do_emit_rendering_started, info);
+
+	mandel->redraw_source_id = g_timeout_add (500, redraw_source_func, mandel);
 
 	mandel->thread = g_thread_create (calcmandel, (gpointer) md, true, NULL);
 }
@@ -317,13 +326,16 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 		}
 		case GDK_MOTION_NOTIFY: {
 			double d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->md->aspect);
-			gdk_draw_drawable (GDK_DRAWABLE (widget->window), mandel->gc, GDK_DRAWABLE (mandel->pixmap),
+			g_mutex_lock (mandel->pb_mutex);
+			gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc, mandel->pixbuf,
 				mandel->center_x - mandel->selection_size,
 				mandel->center_y - mandel->selection_size / mandel->md->aspect,
 				mandel->center_x - mandel->selection_size,
 				mandel->center_y - mandel->selection_size / mandel->md->aspect,
 				2 * mandel->selection_size + 1,
-				2 * mandel->selection_size / mandel->md->aspect + 1);
+				2 * mandel->selection_size / mandel->md->aspect + 1,
+				GDK_RGB_DITHER_NORMAL, 0, 0);
+			g_mutex_unlock (mandel->pb_mutex);
 			gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->frame_gc, false,
 				mandel->center_x - d,
 				mandel->center_y - d / mandel->md->aspect,
@@ -344,48 +356,61 @@ static gboolean
 my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
-	gdk_draw_drawable (GDK_DRAWABLE (widget->window), mandel->gc,
-		GDK_DRAWABLE (mandel->pixmap),
+	g_mutex_lock (mandel->pb_mutex);
+	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc,
+		mandel->pixbuf,
 		event->area.x, event->area.y,
 		event->area.x, event->area.y,
-		event->area.width, event->area.height);
+		event->area.width, event->area.height,
+		GDK_RGB_DITHER_NORMAL, 0, 0);
+	g_mutex_unlock (mandel->pb_mutex);
 	return true;
-}
-
-
-static void
-gtk_mandel_set_gc_color (GtkMandel *mandel, unsigned iter)
-{
-	gdk_gc_set_rgb_fg_color (mandel->pm_gc, &mandelcolors[iter % COLORS]);
-	gdk_gc_set_rgb_fg_color (mandel->gc, &mandelcolors[iter % COLORS]);
 }
 
 
 static void
 gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data)
 {
-	GtkMandel *mandel = GTK_MANDEL (user_data);
-	GtkWidget *widget = GTK_WIDGET (mandel);
-
-	gdk_threads_enter ();
-	gtk_mandel_set_gc_color (mandel, iter);
-	gdk_draw_point (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, x, y);
-	gdk_draw_point (GDK_DRAWABLE (widget->window), mandel->gc, x, y);
-	gdk_threads_leave ();
+	gtk_mandel_display_rect (x, y, 1, 1, iter, user_data);
 }
 
 
 static void
 gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data)
 {
-	GtkMandel *mandel = GTK_MANDEL (user_data);
-	GtkWidget *widget = GTK_WIDGET (mandel);
+	int xi, yi;
 
-	gdk_threads_enter ();
-	gtk_mandel_set_gc_color (mandel, iter);
-	gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->gc, true, x, y, w, h);
-	gdk_draw_rectangle (GDK_DRAWABLE (mandel->pixmap), mandel->pm_gc, true, x, y, w, h);
-	gdk_threads_leave ();
+	GtkMandel *mandel = GTK_MANDEL (user_data);
+
+	GdkColor *color = &mandelcolors[iter % COLORS]; /* FIXME why use GdkColor for mandelcolors? better define our own struct. */
+
+	g_mutex_lock (mandel->pb_mutex);
+	for (xi = x; xi < x + w; xi++)
+		for (yi = y; yi < y + h; yi++) {
+			guchar *p = mandel->pb_data + yi * mandel->pb_rowstride + xi * mandel->pb_nchan;
+			p[0] = color->red >> 8;
+			p[1] = color->green >> 8;
+			p[2] = color->blue >> 8;
+		}
+
+	if (mandel->need_redraw) {
+		if (x < mandel->pb_xmin)
+			mandel->pb_xmin = x;
+		if (y < mandel->pb_ymin)
+			mandel->pb_ymin = y;
+		if (x + w > mandel->pb_xmax)
+			mandel->pb_xmax = x + w;
+		if (y + h > mandel->pb_ymax)
+			mandel->pb_ymax = y + h;
+	} else {
+		mandel->need_redraw = true;
+		mandel->pb_xmin = x;
+		mandel->pb_ymin = y;
+		mandel->pb_xmax = x + w;
+		mandel->pb_ymax = y + h;
+	}
+
+	g_mutex_unlock (mandel->pb_mutex);
 }
 
 
@@ -397,17 +422,14 @@ calcmandel (gpointer data)
 
 	mandel->md = md;
 
-	g_object_ref (G_OBJECT (mandel->pixmap));
-	g_object_ref (G_OBJECT (mandel->pm_gc));
+	g_object_ref (G_OBJECT (mandel->pixbuf));
 
 	mandel_render (md);
 
-	gdk_threads_enter ();
-	gdk_flush ();
-	gdk_threads_leave ();
+	g_source_remove (mandel->redraw_source_id);
+	g_idle_add (redraw_source_func_once, mandel);
 
-	g_object_unref (G_OBJECT (mandel->pm_gc));
-	g_object_unref (G_OBJECT (mandel->pixmap));
+	g_object_unref (G_OBJECT (mandel->pixbuf));
 
 	struct rendering_stopped_info *info = malloc (sizeof (struct rendering_stopped_info));
 	info->mandel = mandel;
@@ -474,5 +496,48 @@ do_emit_rendering_stopped (gpointer data)
 	gboolean completed = info->completed;
 	free (info);
 	g_signal_emit (G_OBJECT (mandel), GTK_MANDEL_GET_CLASS (mandel)->rendering_stopped_signal, 0, completed);
+	return FALSE;
+}
+
+
+void
+gtk_mandel_redraw (GtkMandel *mandel)
+{
+	if (!mandel->need_redraw)
+		return;
+
+	GtkWidget *widget = GTK_WIDGET (mandel);
+
+	g_mutex_lock (mandel->pb_mutex);
+
+	fprintf (stderr, "* Redrawing xmin=%d xmax=%d ymin=%d ymax=%d\n", mandel->pb_xmin, mandel->pb_xmax, mandel->pb_ymin, mandel->pb_ymax);
+
+	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc,
+		mandel->pixbuf,
+		mandel->pb_xmin, mandel->pb_ymin,
+		mandel->pb_xmin, mandel->pb_ymin,
+		mandel->pb_xmax - mandel->pb_xmin, mandel->pb_ymax - mandel->pb_ymin,
+		GDK_RGB_DITHER_NORMAL, 0, 0);
+
+	mandel->need_redraw = false;
+
+	g_mutex_unlock (mandel->pb_mutex);
+}
+
+
+static gboolean
+redraw_source_func (gpointer data)
+{
+	GtkMandel *mandel = GTK_MANDEL (data);
+	gtk_mandel_redraw (mandel);
+	return TRUE;
+}
+
+
+static gboolean
+redraw_source_func_once (gpointer data)
+{
+	GtkMandel *mandel = GTK_MANDEL (data);
+	gtk_mandel_redraw (mandel);
 	return FALSE;
 }

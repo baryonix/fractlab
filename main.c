@@ -31,8 +31,6 @@ int
 main (int argc, char **argv)
 {
 	g_thread_init (NULL);
-	gdk_threads_init ();
-	gdk_threads_enter ();
 
 	parse_command_line (&argc, &argv);
 
@@ -61,7 +59,6 @@ main (int argc, char **argv)
 	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0);
 	gtk_mandel_application_start (app);
 	gtk_main ();
-	gdk_threads_leave ();
 
 	return 0;
 }

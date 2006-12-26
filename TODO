@@ -3,14 +3,9 @@ TODO
 - dynamically adjusted precision for all calculations
 - fix all memory leaks
 - include maxiter (and maybe color settings) in history and coord files
-- do all GDK/GTK calls in the main thread (this will make the program work
-  on Win32, where GDK calls from multiple threads are not allowed)
-  This was attempted (mandel-gtk-render-g_idle_add.patch), but failed because
-  the resulting performance was very bad. Seems that we're lucky gdk_flush()
-  isn't automatically called when rendering from other threads.
-  We'll have to find a more efficient way of displaying the image on the screen
-  than rendering the pixels one-by-one.
 - implement real color palette handling, get rid of global variable mandelcolors
 - z^n + c, with n > 2
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
+- fix race condition when window is resized, we sometimes attempt to render
+  an out-of-range area of the pixbuf

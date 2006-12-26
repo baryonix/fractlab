@@ -8,11 +8,17 @@
 typedef struct
 {
 	GtkDrawingArea widget;
-	GdkPixmap *pixmap;
-	GdkGC *gc, *pm_gc, *frame_gc;
+	GdkPixbuf *pixbuf;
+	GMutex *pb_mutex;
+	int pb_rowstride, pb_nchan;
+	guchar *pb_data;
+	bool need_redraw;
+	int pb_xmin, pb_xmax, pb_ymin, pb_ymax; /* These indicate the area that has been updated and must be redrawn on screen. */
+	GdkGC *gc, *frame_gc;
 	GdkColor black, red, white;
 	GThread *thread;
 	struct mandeldata *md;
+	guint redraw_source_id;
 	gdouble center_x, center_y, selection_size;
 } GtkMandel;
 
@@ -50,6 +56,7 @@ extern GdkColor mandelcolors[];
 GType gtk_mandel_get_type ();
 GtkWidget *gtk_mandel_new (void);
 void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor);
+void gtk_mandel_redraw (GtkMandel *mandel);
 
 GType gtk_mandel_area_get_type ();
 GtkMandelArea *gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf);
