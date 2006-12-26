@@ -422,14 +422,10 @@ calcmandel (gpointer data)
 
 	mandel->md = md;
 
-	g_object_ref (G_OBJECT (mandel->pixbuf));
-
 	mandel_render (md);
 
 	g_source_remove (mandel->redraw_source_id);
 	g_idle_add (redraw_source_func_once, mandel);
-
-	g_object_unref (G_OBJECT (mandel->pixbuf));
 
 	struct rendering_stopped_info *info = malloc (sizeof (struct rendering_stopped_info));
 	info->mandel = mandel;
