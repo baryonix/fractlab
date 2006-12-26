@@ -38,17 +38,15 @@ write_chunk (FILE *f, const char *chunk_type, const char *data, size_t len, uint
 static long
 read_chunk (FILE *f, char *chunk_type, char **data, uint32_t *r_crc, int checkcrc)
 {
-	uint32_t len, the_crc, my_crc = 0;
+	uint32_t len, the_crc, my_crc = 0xffffffff;
 	char *buf = NULL;
 	if (fread (&len, sizeof (len), 1, f) < 1)
 		goto error;
 	len = ntohl (len);
 	if (fread (chunk_type, 4, 1, f) < 1)
 		goto error;
-	if (checkcrc) {
-		my_crc = 0xffffffff;
+	if (checkcrc)
 		my_crc = update_crc (my_crc, (unsigned char *) chunk_type, 4);
-	}
 	if (len > 0) {
 		buf = malloc (len);
 		if (buf == NULL)
