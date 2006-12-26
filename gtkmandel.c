@@ -510,8 +510,6 @@ gtk_mandel_redraw (GtkMandel *mandel)
 
 	g_mutex_lock (mandel->pb_mutex);
 
-	fprintf (stderr, "* Redrawing xmin=%d xmax=%d ymin=%d ymax=%d\n", mandel->pb_xmin, mandel->pb_xmax, mandel->pb_ymin, mandel->pb_ymax);
-
 	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc,
 		mandel->pixbuf,
 		mandel->pb_xmin, mandel->pb_ymin,
