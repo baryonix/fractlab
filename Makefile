@@ -56,7 +56,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .SUFFIXES: .asm
 
 clean:
-	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom
+	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom stupidmng
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
