@@ -327,11 +327,14 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 		}
 		case GDK_MOTION_NOTIFY: {
 			double d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->md->aspect);
-			redraw_area (mandel,
-				mandel->center_x - mandel->selection_size,
-				mandel->center_y - mandel->selection_size / mandel->md->aspect,
-				2 * mandel->selection_size + 1,
-				2 * mandel->selection_size / mandel->md->aspect + 1);
+			int oldx = mandel->center_x - mandel->selection_size;
+			int oldy = mandel->center_y - mandel->selection_size / mandel->md->aspect;
+			int oldw = 2 * mandel->selection_size + 1;
+			int oldh = 2 * mandel->selection_size / mandel->md->aspect + 1;
+			redraw_area (mandel, oldx, oldy, oldw, 1);
+			redraw_area (mandel, oldx, oldy + oldh - 1, oldw, 1);
+			redraw_area (mandel, oldx, oldy + 1, 1, oldh - 2);
+			redraw_area (mandel, oldx + oldw - 1, oldy + 1, 1, oldh - 2);
 			gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->frame_gc, false,
 				mandel->center_x - d,
 				mandel->center_y - d / mandel->md->aspect,
@@ -515,11 +518,19 @@ redraw_source_func_once (gpointer data)
 }
 
 
+/*
+ * This function does all kinds of boundary checking, so it can basically
+ * be called for any area, will clip the specified area to the part of it
+ * inside the widget area, and will not draw anything if called for a
+ * completely off-screen area.
+ */
 static void
 redraw_area (GtkMandel *mandel, int x, int y, int w, int h)
 {
 	if (mandel->pixbuf == NULL || mandel->md == NULL)
 		return;
+	if (w < 0 || h < 0 || x <= -w || y <= -h || x >= (int) mandel->md->w || y >= (int) mandel->md->h)
+		return; /* area is completely off-screen */
 
 	GtkWidget *widget = GTK_WIDGET (mandel);
 	int my_x = x, my_y = y, my_w = w, my_h = h;
