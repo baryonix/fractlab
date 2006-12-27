@@ -48,6 +48,7 @@ static gboolean do_emit_rendering_started (gpointer data);
 static gboolean do_emit_rendering_stopped (gpointer data);
 static gboolean redraw_source_func (gpointer data);
 static gboolean redraw_source_func_once (gpointer data);
+static void redraw_area (GtkMandel *mandel, int x, int y, int w, int h);
 
 
 GdkColor mandelcolors[COLORS];
@@ -326,16 +327,11 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 		}
 		case GDK_MOTION_NOTIFY: {
 			double d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->md->aspect);
-			g_mutex_lock (mandel->pb_mutex);
-			gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc, mandel->pixbuf,
-				mandel->center_x - mandel->selection_size,
-				mandel->center_y - mandel->selection_size / mandel->md->aspect,
+			redraw_area (mandel,
 				mandel->center_x - mandel->selection_size,
 				mandel->center_y - mandel->selection_size / mandel->md->aspect,
 				2 * mandel->selection_size + 1,
-				2 * mandel->selection_size / mandel->md->aspect + 1,
-				GDK_RGB_DITHER_NORMAL, 0, 0);
-			g_mutex_unlock (mandel->pb_mutex);
+				2 * mandel->selection_size / mandel->md->aspect + 1);
 			gdk_draw_rectangle (GDK_DRAWABLE (widget->window), mandel->frame_gc, false,
 				mandel->center_x - d,
 				mandel->center_y - d / mandel->md->aspect,
@@ -356,14 +352,7 @@ static gboolean
 my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
-	g_mutex_lock (mandel->pb_mutex);
-	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc,
-		mandel->pixbuf,
-		event->area.x, event->area.y,
-		event->area.x, event->area.y,
-		event->area.width, event->area.height,
-		GDK_RGB_DITHER_NORMAL, 0, 0);
-	g_mutex_unlock (mandel->pb_mutex);
+	redraw_area (mandel, event->area.x, event->area.y, event->area.width, event->area.height);
 	return true;
 }
 
@@ -501,21 +490,10 @@ gtk_mandel_redraw (GtkMandel *mandel)
 {
 	if (!mandel->need_redraw)
 		return;
-
-	GtkWidget *widget = GTK_WIDGET (mandel);
-
-	g_mutex_lock (mandel->pb_mutex);
-
-	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc,
-		mandel->pixbuf,
+	redraw_area (mandel,
 		mandel->pb_xmin, mandel->pb_ymin,
-		mandel->pb_xmin, mandel->pb_ymin,
-		mandel->pb_xmax - mandel->pb_xmin, mandel->pb_ymax - mandel->pb_ymin,
-		GDK_RGB_DITHER_NORMAL, 0, 0);
-
+		mandel->pb_xmax - mandel->pb_xmin, mandel->pb_ymax - mandel->pb_ymin);
 	mandel->need_redraw = false;
-
-	g_mutex_unlock (mandel->pb_mutex);
 }
 
 
@@ -534,4 +512,26 @@ redraw_source_func_once (gpointer data)
 	GtkMandel *mandel = GTK_MANDEL (data);
 	gtk_mandel_redraw (mandel);
 	return FALSE;
+}
+
+
+static void
+redraw_area (GtkMandel *mandel, int x, int y, int w, int h)
+{
+	if (mandel->pixbuf == NULL || mandel->md == NULL)
+		return;
+
+	GtkWidget *widget = GTK_WIDGET (mandel);
+	int my_x = x, my_y = y, my_w = w, my_h = h;
+	if (my_x < 0)
+		my_x = 0;
+	if (my_y < 0)
+		my_y = 0;
+	if (mandel->md->w - my_x < my_w)
+		my_w = mandel->md->w - my_x;
+	if (mandel->md->h - my_y < my_h)
+		my_h = mandel->md->h - my_y;
+	g_mutex_lock (mandel->pb_mutex);
+	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc, mandel->pixbuf, my_x, my_y, my_x, my_y, my_w, my_h, GDK_RGB_DITHER_NORMAL, 0, 0);
+	g_mutex_unlock (mandel->pb_mutex);
 }

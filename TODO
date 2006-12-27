@@ -7,5 +7,3 @@ TODO
 - z^n + c, with n > 2
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
-- fix race condition when window is resized, we sometimes attempt to render
-  an out-of-range area of the pixbuf
