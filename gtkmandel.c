@@ -190,6 +190,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	int oldw = -1, oldh = -1;
 	memset (md, 0, sizeof (*md));
 
+	md->type = FRACTAL_MANDELBROT;
 	mpf_init_set (md->cx, cx);
 	mpf_init_set (md->cy, cy);
 	mpf_init_set (md->magf, magf);

@@ -7,3 +7,4 @@ TODO
 - z^n + c, with n > 2
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
+- fix asm routine to support Julia set

@@ -158,10 +158,10 @@ unsigned iter_saved = 0;
 
 
 unsigned
-mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
+mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
 {
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
-	mp_limb_t x[total_limbs], y[total_limbs], x0[total_limbs], y0[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[total_limbs];
+	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[total_limbs];
 	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
 	unsigned i;
 
@@ -169,16 +169,10 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 		four[i] = 0;
 	four[frac_limbs] = 4;
 
-	//mpz_init (ztmp);
-	//my_double_to_mpz (ztmp, x0f);
-	bool x0_sign = mpz_sgn (x0z) < 0;
-	for (i = 0; i < total_limbs; i++)
-		x0[i] = x[i] = cd_x[i] = mpz_getlimbn (x0z, i);
-
-	//my_double_to_mpz (ztmp, y0f);
-	bool y0_sign = mpz_sgn (y0z) < 0;
-	for (i = 0; i < total_limbs; i++)
-		y0[i] = y[i] = cd_y[i] = mpz_getlimbn (y0z, i);
+	memcpy (x, x0, sizeof (x));
+	memcpy (cd_x, x0, sizeof (cd_x));
+	memcpy (y, y0, sizeof (y));
+	memcpy (cd_y, y0, sizeof (cd_y));
 
 	bool x_sign = x0_sign, y_sign = y0_sign;
 
@@ -191,7 +185,7 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 		mp_limb_t tmp1[total_limbs];
 		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
 		mpn_lshift (y, tmp1, total_limbs, 1);
-		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, y0, y0_sign, frac_limbs);
+		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, pimag, pimag_sign, frac_limbs);
 
 		if (mpn_cmp (xsqr, ysqr, total_limbs) > 0) {
 			mpn_sub_n (x, xsqr, ysqr, total_limbs);
@@ -200,10 +194,10 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 			mpn_sub_n (x, ysqr, xsqr, total_limbs);
 			x_sign = true;
 		}
-		x_sign = my_mpn_add_signed (x, x, x_sign, x0, x0_sign, frac_limbs);
-
+		x_sign = my_mpn_add_signed (x, x, x_sign, preal, preal_sign, frac_limbs);
 
 		k--;
+		/* FIXME we must compare the signs here! */
 		if (mpn_cmp (x, cd_x, total_limbs) == 0 && mpn_cmp (y, cd_y, total_limbs) == 0) {
 			//printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
 			iter_saved += maxiter - i;
@@ -216,7 +210,6 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 			memcpy (cd_y, y, sizeof (y));
 		}
 
-
 		my_mpn_mul_fast (xsqr, x, x, frac_limbs);
 		my_mpn_mul_fast (ysqr, y, y, frac_limbs);
 		mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
@@ -227,16 +220,15 @@ mandelbrot (mpz_t x0z, mpz_t y0z, unsigned maxiter, unsigned frac_limbs)
 }
 
 
-#ifndef MANDELBROT_FP_ASM
 unsigned
-mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
+mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
 {
 	unsigned i = 0, k = 1, m = 1;
 	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
 	while (i < maxiter && x * x + y * y < 4.0) {
 		mandel_fp_t xold = x, yold = y;
-		x = x * x - y * y + x0;
-		y = 2 * xold * yold + y0;
+		x = x * x - y * y + preal;
+		y = 2 * xold * yold + pimag;
 
 		k--;
 		if (x == cd_x && y == cd_y) {
@@ -255,30 +247,72 @@ mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter)
 	}
 	return i;
 }
-#endif /* MANDELBROT_FP_ASM */
 
 
 void
 mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 {
-	unsigned i;
+	unsigned i = 0;
 	if (mandel->frac_limbs == 0) {
 		// FP
 		mandel_fp_t xmin = mpf_get_mandel_fp (mandel->xmin_f);
 		mandel_fp_t xmax = mpf_get_mandel_fp (mandel->xmax_f);
 		mandel_fp_t ymin = mpf_get_mandel_fp (mandel->ymin_f);
 		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
-		i = mandelbrot_fp (x * (xmax - xmin) / mandel->w + xmin, y * (ymin - ymax) / mandel->h + ymax, mandel->maxiter);
+		mandel_fp_t xf = x * (xmax - xmin) / mandel->w + xmin;
+		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
+		switch (mandel->type) {
+			case FRACTAL_MANDELBROT: {
+#ifdef MANDELBROT_FP_ASM
+				i = mandelbrot_fp (xf, yf, mandel->maxiter);
+#else
+				i = mandel_julia_fp (xf, yf, xf, yf, mandel->maxiter);
+#endif
+				break;
+			}
+			case FRACTAL_JULIA: {
+				i = mandel_julia_fp (xf, yf, mandel->preal_float, mandel->pimag_float, mandel->maxiter);
+				break;
+			}
+			default: {
+				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
+				return;
+			}
+		}
 	} else {
 		// MP
-		mpz_t xz, yz;
-		mpz_init (xz);
-		mpz_init (yz);
-		mandel_convert_x (mandel, xz, x);
-		mandel_convert_y (mandel, yz, y);
-		i = mandelbrot (xz, yz, mandel->maxiter, mandel->frac_limbs);
-		mpz_clear (xz);
-		mpz_clear (yz);
+		mpz_t z;
+		int j;
+		unsigned total_limbs = INT_LIMBS + mandel->frac_limbs;
+		mp_limb_t x0[total_limbs], y0[total_limbs];
+		bool x0_sign, y0_sign;
+		mpz_init (z);
+
+		mandel_convert_x (mandel, z, x);
+		for (j = 0; j < total_limbs; j++)
+			x0[j] = mpz_getlimbn (z, j);
+		x0_sign = mpz_sgn (z) < 0;
+
+		mandel_convert_y (mandel, z, y);
+		for (j = 0; j < total_limbs; j++)
+			y0[j] = mpz_getlimbn (z, j);
+		y0_sign = mpz_sgn (z) < 0;
+
+		mpz_clear (z);
+		switch (mandel->type) {
+			case FRACTAL_MANDELBROT: {
+				i = mandel_julia (x0, x0_sign, y0, y0_sign, x0, x0_sign, y0, y0_sign, mandel->maxiter, mandel->frac_limbs);
+				break;
+			}
+			case FRACTAL_JULIA: {
+				i = mandel_julia (x0, x0_sign, y0, y0_sign, mandel->preal, mandel->preal_sign, mandel->pimag, mandel->pimag_sign, mandel->maxiter, mandel->frac_limbs);
+				break;
+			}
+			default: {
+				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
+				return;
+			}
+		}
 	}
 	if (mandel->log_factor != 0.0)
 		i = mandel->log_factor * log (i);
@@ -360,6 +394,28 @@ mandel_init_coords (struct mandeldata *mandel)
 
 	mpf_mul_2exp (f, mandel->ymax_f, frac_limbs * mp_bits_per_limb);
 	mpz_set_f (mandel->ymax, f);
+
+	if (mandel->type == FRACTAL_JULIA) {
+		if (frac_limbs > 0) {
+			mandel->preal = malloc (total_limbs * sizeof (mp_limb_t));
+			mandel->pimag = malloc (total_limbs * sizeof (mp_limb_t));
+			mpz_t z;
+			mpz_init (z);
+			mpf_mul_2exp (f, mandel->preal_f, frac_limbs * mp_bits_per_limb);
+			mpz_set_f (z, f);
+			int i;
+			for (i = 0; i < total_limbs; i++)
+				mandel->preal[i] = mpz_getlimbn (z, i);
+			mpf_mul_2exp (f, mandel->pimag_f, frac_limbs * mp_bits_per_limb);
+			mpz_set_f (z, f);
+			for (i = 0; i < total_limbs; i++)
+				mandel->pimag[i] = mpz_getlimbn (z, i);
+			mpz_clear (z);
+		} else {
+			mandel->preal_float = mpf_get_mandel_fp (mandel->preal_f);
+			mandel->pimag_float = mpf_get_mandel_fp (mandel->pimag_f);
+		}
+	}
 
 	mpf_clear (f);
 }
