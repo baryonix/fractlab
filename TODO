@@ -8,3 +8,5 @@ TODO
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
 - fix asm routine to support Julia set
+- build a generic rendering framework to support arbitrary different fractal
+  types
