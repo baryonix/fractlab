@@ -50,6 +50,7 @@ static gdouble log_factor = 0.0;
 static gint img_width = 200, img_height = 200;
 static gint zoom_threads = 1;
 static gint compression = -1;
+static gint start_frame = 0;
 
 static double aspect;
 
@@ -59,6 +60,7 @@ static GOptionEntry option_entries [] = {
 	{"target-coords", 't', 0, G_OPTION_ARG_FILENAME, &target_coords, "Target coordinates", "FILE"},
 	{"maxiter", 'i', 0, G_OPTION_ARG_INT, &maxiter, "Maximum # of iterations", "N"},
 	{"frames", 'n', 0, G_OPTION_ARG_INT, &frame_count, "# of frames in animation", "N"},
+	{"start-frame", 'S', 0, G_OPTION_ARG_INT, &start_frame, "Start rendering at frame N", "N"},
 	{"log-factor", 'l', 0, G_OPTION_ARG_DOUBLE, &log_factor, "Use logarithmic colors, color = LF * ln (iter)", "LF"},
 	{"width", 'W', 0, G_OPTION_ARG_INT, &img_width, "Image width", "PIXELS"},
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
@@ -341,14 +343,14 @@ main (int argc, char **argv)
 		g_thread_init (NULL);
 		GThread *threads[zoom_threads];
 		state->mutex = g_mutex_new ();
-		state->i = 0;
+		state->i = start_frame;
 		for (i = 0; i < zoom_threads; i++)
 			threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
 		for (i = 0; i < zoom_threads; i++)
 			g_thread_join (threads[i]);
 		g_mutex_free (state->mutex);
 	} else
-		for (i = 0; i < frame_count; i++)
+		for (i = start_frame; i < frame_count; i++)
 			render_frame (state, i);
 
 	return 0;
