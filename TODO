@@ -10,3 +10,4 @@ TODO
 - fix asm routine to support Julia set
 - build a generic rendering framework to support arbitrary different fractal
   types
+- support Julia set in GUI
