@@ -158,7 +158,7 @@ main (int argc, char *argv[])
 			break;
 		mandel_convert_x_f (md, preal, x);
 		mandel_convert_x_f (md, pimag, y);
-		gmp_printf ("%.10Ff %.10Ff\n", preal, pimag);
+		gmp_printf ("%.5Ff\n%.5Ff\n", preal, pimag);
 		int xsn, ysn;
 		turn_right (xstep, ystep, &xsn, &ysn);
 		/* If we don't have a wall at the right, turn right. */
