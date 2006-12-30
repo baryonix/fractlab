@@ -13,9 +13,11 @@ GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
 MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(GMP_LIBS) -lpthread -lm
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
+LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(GMP_LIBS) -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
 MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o mandelbrot.o anim.o
+LISSAJOULIA_OBJECTS = lissajoulia.o file.o util.o mandelbrot.o anim.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
 TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o
 
@@ -23,15 +25,19 @@ ifeq ($(USE_IA32_ASM),i387)
 CFLAGS += -DMANDELBROT_FP_ASM
 MANDEL_GTK_OBJECTS += ia32/mandel387.o
 MANDEL_ZOOM_OBJECTS += ia32/mandel387.o
+LISSAJOULIA_OBJECTS += ia32/mandel387.o
 endif
 
-all: mandel-gtk mandel-zoom stupidmng
+all: mandel-gtk mandel-zoom lissajoulia stupidmng
 
 mandel-gtk: $(MANDEL_GTK_OBJECTS)
 	$(CC) -o $@ $^ $(MANDEL_GTK_LIBS)
 
 mandel-zoom: $(MANDEL_ZOOM_OBJECTS)
 	$(CC) -o $@ $^ $(MANDEL_ZOOM_LIBS)
+
+lissajoulia: $(LISSAJOULIA_OBJECTS)
+	$(CC) -o $@ $^ $(LISSAJOULIA_LIBS)
 
 stupidmng: $(STUPIDMNG_OBJECTS)
 	$(CC) -o $@ $^
@@ -56,7 +62,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .SUFFIXES: .asm
 
 clean:
-	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom stupidmng
+	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom lissajoulia stupidmng
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
