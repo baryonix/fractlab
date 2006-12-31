@@ -199,9 +199,9 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	md->render_method = render_method;
 	md->log_factor = log_factor;
 	md->terminate = false;
-	md->w = GTK_WIDGET (mandel)->allocation.width;
-	md->h = GTK_WIDGET (mandel)->allocation.height;
-	md->data = malloc (md->w * md->h * sizeof (unsigned));
+	md->w = widget->allocation.width;
+	md->h = widget->allocation.height;
+	md->data = malloc (md->w * md->h * sizeof (*md->data));
 	md->display_pixel = gtk_mandel_display_pixel;
 	md->display_rect = gtk_mandel_display_rect;
 

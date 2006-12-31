@@ -11,3 +11,4 @@ TODO
 - build a generic rendering framework to support arbitrary different fractal
   types
 - support Julia set in GUI
+- find a way to parallelize the boundary trace method

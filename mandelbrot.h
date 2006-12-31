@@ -22,7 +22,8 @@ typedef enum fractal_type_enum {
 typedef enum render_method_enum {
 	RM_SUCCESSIVE_REFINE = 0,
 	RM_MARIANI_SILVER = 1,
-	RM_MAX = 2
+	RM_BOUNDARY_TRACE = 2,
+	RM_MAX = 3
 } render_method_t;
 
 extern const char *render_method_names[];
@@ -38,7 +39,7 @@ struct mandeldata {
 	unsigned frac_limbs;
 	unsigned w, h, maxiter;
 	double aspect;
-	unsigned *data;
+	int *data; /* This is signed so we can represent not-yet-rendered pixels as -1 */
 	render_method_t render_method;
 	double log_factor;
 	void *user_data;
@@ -61,7 +62,7 @@ void mandel_convert_y_f (struct mandeldata *mandel, mpf_t rop, unsigned op);
 void mandel_set_pixel (struct mandeldata *mandel, int x, int y, unsigned iter);
 void mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned iter);
 
-unsigned mandel_get_pixel (const struct mandeldata *mandel, int x, int y);
+int mandel_get_pixel (const struct mandeldata *mandel, int x, int y);
 bool mandel_all_neighbors_same (struct mandeldata *mandel, unsigned x, unsigned y, unsigned d);
 void my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs);
 bool my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs);
@@ -71,9 +72,10 @@ unsigned mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign,
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
 unsigned mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
-void mandel_render_pixel (struct mandeldata *mandel, int x, int y);
+int mandel_render_pixel (struct mandeldata *mandel, int x, int y);
 void calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1);
 void mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);
+void mandel_display_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_render (struct mandeldata *mandel);
 void mandel_init_coords (struct mandeldata *mandel);
 void mandel_free (struct mandeldata *mandel);

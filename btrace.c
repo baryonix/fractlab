@@ -118,12 +118,13 @@ main (int argc, char *argv[])
 	mpf_init (md->magf);
 
 	md->type = FRACTAL_MANDELBROT;
-	mpf_set_str (md->cx, "-.5", 10);
+	//mpf_set_str (md->cx, "-.5", 10);
+	mpf_set_str (md->cx, "2", 10);
 	mpf_set_str (md->cy, "0", 10);
 	mpf_set_str (md->magf, ".5", 10);
-	md->maxiter = 100;
-	md->w = 400;
-	md->h = 400;
+	md->maxiter = 1000;
+	md->w = 600;
+	md->h = 600;
 
 	md->data = malloc (md->w * md->h * sizeof (*md->data));
 	memset (md->data, 0, md->w * md->h * sizeof (*md->data));
@@ -145,13 +146,17 @@ main (int argc, char *argv[])
 	mpf_init (preal);
 	mpf_init (pimag);
 
+	int turns = 0;
 	while (1) {
-		if (maybe_render (md, x + xstep, y + ystep) < md->maxiter) {
+		if (x + xstep < 0 || x + xstep >= md->w || y + ystep < 0 || y + ystep >= md->h || maybe_render (md, x + xstep, y + ystep) < md->maxiter) {
 			/* can't move forward, turn left */
 			turn_left (xstep, ystep, &xstep, &ystep);
+			if (++turns == 4)
+				break;
 			continue;
 		}
 		/* move forward */
+		turns = 0;
 		x += xstep;
 		y += ystep;
 		if (x == x0 && y == y0)

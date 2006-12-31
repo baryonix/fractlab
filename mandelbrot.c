@@ -39,11 +39,15 @@ static void ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y
 static void ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data);
 static void ms_enqueue (int x0, int y0, int x1, int y1, void *data);
 static void ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data);
+static void render_btrace (struct mandeldata *md, int x0, int y0, unsigned char *flags, bool fill_mode);
+static void bt_turn_right (int xs, int ys, int *xsn, int *ysn);
+static void bt_turn_left (int xs, int ys, int *xsn, int *ysn);
 
 
 const char *render_method_names[] = {
 	"Successive Refinement",
-	"Mariani-Silver"
+	"Mariani-Silver",
+	"Boundary Tracing"
 };
 
 
@@ -102,7 +106,7 @@ mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned it
 }
 
 
-unsigned
+int
 mandel_get_pixel (const struct mandeldata *mandel, int x, int y)
 {
 	return mandel->data[x * mandel->h + y];
@@ -249,10 +253,12 @@ mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t 
 }
 
 
-void
+int
 mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 {
-	unsigned i = 0;
+	int i = mandel_get_pixel (mandel, x, y);
+	if (i >= 0)
+		return i; /* pixel has been rendered previously */
 	if (mandel->frac_limbs == 0) {
 		// FP
 		mandel_fp_t xmin = mpf_get_mandel_fp (mandel->xmin_f);
@@ -276,7 +282,7 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 			}
 			default: {
 				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
-				return;
+				return 0;
 			}
 		}
 	} else {
@@ -310,15 +316,26 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 			}
 			default: {
 				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
-				return;
+				return 0;
 			}
 		}
 	}
 	if (mandel->log_factor != 0.0)
 		i = mandel->log_factor * log (i);
 	mandel_put_pixel (mandel, x, y, i);
+	return i;
 }
 
+
+
+void
+mandel_display_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter)
+{
+	if (mandel->display_rect != NULL)
+		mandel->display_rect (x, y, w, h, iter, mandel->user_data);
+	else if (mandel->display_pixel != NULL)
+		mandel->display_pixel (x, y, iter, mandel->user_data);
+}
 
 
 void
@@ -328,10 +345,7 @@ mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned
 	for (xc = x; xc < x + w; xc++)
 		for (yc = y; yc < y + h; yc++)
 			mandel_set_pixel (mandel, xc, yc, iter);
-	if (mandel->display_rect != NULL)
-		mandel->display_rect (x, y, w, h, iter, mandel->user_data);
-	else if (mandel->display_pixel != NULL)
-		mandel->display_pixel (x, y, iter, mandel->user_data);
+	mandel_display_rect (mandel, x, y, w, h, iter);
 }
 
 
@@ -424,6 +438,10 @@ mandel_init_coords (struct mandeldata *mandel)
 void
 mandel_render (struct mandeldata *mandel)
 {
+	int i;
+	for (i = 0; i < mandel->w * mandel->h; i++)
+		mandel->data[i] = -1;
+
 	switch (mandel->render_method) {
 		case RM_MARIANI_SILVER: {
 			int x, y;
@@ -461,6 +479,22 @@ mandel_render (struct mandeldata *mandel)
 				chunk_size >>= 1;
 			}
 
+			break;
+		}
+
+		case RM_BOUNDARY_TRACE: {
+			unsigned char flags[mandel->w * mandel->h];
+			memset (flags, 0, sizeof (flags));
+			/*render_btrace (mandel, 0, 0, flags, false);
+			render_btrace (mandel, 0, 0, flags, true);
+			break;*/
+			int x, y;
+			for (y = 0; !mandel->terminate && y < mandel->h; y++)
+				for (x = 0; !mandel->terminate && x < mandel->w; x++)
+					if (!flags[x * mandel->h + y]) {
+						render_btrace (mandel, x, y, flags, false);
+						render_btrace (mandel, x, y, flags, true);
+					}
 			break;
 		}
 
@@ -526,7 +560,7 @@ calc_sr_row (struct mandeldata *mandel, int y, int chunk_size)
 
 		if (do_eval) {
 			mandel_render_pixel (mandel, x, y);
-			mandel_put_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_pixel (mandel, x, y));
+			mandel_display_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_pixel (mandel, x, y));
 		} else {
 			mandel_put_pixel (mandel, x, y, mandel_get_pixel (mandel, parent_x, parent_y));
 		}
@@ -695,4 +729,73 @@ get_precision (const struct mandeldata *mandel)
 		return 0;
 	else
 		return (mandel->frac_limbs + INT_LIMBS) * mp_bits_per_limb;
+}
+
+
+static bool
+is_inside (struct mandeldata *md, int x, int y, int iter)
+{
+	int p = mandel_get_pixel (md, x, y);
+	return p == -1 || p == iter;
+}
+
+
+static void
+render_btrace (struct mandeldata *md, int x0, int y0, unsigned char *flags, bool fill_mode)
+{
+	int x = x0, y = y0;
+	/* XXX is it safe to choose this arbitrarily? */
+	int xstep = 0, ystep = -1;
+	unsigned inside = mandel_render_pixel (md, x0, y0);
+
+	int turns = 0;
+	while (!md->terminate) {
+		if (x + xstep < 0 || x + xstep >= md->w || y + ystep < 0 || y + ystep >= md->h || mandel_render_pixel (md, x + xstep, y + ystep) != inside) {
+			/* can't move forward, turn left */
+			bt_turn_left (xstep, ystep, &xstep, &ystep);
+			if (++turns == 4)
+				break;
+			continue;
+		}
+		/* move forward */
+		turns = 0;
+		x += xstep;
+		y += ystep;
+		if (fill_mode && (xstep == 1 || ystep == 1)) {
+			int xfs, yfs;
+			bt_turn_left (xstep, ystep, &xfs, &yfs);
+			int xf = x, yf = y;
+			while (xf >= 0 && yf >= 0 && xf < md->w && yf < md->h && is_inside (md, xf, yf, inside)) {
+				flags[xf * md->h + yf] = 1;
+				mandel_put_pixel (md, xf, yf, inside);
+				xf += xfs;
+				yf += yfs;
+			}
+		}
+		if (x == x0 && y == y0)
+			break;
+		int xsn, ysn;
+		bt_turn_right (xstep, ystep, &xsn, &ysn);
+		/* If we don't have a wall at the right, turn right. */
+		if (x + xsn >= 0 && x + xsn < md->w && y + ysn >= 0 && y + ysn < md->h && mandel_render_pixel (md, x + xsn, y + ysn) == inside) {
+			xstep = xsn;
+			ystep = ysn;
+		}
+	}
+}
+
+
+static void
+bt_turn_right (int xs, int ys, int *xsn, int *ysn)
+{
+	*xsn = -ys;
+	*ysn = xs;
+}
+
+
+static void
+bt_turn_left (int xs, int ys, int *xsn, int *ysn)
+{
+	*xsn = ys;
+	*ysn = -xs;
 }
