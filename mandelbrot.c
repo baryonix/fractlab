@@ -128,13 +128,19 @@ mandel_all_neighbors_same (struct mandeldata *mandel, unsigned x, unsigned y, un
 }
 
 
+/*
+ * FIXME: Despite the name, this routine isn't especially fast.
+ * It should probably suffice to multiply only part of the operands,
+ * ignoring a few of the least significant limbs, but when I tried this
+ * resulted in a significant loss of precision.
+ */
 void
 my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs)
 {
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	mp_limb_t tmp[total_limbs * 2];
 	int i;
-	mpn_mul_n (tmp, f0, f1, total_limbs);
+	mpn_mul (tmp, f0, total_limbs, f1, total_limbs);
 	for (i = 0; i < total_limbs; i++)
 		p[i] = tmp[frac_limbs + i];
 }
