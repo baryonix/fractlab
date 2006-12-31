@@ -382,8 +382,8 @@ mandel_init_coords (struct mandeldata *mandel)
 	if (exponent > 0)
 		exponent = 0;
 
-	// We add a minimum of 2 extra bits of precision, that should do.
-	int required_bits = 2 - exponent;
+	// We add a minimum of 4 extra bits of precision, that should do.
+	int required_bits = 4 - exponent;
 
 	if (required_bits < MP_THRESHOLD)
 		mandel->frac_limbs = 0;
