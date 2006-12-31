@@ -167,7 +167,7 @@ render_frame (struct anim_state *state, unsigned long i)
 	md->w = img_width;
 	md->h = img_height;
 	md->maxiter = maxiter;
-	md->render_method = RM_MARIANI_SILVER;
+	md->render_method = RM_BOUNDARY_TRACE;
 	md->log_factor = log_factor;
 
 	state->frame_func (state->data, md, i);
