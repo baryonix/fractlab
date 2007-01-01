@@ -46,6 +46,12 @@ static unsigned *pascal_triangle (unsigned n);
 static inline mandel_fp_t stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers);
 static void store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n);
 static void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, unsigned *pascal);
+static void store_powers (mp_limb_t *powers, bool *signs, mp_limb_t *x, bool xsign, unsigned n, unsigned frac_limbs);
+static void complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sign, unsigned n, mp_limb_t *real, bool *rreal_sign, mp_limb_t *imag, bool *rimag_sign, unsigned frac_limbs, unsigned *pascal);
+static unsigned mandel_julia_z2 (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
+static unsigned mandel_julia_zpower (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
+static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+static unsigned mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 
 
 const char *render_method_names[] = {
@@ -149,6 +155,7 @@ my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs
 		p[i] = tmp[frac_limbs + i];
 }
 
+
 bool
 my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs)
 {
@@ -171,17 +178,17 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 unsigned iter_saved = 0;
 
 
-unsigned
-mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
+static unsigned
+mandel_julia_z2 (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
 {
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
-	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[total_limbs];
+	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
 	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
 	unsigned i;
 
-	for (i = 0; i < total_limbs; i++)
+	four[0] = 4;
+	for (i = 1; i < INT_LIMBS; i++)
 		four[i] = 0;
-	four[frac_limbs] = 4;
 
 	memcpy (x, x0, sizeof (x));
 	memcpy (cd_x, x0, sizeof (cd_x));
@@ -195,19 +202,12 @@ mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_
 	my_mpn_mul_fast (xsqr, x, x, frac_limbs);
 	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
 	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
-	while (i < maxiter && mpn_cmp (sqrsum, four, total_limbs) < 0) {
+	while (i < maxiter && mpn_cmp (sqrsum + frac_limbs, four, INT_LIMBS) < 0) {
 		mp_limb_t tmp1[total_limbs];
 		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
 		mpn_lshift (y, tmp1, total_limbs, 1);
 		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, pimag, pimag_sign, frac_limbs);
-
-		if (mpn_cmp (xsqr, ysqr, total_limbs) > 0) {
-			mpn_sub_n (x, xsqr, ysqr, total_limbs);
-			x_sign = false;
-		} else {
-			mpn_sub_n (x, ysqr, xsqr, total_limbs);
-			x_sign = true;
-		}
+		x_sign = my_mpn_add_signed (x, xsqr, false, ysqr, true, frac_limbs);
 		x_sign = my_mpn_add_signed (x, x, x_sign, preal, preal_sign, frac_limbs);
 
 		k--;
@@ -234,8 +234,66 @@ mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_
 }
 
 
-unsigned
-mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+static unsigned
+mandel_julia_zpower (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
+{
+	unsigned total_limbs = INT_LIMBS + frac_limbs;
+	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
+	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
+	unsigned i;
+	unsigned zpower = md->zpower;
+	unsigned *ptri = md->ptriangle;
+
+	/* FIXME we shouldn't have to do this for every call */
+	four[0] = 4;
+	for (i = 1; i < INT_LIMBS; i++)
+		four[i] = 0;
+
+	memcpy (x, x0, sizeof (x));
+	memcpy (cd_x, x0, sizeof (cd_x));
+	memcpy (y, y0, sizeof (y));
+	memcpy (cd_y, y0, sizeof (cd_y));
+
+	bool x_sign = x0_sign, y_sign = y0_sign;
+
+	int k = 1, m = 1;
+	i = 0;
+	my_mpn_mul_fast (xsqr, x, x, frac_limbs);
+	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
+	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
+	while (i < maxiter && mpn_cmp (sqrsum + frac_limbs, four, INT_LIMBS) < 0) {
+		mp_limb_t tmpreal[total_limbs], tmpimag[total_limbs];
+		bool tmpreal_sign, tmpimag_sign;
+		complex_pow (x, x_sign, y, y_sign, zpower, tmpreal, &tmpreal_sign, tmpimag, &tmpimag_sign, frac_limbs, ptri);
+		x_sign = my_mpn_add_signed (x, tmpreal, tmpreal_sign, preal, preal_sign, frac_limbs);
+		y_sign = my_mpn_add_signed (y, tmpimag, tmpimag_sign, pimag, pimag_sign, frac_limbs);
+
+		k--;
+		/* FIXME we must compare the signs here! */
+		if (mpn_cmp (x, cd_x, total_limbs) == 0 && mpn_cmp (y, cd_y, total_limbs) == 0) {
+			//printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
+			iter_saved += maxiter - i;
+			i = maxiter;
+			break;
+		}
+		if (k == 0) {
+			k = m <<= 1;
+			memcpy (cd_x, x, sizeof (x));
+			memcpy (cd_y, y, sizeof (y));
+		}
+
+		my_mpn_mul_fast (xsqr, x, x, frac_limbs);
+		my_mpn_mul_fast (ysqr, y, y, frac_limbs);
+		mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
+
+		i++;
+	}
+	return i;
+}
+
+
+static unsigned
+mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
 {
 	unsigned i = 0, k = 1, m = 1;
 	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
@@ -263,7 +321,7 @@ mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t 
 }
 
 
-unsigned
+static unsigned
 mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
 {
 	unsigned i = 0, k = 1, m = 1;
@@ -311,18 +369,17 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
 		switch (mandel->type) {
 			case FRACTAL_MANDELBROT: {
-				if (mandel->zpower == 2) {
 #ifdef MANDELBROT_FP_ASM
+				if (mandel->zpower == 2) {
 					i = mandelbrot_fp (xf, yf, mandel->maxiter);
-#else
-					i = mandel_julia_fp (xf, yf, xf, yf, mandel->maxiter);
+					break;
+				}
 #endif
-				} else
-					i = mandel_julia_zpower_fp (mandel, xf, yf, xf, yf, mandel->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, xf, yf, mandel->maxiter);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia_fp (xf, yf, mandel->preal_float, mandel->pimag_float, mandel->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, mandel->preal_float, mandel->pimag_float, mandel->maxiter);
 				break;
 			}
 			default: {
@@ -352,11 +409,11 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mpz_clear (z);
 		switch (mandel->type) {
 			case FRACTAL_MANDELBROT: {
-				i = mandel_julia (x0, x0_sign, y0, y0_sign, x0, x0_sign, y0, y0_sign, mandel->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, x0, x0_sign, y0, y0_sign, mandel->maxiter, mandel->frac_limbs);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia (x0, x0_sign, y0, y0_sign, mandel->preal, mandel->preal_sign, mandel->pimag, mandel->pimag_sign, mandel->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, mandel->preal, mandel->preal_sign, mandel->pimag, mandel->pimag_sign, mandel->maxiter, mandel->frac_limbs);
 				break;
 			}
 			default: {
@@ -928,4 +985,93 @@ complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *r
 	}
 	*rreal = real;
 	*rimag = imag;
+}
+
+
+/*
+ * FIXME real power series should be used here, instead of simple
+ * one-by-one multiply
+ */
+static void
+store_powers (mp_limb_t *powers, bool *signs, mp_limb_t *x, bool xsign, unsigned n, unsigned frac_limbs)
+{
+	unsigned total_limbs = frac_limbs + INT_LIMBS;
+	int i;
+	/* set x^0 to 1 */
+	for (i = 0; i < total_limbs; i++)
+		powers[i] = 0;
+	powers[frac_limbs] = 1;
+	signs[0] = false;
+
+	/* set x^1 to x */
+	memcpy (powers + total_limbs, x, total_limbs * sizeof (mp_limb_t));
+	signs[1] = xsign;
+
+	for (i = 2; i <= n; i++) {
+		my_mpn_mul_fast (powers + total_limbs * i, powers + total_limbs * (i - 1), x, frac_limbs);
+		signs[i] = xsign && !signs[i - 1];
+	}
+}
+
+
+static void
+complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sign, unsigned n, mp_limb_t *real, bool *rreal_sign, mp_limb_t *imag, bool *rimag_sign, unsigned frac_limbs, unsigned *pascal)
+{
+	unsigned total_limbs = INT_LIMBS + frac_limbs;
+	mp_limb_t real_powers[(n + 1) * total_limbs], imag_powers[(n + 1) * total_limbs];
+	bool real_psigns[n + 1], imag_psigns[n + 1];
+	int i;
+	bool real_sign = false, imag_sign = false;
+
+	store_powers (real_powers, real_psigns, xreal, xreal_sign, n, frac_limbs);
+	store_powers (imag_powers, imag_psigns, ximag, ximag_sign, n, frac_limbs);
+
+	for (i = 0; i < total_limbs; i++)
+		real[i] = imag[i] = 0;
+
+	unsigned j;
+	for (j = 0; j <= n; j++) {
+		mp_limb_t cur[total_limbs], tmp1[total_limbs];
+		bool cur_sign;
+		my_mpn_mul_fast (tmp1, real_powers + (n - j) * total_limbs, imag_powers + j * total_limbs, frac_limbs);
+		cur_sign = real_psigns[n - j] != imag_psigns[j];
+		/* we could do mpn_mul_1() in-place, but performance may be better if no overlap */
+		mpn_mul_1 (cur, tmp1, total_limbs, (mp_limb_t) pascal[j]);
+		switch (j % 4) {
+			case 0: /* i^0 = 1: add to real */
+				real_sign = my_mpn_add_signed (real, real, real_sign, cur, cur_sign, frac_limbs);
+				break;
+			case 1: /* i^1 = i: add to imag */
+				imag_sign = my_mpn_add_signed (imag, imag, imag_sign, cur, cur_sign, frac_limbs);
+				break;
+			case 2: /* i^2 = -1: subtract from real */
+				real_sign = my_mpn_add_signed (real, real, real_sign, cur, !cur_sign, frac_limbs);
+				break;
+			case 3: /* i^3 = -i: subtract from imag */
+				imag_sign = my_mpn_add_signed (imag, imag, imag_sign, cur, !cur_sign, frac_limbs);
+				break;
+		}
+	}
+	*rreal_sign = real_sign;
+	*rimag_sign = imag_sign;
+}
+
+
+unsigned
+mandel_julia (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
+{
+	if (md->zpower == 2)
+		return mandel_julia_z2 (x0, x0_sign, y0, y0_sign, preal, preal_sign, pimag, pimag_sign, maxiter, frac_limbs);
+	else
+		return mandel_julia_zpower (md, x0, x0_sign, y0, y0_sign, preal, preal_sign, pimag, pimag_sign, maxiter, frac_limbs);
+}
+
+
+unsigned
+mandel_julia_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+{
+	if (md->zpower == 2)
+		return mandel_julia_z2_fp (x0, y0, preal, pimag, maxiter);
+	else
+		return mandel_julia_zpower_fp (md, x0, y0, preal, pimag, maxiter);
 }
