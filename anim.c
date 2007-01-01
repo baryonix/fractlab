@@ -176,6 +176,7 @@ render_frame (struct anim_state *state, unsigned long i)
 {
 	struct mandeldata md[1];
 	memset (md, 0, sizeof (*md));
+	md->zpower = 2;
 	md->data = malloc (img_width * img_height * sizeof (unsigned));
 	md->w = img_width;
 	md->h = img_height;
