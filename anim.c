@@ -33,7 +33,6 @@ static void render_frame (struct anim_state *state, unsigned long i);
 
 struct color colors[COLORS];
 
-const int thread_count = 1;
 static long clock_ticks;
 
 gint maxiter = DEFAULT_MAXITER, frame_count = 0;
@@ -185,6 +184,7 @@ render_frame (struct anim_state *state, unsigned long i)
 	md->maxiter = maxiter;
 	md->render_method = RM_BOUNDARY_TRACE;
 	md->log_factor = log_factor;
+	md->thread_count = 1;
 
 	state->frame_func (state->data, md, i);
 

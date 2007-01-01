@@ -51,6 +51,7 @@ struct mandeldata {
 	mp_limb_t *preal, *pimag;
 	bool preal_sign, pimag_sign;
 	mandel_fp_t preal_float, pimag_float;
+	unsigned thread_count;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
 };

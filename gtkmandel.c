@@ -16,6 +16,8 @@
 #include <gmp.h>
 
 
+/* FIXME shouldn't need to include cmdline.h */
+#include "cmdline.h"
 #include "gtkmandel.h"
 #include "mandelbrot.h"
 #include "defs.h"
@@ -202,6 +204,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	md->terminate = false;
 	md->w = widget->allocation.width;
 	md->h = widget->allocation.height;
+	md->thread_count = thread_count;
 	md->data = malloc (md->w * md->h * sizeof (*md->data));
 	md->display_pixel = gtk_mandel_display_pixel;
 	md->display_rect = gtk_mandel_display_rect;

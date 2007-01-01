@@ -5,7 +5,6 @@
 
 #include <gmp.h>
 
-#include "cmdline.h"
 #include "mandelbrot.h"
 #include "util.h"
 
@@ -568,7 +567,7 @@ mandel_render (struct mandeldata *mandel)
 			if (mandel->terminate)
 				break;
 
-			if (thread_count > 1)
+			if (mandel->thread_count > 1)
 				calc_ms_mt (mandel);
 			else
 				calcpart (mandel, 0, 0, mandel->w - 1, mandel->h - 1);
@@ -580,7 +579,7 @@ mandel_render (struct mandeldata *mandel)
 			unsigned y, chunk_size = SR_CHUNK_SIZE;
 
 			while (!mandel->terminate && chunk_size != 0) {
-				if (thread_count > 1)
+				if (mandel->thread_count > 1)
 					calc_sr_mt_pass (mandel, chunk_size);
 				else
 					for (y = 0; !mandel->terminate && y < mandel->h; y += chunk_size)
@@ -681,12 +680,12 @@ static void
 calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size)
 {
 	struct sr_state state = {mandel, 0, chunk_size, G_STATIC_MUTEX_INIT};
-	GThread *threads[thread_count];
+	GThread *threads[mandel->thread_count];
 	int i;
 
-	for (i = 0; i < thread_count; i++)
+	for (i = 0; i < mandel->thread_count; i++)
 		threads[i] = g_thread_create (sr_mt_thread_func, &state, TRUE, NULL);
-	for (i = 0; i < thread_count; i++)
+	for (i = 0; i < mandel->thread_count; i++)
 		g_thread_join (threads[i]);
 }
 
@@ -713,15 +712,15 @@ static void
 calc_ms_mt (struct mandeldata *mandel)
 {
 	struct ms_state state = {mandel, g_mutex_new (), g_queue_new (), g_cond_new (), 0};
-	GThread *threads[thread_count];
+	GThread *threads[mandel->thread_count];
 	int i;
 
 	ms_queue_push (&state, 0, 0, mandel->w - 1, mandel->h - 1);
 
-	for (i = 0; i < thread_count; i++)
+	for (i = 0; i < mandel->thread_count; i++)
 		threads[i] = g_thread_create (ms_mt_thread_func, &state, TRUE, NULL);
 
-	for (i = 0; i < thread_count; i++)
+	for (i = 0; i < mandel->thread_count; i++)
 		g_thread_join (threads[i]);
 
 	g_mutex_free (state.mutex);
@@ -741,7 +740,7 @@ ms_mt_thread_func (gpointer data)
 		/* Notify all waiting threads about the increase of idle_threads */
 		g_cond_broadcast (state->cond);
 		while (g_queue_is_empty (state->queue)) {
-			if (state->idle_threads == thread_count) {
+			if (state->idle_threads == md->thread_count) {
 				/* Queue is empty, all threads idle. We're done. */
 				g_mutex_unlock (state->mutex);
 				return NULL;
