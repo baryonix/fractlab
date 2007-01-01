@@ -1,5 +1,9 @@
 #include <stdlib.h>
 #include <math.h>
+
+#include <unistd.h>
+#include <sys/times.h>
+
 #include <png.h>
 
 #include "anim.h"
@@ -30,6 +34,7 @@ static void render_frame (struct anim_state *state, unsigned long i);
 struct color colors[COLORS];
 
 const int thread_count = 1;
+static long clock_ticks;
 
 gint maxiter = DEFAULT_MAXITER, frame_count = 0;
 static gdouble log_factor = 0.0;
@@ -65,6 +70,14 @@ anim_get_option_group (void)
 void anim_render
 (frame_func_t frame_func, void *data)
 {
+	clock_ticks = -1;
+#ifdef _SC_CLK_TCK
+	clock_ticks = sysconf (_SC_CLK_TCK);
+#endif
+#ifdef CLK_TCK
+	if (clock_ticks == -1)
+		clock_ticks = CLK_TCK;
+#endif
 	struct anim_state state[1];
 	state->frame_func = frame_func;
 	state->data = data;
@@ -172,15 +185,39 @@ render_frame (struct anim_state *state, unsigned long i)
 
 	state->frame_func (state->data, md, i);
 
+	/*
+	 * Unfortunately, there is no way of determining the amount of CPU
+	 * time used by the current thread.
+	 * On NetBSD, CLOCK_THREAD_CPUTIME_ID is not defined at all.
+	 * On Solaris, CLOCK_THREAD_CPUTIME_ID is defined, but
+	 * clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) fails.
+	 * On Linux, clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) succeeds,
+	 * but it returns the CPU time usage of the whole process intead. Bummer!
+	 * Linux also has pthread_getcpuclockid(), but it apparently always fails.
+	 */
+#if defined (_SC_CLK_TCK) || defined (CLK_TCK)
+	struct tms time_before, time_after;
+	bool clock_ok = zoom_threads == 1 && clock_ticks > 0;
+	clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
+#endif
+
 	mandel_init_coords (md);
 	mandel_render (md);
+
+#if defined (_SC_CLK_TCK) || defined (CLK_TCK)
+	clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
+#endif
 
 	char name[64];
 	sprintf (name, "file%06lu.png", i);
 	write_png (state, md, name);
 	free (md->data);
 
-	fprintf (stderr, "* Frame %ld done", i);
+#if defined (_SC_CLK_TCK) || defined (CLK_TCK)
+	if (clock_ok)
+		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
+#endif
+	fprintf (stderr, "Frame %ld done", i);
 	unsigned bits = get_precision (md);
 	if (bits == 0)
 		fprintf (stderr, ", using FP arithmetic");
