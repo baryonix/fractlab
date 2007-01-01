@@ -42,6 +42,7 @@ gint img_width = 200, img_height = 200;
 static gint zoom_threads = 1;
 static gint compression = -1;
 static gint start_frame = 0;
+static gint zpower = 2;
 
 
 
@@ -54,6 +55,7 @@ static GOptionEntry option_entries[] = {
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
+	{"z-power", 'Z', 0, G_OPTION_ARG_INT, &zpower, "Set power of Z in iteration to N", "N"},
 	{NULL}
 };
 
@@ -176,7 +178,7 @@ render_frame (struct anim_state *state, unsigned long i)
 {
 	struct mandeldata md[1];
 	memset (md, 0, sizeof (*md));
-	md->zpower = 2;
+	md->zpower = zpower;
 	md->data = malloc (img_width * img_height * sizeof (unsigned));
 	md->w = img_width;
 	md->h = img_height;
