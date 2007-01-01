@@ -32,6 +32,7 @@ unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 
 
 struct mandeldata {
+	bool configured;
 	fractal_type_t type;
 	unsigned zpower;
 	unsigned *ptriangle;
@@ -46,7 +47,6 @@ struct mandeldata {
 	double log_factor;
 	void *user_data;
 	volatile bool terminate;
-	bool allocate_done;
 	mpf_t preal_f, pimag_f;
 	mp_limb_t *preal, *pimag;
 	bool preal_sign, pimag_sign;
@@ -80,10 +80,10 @@ void calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1);
 void mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_display_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_render (struct mandeldata *mandel);
-void mandel_init_coords (struct mandeldata *mandel);
-void mandel_free (struct mandeldata *mandel);
-
-unsigned get_precision (const struct mandeldata *mandel);
+void mandeldata_init (struct mandeldata *mandel);
+void mandeldata_clear (struct mandeldata *mandel);
+void mandeldata_configure (struct mandeldata *mandel);
+unsigned mandeldata_get_precision (const struct mandeldata *mandel);
 
 extern unsigned iter_saved;
 

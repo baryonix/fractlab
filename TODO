@@ -15,3 +15,6 @@ TODO
   is starting to have way too may parameters
 - don't pass so many parameters to mandel_julia() and friends, some of them are
   in mandeldata
+- Split mandeldata into a generic description of fractal and a rendering state.
+  Use the generic description to replace GtkMandelArea (except for the
+  "selection" signal).

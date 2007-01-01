@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <gmp.h>
 
 #include "util.h"
@@ -119,4 +121,12 @@ center_coords_to_string (mpf_t cx, mpf_t cy, mpf_t magf, char *cx_buf, char *cy_
 	if (r < 0 || r >= buf_size)
 		return -1;
 	return 0;
+}
+
+
+void
+free_not_null (void *ptr)
+{
+	if (ptr != NULL)
+		free (ptr);
 }

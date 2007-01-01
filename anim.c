@@ -176,9 +176,8 @@ static void
 render_frame (struct anim_state *state, unsigned long i)
 {
 	struct mandeldata md[1];
-	memset (md, 0, sizeof (*md));
+	mandeldata_init (md);
 	md->zpower = zpower;
-	md->data = malloc (img_width * img_height * sizeof (unsigned));
 	md->w = img_width;
 	md->h = img_height;
 	md->maxiter = maxiter;
@@ -204,7 +203,7 @@ render_frame (struct anim_state *state, unsigned long i)
 	clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
 
-	mandel_init_coords (md);
+	mandeldata_configure (md);
 	mandel_render (md);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
@@ -221,15 +220,12 @@ render_frame (struct anim_state *state, unsigned long i)
 		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
 #endif
 	fprintf (stderr, "Frame %ld done", i);
-	unsigned bits = get_precision (md);
+	unsigned bits = mandeldata_get_precision (md);
 	if (bits == 0)
 		fprintf (stderr, ", using FP arithmetic");
 	else
 		fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
 	fprintf (stderr, ".\n");
 
-	mpf_clear (md->xmin_f);
-	mpf_clear (md->xmax_f);
-	mpf_clear (md->ymin_f);
-	mpf_clear (md->ymax_f);
+	mandeldata_clear (md);
 }

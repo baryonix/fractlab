@@ -451,20 +451,8 @@ mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned
 
 
 void
-mandel_init_coords (struct mandeldata *mandel)
+mandeldata_configure (struct mandeldata *mandel)
 {
-	if (!mandel->allocate_done) {
-		mpf_init (mandel->xmin_f);
-		mpf_init (mandel->xmax_f);
-		mpf_init (mandel->ymin_f);
-		mpf_init (mandel->ymax_f);
-		mpz_init (mandel->xmin);
-		mpz_init (mandel->xmax);
-		mpz_init (mandel->ymin);
-		mpz_init (mandel->ymax);
-		mandel->allocate_done = TRUE;
-	}
-
 	mandel->aspect = (double) mandel->w / mandel->h;
 	center_to_corners (mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, mandel->cx, mandel->cy, mandel->magf, mandel->aspect);
 
@@ -538,14 +526,19 @@ mandel_init_coords (struct mandeldata *mandel)
 		fprintf (stderr, "* ERROR: zpower < 2 used\n");
 	else if (mandel->zpower > 2)
 		mandel->ptriangle = pascal_triangle (mandel->zpower);
-	else /* mandel->zpower == 2 */
-		mandel->ptriangle = NULL;
+
+	mandel->data = malloc (mandel->w * mandel->h * sizeof (*mandel->data));
+
+	mandel->configured = true;
 }
 
 
 void
 mandel_render (struct mandeldata *mandel)
 {
+	if (!mandel->configured)
+		mandeldata_configure (mandel);
+
 	int i;
 	for (i = 0; i < mandel->w * mandel->h; i++)
 		mandel->data[i] = -1;
@@ -624,19 +617,53 @@ calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1)
 
 
 void
-mandel_free (struct mandeldata *mandel)
+mandeldata_init (struct mandeldata *md)
 {
-	free (mandel->data);
+	memset (md, 0, sizeof (*md)); /* just to be safe... */
+	md->configured = false;
+	md->ptriangle = NULL;
+	md->data = NULL;
+	md->terminate = false;
+	md->preal = NULL;
+	md->pimag = NULL;
+	md->display_pixel = NULL;
+	md->display_rect = NULL;
+	mpf_init (md->cx);
+	mpf_init (md->cy);
+	mpf_init (md->magf);
+	mpf_init (md->xmin_f);
+	mpf_init (md->xmax_f);
+	mpf_init (md->ymin_f);
+	mpf_init (md->ymax_f);
+	mpz_init (md->xmin);
+	mpz_init (md->xmax);
+	mpz_init (md->ymin);
+	mpz_init (md->ymax);
+	mpf_init (md->preal_f);
+	mpf_init (md->pimag_f);
+}
 
-	mpf_clear (mandel->xmin_f);
-	mpf_clear (mandel->xmax_f);
-	mpf_clear (mandel->ymin_f);
-	mpf_clear (mandel->ymax_f);
 
-	mpz_clear (mandel->xmin);
-	mpz_clear (mandel->xmax);
-	mpz_clear (mandel->ymin);
-	mpz_clear (mandel->ymax);
+void
+mandeldata_clear (struct mandeldata *md)
+{
+	free_not_null (md->ptriangle);
+	free_not_null (md->data);
+	free_not_null (md->preal);
+	free_not_null (md->pimag);
+	mpf_clear (md->cx);
+	mpf_clear (md->cy);
+	mpf_clear (md->magf);
+	mpf_clear (md->xmin_f);
+	mpf_clear (md->xmax_f);
+	mpf_clear (md->ymin_f);
+	mpf_clear (md->ymax_f);
+	mpz_clear (md->xmin);
+	mpz_clear (md->xmax);
+	mpz_clear (md->ymin);
+	mpz_clear (md->ymax);
+	mpf_clear (md->preal_f);
+	mpf_clear (md->pimag_f);
 }
 
 
@@ -831,7 +858,7 @@ ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data)
 
 
 unsigned
-get_precision (const struct mandeldata *mandel)
+mandeldata_get_precision (const struct mandeldata *mandel)
 {
 	if (mandel->frac_limbs == 0)
 		return 0;

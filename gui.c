@@ -12,6 +12,7 @@
 #include "gui.h"
 #include "util.h"
 #include "file.h"
+#include "cmdline.h"
 
 #define GTK_MANDEL_APPLICATION_GET_CLASS(app) G_TYPE_INSTANCE_GET_CLASS ((app), GtkMandelApplication, GtkMandelApplicationClass)
 
@@ -495,7 +496,18 @@ restart_thread (GtkMandelApplication *app)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	GtkMandelArea *area = app->area;
-	gtk_mandel_restart_thread (mandel, area->cx, area->cy, area->magf, app->maxiter, app->render_method, app->log_factor, app->zpower);
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_init (md);
+	mpf_set (md->cx, area->cx);
+	mpf_set (md->cy, area->cy);
+	mpf_set (md->magf, area->magf);
+	md->type = FRACTAL_MANDELBROT;
+	md->maxiter = app->maxiter;
+	md->render_method = app->render_method;
+	md->log_factor = app->log_factor;
+	md->zpower = app->zpower;
+	md->thread_count = thread_count;
+	gtk_mandel_restart_thread (mandel, md);
 }
 
 

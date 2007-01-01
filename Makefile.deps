@@ -3,9 +3,9 @@ btrace.o: btrace.c mandelbrot.h fpdefs.h
 cmdline.o: cmdline.c cmdline.h
 crc.o: crc.c crc.h
 file.o: file.c file.h util.h
-gtkmandel.o: gtkmandel.c cmdline.h gtkmandel.h mandelbrot.h fpdefs.h \
-  defs.h file.h
-gui.o: gui.c defs.h mandelbrot.h fpdefs.h gtkmandel.h gui.h util.h file.h
+gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h file.h
+gui.o: gui.c defs.h mandelbrot.h fpdefs.h gtkmandel.h gui.h util.h file.h \
+  cmdline.h
 lissajoulia.o: lissajoulia.c anim.h mandelbrot.h fpdefs.h file.h
 main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h gtkmandel.h defs.h \
   gui.h util.h
