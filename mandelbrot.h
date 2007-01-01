@@ -33,6 +33,8 @@ unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 
 struct mandeldata {
 	fractal_type_t type;
+	unsigned zpower;
+	unsigned *ptriangle;
 	mpf_t cx, cy, magf;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
 	mpz_t xmin, xmax, ymin, ymax;
@@ -72,6 +74,7 @@ unsigned mandel_julia (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign,
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
 unsigned mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+unsigned mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 int mandel_render_pixel (struct mandeldata *mandel, int x, int y);
 void calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1);
 void mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter);

@@ -39,13 +39,14 @@ static void update_area_info (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
-static void update_maxiter_entry (GtkMandelApplication *app);
+static void set_entry_from_long (GtkEntry *entry, long value);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
 static void zoom_2exp (GtkMandelApplication *app, long exponent);
 static void zoomed_in (GtkMandelApplication *app, gpointer data);
 static void zoomed_out (GtkMandelApplication *app, gpointer data);
+static void zpower_updated (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -170,23 +171,37 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_in);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_out);
 
-	app->mainwin.maxiter_label = gtk_label_new ("maxiter:");
+	app->mainwin.maxiter_label = gtk_label_new ("Max Iterations");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.maxiter_label), 0.0, 0.5);
 
 	app->mainwin.maxiter_input = gtk_entry_new ();
-
-	app->mainwin.maxiter_hbox = gtk_hbox_new (false, 2);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.maxiter_hbox), app->mainwin.maxiter_label, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.maxiter_hbox), app->mainwin.maxiter_input, TRUE, TRUE, 0);
+	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.maxiter_input), 1.0);
 
 	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
 
 	app->mainwin.log_colors_input = gtk_entry_new ();
+	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.log_colors_input), 1.0);
 	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "100"); /* FIXME get default value in a sensible way */
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
 
-	app->mainwin.log_colors_hbox = gtk_hbox_new (false, 2);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_checkbox, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input, TRUE, TRUE, 0);
+	app->mainwin.zpower_label = gtk_label_new ("Power of Z");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.zpower_label), 0.0, 0.5);
+
+	app->mainwin.zpower_input = gtk_spin_button_new_with_range (2.0, 1000000.0, 1.0);
+	gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (app->mainwin.zpower_input), TRUE);
+	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.zpower_input), 1.0);
+
+	app->mainwin.controls_table = gtk_table_new (2, 3, FALSE);
+	gtk_table_set_homogeneous (GTK_TABLE (app->mainwin.controls_table), FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
+
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_input, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_checkbox, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_input, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, 50, 50);
@@ -213,8 +228,7 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->menu.bar, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.tool_bar, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.maxiter_hbox, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.log_colors_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.controls_table, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.mandel, TRUE, TRUE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.status_hbox, FALSE, FALSE, 0);
 
@@ -298,11 +312,12 @@ gtk_mandel_application_start (GtkMandelApplication *app)
 
 
 GtkMandelApplication *
-gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor)
+gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor, unsigned zpower)
 {
 	GtkMandelApplication *app = g_object_new (gtk_mandel_application_get_type (), NULL);
 	gtk_mandel_application_set_area (app, area);
 	gtk_mandel_application_set_maxiter (app, maxiter);
+	gtk_mandel_application_set_zpower (app, zpower);
 	app->render_method = render_method;
 	app->log_factor = log_factor;
 	return app;
@@ -334,6 +349,8 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.zpower_input), "value-changed", (GCallback) zpower_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
 
@@ -478,7 +495,7 @@ restart_thread (GtkMandelApplication *app)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	GtkMandelArea *area = app->area;
-	gtk_mandel_restart_thread (mandel, area->cx, area->cy, area->magf, app->maxiter, app->render_method, app->log_factor);
+	gtk_mandel_restart_thread (mandel, area->cx, area->cy, area->magf, app->maxiter, app->render_method, app->log_factor, app->zpower);
 }
 
 
@@ -616,19 +633,27 @@ void
 gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter)
 {
 	app->maxiter = maxiter;
-	update_maxiter_entry (app);
+	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->maxiter);
+}
+
+
+void
+gtk_mandel_application_set_zpower (GtkMandelApplication *app, unsigned zpower)
+{
+	app->zpower = zpower;
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->zpower);
 }
 
 
 static void
-update_maxiter_entry (GtkMandelApplication *app)
+set_entry_from_long (GtkEntry *entry, long value)
 {
 	char buf[64];
 	int r;
-	r = snprintf (buf, sizeof (buf), "%u", app->maxiter);
+	r = snprintf (buf, sizeof (buf), "%ld", value);
 	if (r < 0 || r >= sizeof (buf))
 		return;
-	gtk_entry_set_text (GTK_ENTRY (app->mainwin.maxiter_input), buf);
+	gtk_entry_set_text (entry, buf);
 }
 
 
@@ -690,4 +715,12 @@ static void
 zoomed_out (GtkMandelApplication *app, gpointer data)
 {
 	zoom_2exp (app, -1);
+}
+
+
+static void
+zpower_updated (GtkMandelApplication *app, gpointer data)
+{
+	app->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
+	restart_thread (app);
 }

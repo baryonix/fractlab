@@ -56,7 +56,7 @@ main (int argc, char **argv)
 		exit (2);
 	}
 
-	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0);
+	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0, 2);
 	gtk_mandel_application_start (app);
 	gtk_main ();
 

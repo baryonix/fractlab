@@ -55,7 +55,7 @@ extern GdkColor mandelcolors[];
 
 GType gtk_mandel_get_type ();
 GtkWidget *gtk_mandel_new (void);
-void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor);
+void gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor, unsigned zpower);
 void gtk_mandel_redraw (GtkMandel *mandel);
 
 GType gtk_mandel_area_get_type ();

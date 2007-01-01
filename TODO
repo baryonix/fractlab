@@ -2,9 +2,9 @@ TODO
 - clustering
 - dynamically adjusted precision for all calculations
 - fix all memory leaks
-- include maxiter (and maybe color settings) in history and coord files
+- include maxiter, power of Z (and maybe color settings) in history and coord files
 - implement real color palette handling, get rid of global variable mandelcolors
-- z^n + c, with n > 2
+- z^n + c, with n > 2 for MP arith
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
 - fix asm routine to support Julia set
@@ -12,3 +12,5 @@ TODO
   types
 - support Julia set in GUI
 - find a way to parallelize the boundary trace method
+- better means of setting GtkMandel's parameters, gtk_mandel_restart_thread()
+  is starting to have way too may parameters

@@ -42,6 +42,10 @@ static void ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data);
 static void render_btrace (struct mandeldata *md, int x0, int y0, unsigned char *flags, bool fill_mode);
 static void bt_turn_right (int xs, int ys, int *xsn, int *ysn);
 static void bt_turn_left (int xs, int ys, int *xsn, int *ysn);
+static unsigned *pascal_triangle (unsigned n);
+static inline mandel_fp_t stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers);
+static void store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n);
+static void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, unsigned *pascal);
 
 
 const char *render_method_names[] = {
@@ -259,6 +263,37 @@ mandel_julia_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t 
 }
 
 
+unsigned
+mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+{
+	unsigned i = 0, k = 1, m = 1;
+	unsigned zpower = md->zpower;
+	unsigned *ptri = md->ptriangle;
+	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
+	while (i < maxiter && x * x + y * y < 4.0) {
+		complex_pow_fp (x, y, zpower, &x, &y, ptri);
+		x += preal;
+		y += pimag;
+
+		k--;
+		if (x == cd_x && y == cd_y) {
+			iter_saved += maxiter - i;
+			i = maxiter;
+			break;
+		}
+
+		if (k == 0) {
+			k = m <<= 1;
+			cd_x = x;
+			cd_y = y;
+		}
+
+		i++;
+	}
+	return i;
+}
+
+
 int
 mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 {
@@ -267,6 +302,7 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		return i; /* pixel has been rendered previously */
 	if (mandel->frac_limbs == 0) {
 		// FP
+		/* FIXME we shouldn't do this for every pixel */
 		mandel_fp_t xmin = mpf_get_mandel_fp (mandel->xmin_f);
 		mandel_fp_t xmax = mpf_get_mandel_fp (mandel->xmax_f);
 		mandel_fp_t ymin = mpf_get_mandel_fp (mandel->ymin_f);
@@ -275,11 +311,14 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
 		switch (mandel->type) {
 			case FRACTAL_MANDELBROT: {
+				if (mandel->zpower == 2) {
 #ifdef MANDELBROT_FP_ASM
-				i = mandelbrot_fp (xf, yf, mandel->maxiter);
+					i = mandelbrot_fp (xf, yf, mandel->maxiter);
 #else
-				i = mandel_julia_fp (xf, yf, xf, yf, mandel->maxiter);
+					i = mandel_julia_fp (xf, yf, xf, yf, mandel->maxiter);
 #endif
+				} else
+					i = mandel_julia_zpower_fp (mandel, xf, yf, xf, yf, mandel->maxiter);
 				break;
 			}
 			case FRACTAL_JULIA: {
@@ -438,6 +477,13 @@ mandel_init_coords (struct mandeldata *mandel)
 	}
 
 	mpf_clear (f);
+
+	if (mandel->zpower < 2)
+		fprintf (stderr, "* ERROR: zpower < 2 used\n");
+	else if (mandel->zpower > 2)
+		mandel->ptriangle = pascal_triangle (mandel->zpower);
+	else /* mandel->zpower == 2 */
+		mandel->ptriangle = NULL;
 }
 
 
@@ -804,4 +850,82 @@ bt_turn_left (int xs, int ys, int *xsn, int *ysn)
 {
 	*xsn = ys;
 	*ysn = -xs;
+}
+
+
+static unsigned *
+pascal_triangle (unsigned n)
+{
+	unsigned i, j, *v = malloc ((n + 1) * sizeof (*v));
+	v[0] = 1;
+	for (i = 1; i <= n; i++)
+		v[i] = 0;
+	for (i = 1; i <= n; i++) {
+		unsigned oldv = v[0];
+		for (j = 1; j < i + 1; j++) {
+			unsigned tmp = v[j];
+			v[j] += oldv;
+			oldv = tmp;
+		}
+	}
+	return v;
+}
+
+
+static inline mandel_fp_t
+stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers)
+{
+	switch (n) {
+		case 0:
+			return 1.0;
+		case 1:
+			return x;
+		default:
+			return powers[n - 2];
+	}
+}
+
+
+/*
+ * FIXME real power series should be used here, instead of simple
+ * one-by-one multiply
+ */
+static void
+store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n)
+{
+	int i;
+	powers[0] = x * x;
+	for (i = 1; i < n - 1; i++) {
+		powers[i] = powers[i - 1] * x;
+	}
+}
+
+
+static void
+complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, unsigned *pascal)
+{
+	mandel_fp_t real_powers[n - 1], imag_powers[n - 1];
+	store_powers_fp (real_powers, xreal, n);
+	store_powers_fp (imag_powers, ximag, n);
+	mandel_fp_t real = 0.0, imag = 0.0;
+	unsigned j;
+	for (j = 0; j <= n; j++) {
+		mandel_fp_t cur = stored_power_fp (xreal, n - j, real_powers) * stored_power_fp (ximag, j, imag_powers) * pascal[j];
+		switch (j % 4) {
+			case 0: /* i^0 = 1: add to real */
+				real += cur;
+				break;
+			case 1: /* i^1 = i: add to imag */
+				imag += cur;
+				break;
+			case 2: /* i^2 = -1: subtract from real */
+				real -= cur;
+				break;
+			case 3: /* i^3 = -i: subtract from imag */
+				imag -= cur;
+				break;
+		}
+	}
+	*rreal = real;
+	*rimag = imag;
 }

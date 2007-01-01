@@ -183,7 +183,7 @@ gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf)
 
 
 void
-gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor)
+gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, unsigned maxiter, render_method_t render_method, double log_factor, unsigned zpower)
 {
 	GtkWidget *widget = GTK_WIDGET (mandel);
 	struct mandeldata *md = malloc (sizeof (struct mandeldata));
@@ -191,6 +191,7 @@ gtk_mandel_restart_thread (GtkMandel *mandel, mpf_t cx, mpf_t cy, mpf_t magf, un
 	memset (md, 0, sizeof (*md));
 
 	md->type = FRACTAL_MANDELBROT;
+	md->zpower = zpower;
 	mpf_init_set (md->cx, cx);
 	mpf_init_set (md->cy, cy);
 	mpf_init_set (md->magf, magf);
@@ -460,7 +461,7 @@ size_allocate (GtkWidget *widget, GtkAllocation allocation, gpointer data)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	if (mandel->md != NULL) {
-		gtk_mandel_restart_thread (mandel, mandel->md->cx, mandel->md->cy, mandel->md->magf, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor);
+		gtk_mandel_restart_thread (mandel, mandel->md->cx, mandel->md->cy, mandel->md->magf, mandel->md->maxiter, mandel->md->render_method, mandel->md->log_factor, mandel->md->zpower);
 	}
 }
 
