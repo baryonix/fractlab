@@ -177,11 +177,13 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.maxiter_input = gtk_entry_new ();
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.maxiter_input), 1.0);
+	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.maxiter_input), 10);
 
 	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
 
 	app->mainwin.log_colors_input = gtk_entry_new ();
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.log_colors_input), 1.0);
+	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.log_colors_input), 10);
 	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "100"); /* FIXME get default value in a sensible way */
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
 
@@ -191,6 +193,7 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.zpower_input = gtk_spin_button_new_with_range (2.0, 1000000.0, 1.0);
 	gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (app->mainwin.zpower_input), TRUE);
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.zpower_input), 1.0);
+	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.zpower_input), 5);
 
 	app->mainwin.controls_table = gtk_table_new (2, 3, FALSE);
 	gtk_table_set_homogeneous (GTK_TABLE (app->mainwin.controls_table), FALSE);
