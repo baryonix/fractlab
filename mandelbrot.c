@@ -944,7 +944,7 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 		if (fill_mode)
 			flags[x * md->h + y] = 1;
 		if (!pixel_in_bounds (md, x + xstep, y + ystep) || mandel_render_pixel (md, x + xstep, y + ystep) != inside) {
-			if (!fill_mode && pixel_in_bounds (md, x + xstep, y + ystep))
+			if (fill_mode && pixel_in_bounds (md, x + xstep, y + ystep))
 				btrace_queue_push (queue, x + xstep, y + ystep, -ystep, xstep);
 			/* can't move forward, turn left */
 			bt_turn_left (xstep, ystep, &xstep, &ystep);
@@ -979,7 +979,7 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 		if (pixel_in_bounds (md, x + xsn, y + ysn) && mandel_render_pixel (md, x + xsn, y + ysn) == inside) {
 			xstep = xsn;
 			ystep = ysn;
-		} else if (!fill_mode && pixel_in_bounds (md, x + xsn, y + ysn))
+		} else if (fill_mode && pixel_in_bounds (md, x + xsn, y + ysn))
 			btrace_queue_push (queue, x + xsn, y + ysn, -xstep, -ystep);
 	}
 }
