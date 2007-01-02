@@ -941,17 +941,8 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 
 	int turns = 0;
 	while (!md->terminate) {
-		if (fill_mode && (xstep == 1 || ystep == 1)) {
-			int xfs, yfs;
-			bt_turn_left (xstep, ystep, &xfs, &yfs);
-			int xf = x, yf = y;
-			while (xf >= 0 && yf >= 0 && xf < md->w && yf < md->h && is_inside (md, xf, yf, inside)) {
-				flags[xf * md->h + yf] = 1;
-				mandel_put_pixel (md, xf, yf, inside);
-				xf += xfs;
-				yf += yfs;
-			}
-		}
+		if (fill_mode)
+			flags[x * md->h + y] = 1;
 		if (!pixel_in_bounds (md, x + xstep, y + ystep) || mandel_render_pixel (md, x + xstep, y + ystep) != inside) {
 			if (!fill_mode && pixel_in_bounds (md, x + xstep, y + ystep))
 				btrace_queue_push (queue, x + xstep, y + ystep, -ystep, xstep);
@@ -960,6 +951,18 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 			if (++turns == 4)
 				break;
 			continue;
+		}
+		if (fill_mode && (xstep == 1 || ystep == 1)) {
+			int xfs, yfs;
+			bt_turn_left (xstep, ystep, &xfs, &yfs);
+			int xf = x + xfs, yf = y + yfs;
+			while (pixel_in_bounds (md, xf, yf) && is_inside (md, xf, yf, inside)) {
+			//while (pixel_in_bounds (md, xf, yf) && mandel_get_pixel (md, xf, yf) == inside) {
+				flags[xf * md->h + yf] = 1;
+				mandel_put_pixel (md, xf, yf, inside);
+				xf += xfs;
+				yf += yfs;
+			}
 		}
 		/* move forward */
 		turns = 0;
