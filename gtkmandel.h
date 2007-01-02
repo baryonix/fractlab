@@ -21,7 +21,7 @@ typedef struct
 	render_method_t render_method;
 	unsigned thread_count;
 	struct mandel_renderer *renderer;
-	guint redraw_source_id;
+	volatile guint redraw_source_id;
 	gdouble center_x, center_y, selection_size;
 	int cur_w, cur_h;
 	double aspect;
