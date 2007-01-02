@@ -29,6 +29,11 @@ struct ms_q_entry {
 };
 
 
+struct btrace_q_entry {
+	int x, y, xstep, ystep;
+};
+
+
 static void calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size);
 static void calc_sr_mt_pass (struct mandel_renderer *mandel, int chunk_size);
 static gpointer sr_mt_thread_func (gpointer data);
@@ -39,6 +44,7 @@ static void ms_do_work (struct mandel_renderer *md, int x0, int y0, int x1, int 
 static void ms_enqueue (int x0, int y0, int x1, int y1, void *data);
 static void ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data);
 static void render_btrace (struct mandel_renderer *md, int x0, int y0, unsigned char *flags, bool fill_mode);
+static void render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int ystep0, GQueue *queue, unsigned char *flags, bool fill_mode);
 static void bt_turn_right (int xs, int ys, int *xsn, int *ysn);
 static void bt_turn_left (int xs, int ys, int *xsn, int *ysn);
 static unsigned *pascal_triangle (unsigned n);
@@ -52,6 +58,8 @@ static unsigned mandel_julia_zpower (const struct mandel_renderer *md, mp_limb_t
 static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 static void mandeldata_init_mpvars (struct mandeldata *md);
+static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep);
+static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep);
 
 
 const char *render_method_names[] = {
@@ -625,13 +633,24 @@ mandel_render (struct mandel_renderer *mandel)
 			/*render_btrace (mandel, 0, 0, flags, false);
 			render_btrace (mandel, 0, 0, flags, true);
 			break;*/
+			/* This is the single-threaded approach, currently commented out for testing.
 			int x, y;
 			for (y = 0; !mandel->terminate && y < mandel->h; y++)
 				for (x = 0; !mandel->terminate && x < mandel->w; x++)
 					if (!flags[x * mandel->h + y]) {
 						render_btrace (mandel, x, y, flags, false);
 						render_btrace (mandel, x, y, flags, true);
-					}
+					}*/
+			GQueue *queue = g_queue_new ();
+			btrace_queue_push (queue, 0, 0, 0, -1);
+			while (!g_queue_is_empty (queue)) {
+				int x, y, xstep, ystep;
+				btrace_queue_pop (queue, &x, &y, &xstep, &ystep);
+				if (!flags[x * mandel->h + y]) {
+					render_btrace_test (mandel, x, y, xstep, ystep, queue, flags, false);
+					render_btrace_test (mandel, x, y, xstep, ystep, queue, flags, true);
+				}
+			}
 			break;
 		}
 
@@ -905,6 +924,61 @@ render_btrace (struct mandel_renderer *md, int x0, int y0, unsigned char *flags,
 }
 
 
+static inline bool
+pixel_in_bounds (struct mandel_renderer *renderer, int x, int y)
+{
+	return x >= 0 && x < renderer->w && y >= 0 && y < renderer->h;
+}
+
+
+static void
+render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int ystep0, GQueue *queue, unsigned char *flags, bool fill_mode)
+{
+	int x = x0, y = y0;
+	/* XXX is it safe to choose this arbitrarily? */
+	int xstep = xstep0, ystep = ystep0;
+	unsigned inside = mandel_render_pixel (md, x0, y0);
+
+	int turns = 0;
+	while (!md->terminate) {
+		if (fill_mode && (xstep == 1 || ystep == 1)) {
+			int xfs, yfs;
+			bt_turn_left (xstep, ystep, &xfs, &yfs);
+			int xf = x, yf = y;
+			while (xf >= 0 && yf >= 0 && xf < md->w && yf < md->h && is_inside (md, xf, yf, inside)) {
+				flags[xf * md->h + yf] = 1;
+				mandel_put_pixel (md, xf, yf, inside);
+				xf += xfs;
+				yf += yfs;
+			}
+		}
+		if (!pixel_in_bounds (md, x + xstep, y + ystep) || mandel_render_pixel (md, x + xstep, y + ystep) != inside) {
+			if (!fill_mode && pixel_in_bounds (md, x + xstep, y + ystep))
+				btrace_queue_push (queue, x + xstep, y + ystep, -ystep, xstep);
+			/* can't move forward, turn left */
+			bt_turn_left (xstep, ystep, &xstep, &ystep);
+			if (++turns == 4)
+				break;
+			continue;
+		}
+		/* move forward */
+		turns = 0;
+		x += xstep;
+		y += ystep;
+		if (x == x0 && y == y0)
+			break;
+		int xsn, ysn;
+		bt_turn_right (xstep, ystep, &xsn, &ysn);
+		/* If we don't have a wall at the right, turn right. */
+		if (pixel_in_bounds (md, x + xsn, y + ysn) && mandel_render_pixel (md, x + xsn, y + ysn) == inside) {
+			xstep = xsn;
+			ystep = ysn;
+		} else if (!fill_mode && pixel_in_bounds (md, x + xsn, y + ysn))
+			btrace_queue_push (queue, x + xsn, y + ysn, -xstep, -ystep);
+	}
+}
+
+
 static void
 bt_turn_right (int xs, int ys, int *xsn, int *ysn)
 {
@@ -1114,4 +1188,28 @@ mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig)
 	mpf_set (clone->cx, orig->cx);
 	mpf_set (clone->cy, orig->cy);
 	mpf_set (clone->magf, orig->magf);
+}
+
+
+static void
+btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep)
+{
+	struct btrace_q_entry *entry = malloc (sizeof (*entry));
+	entry->x = x;
+	entry->y = y;
+	entry->xstep = xstep;
+	entry->ystep = ystep;
+	g_queue_push_tail (queue, entry);
+}
+
+
+static void
+btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep)
+{
+	struct btrace_q_entry *entry = g_queue_pop_head (queue);
+	*x = entry->x;
+	*y = entry->y;
+	*xstep = entry->xstep;
+	*ystep = entry->ystep;
+	free (entry);
 }
