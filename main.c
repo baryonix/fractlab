@@ -32,7 +32,7 @@ main (int argc, char **argv)
 {
 	g_thread_init (NULL);
 
-	parse_command_line (&argc, &argv);
+	//parse_command_line (&argc, &argv);
 
 	mpf_set_default_prec (1024); /* ? */
 
@@ -45,6 +45,7 @@ main (int argc, char **argv)
 
 	gtk_init (&argc, &argv);
 
+#if 0
 	if (option_start_coords == NULL) {
 		fprintf (stderr, "No start coordinates specified.\n");
 		exit (2);
@@ -55,8 +56,19 @@ main (int argc, char **argv)
 		fprintf (stderr, "%s: Something went wrong reading the file.\n", option_start_coords);
 		exit (2);
 	}
+#endif
 
-	GtkMandelApplication *app = gtk_mandel_application_new (area, 1000, RM_SUCCESSIVE_REFINE, 0.0, 2);
+	struct mandeldata md[1];
+	mandeldata_init (md);
+	md->type = FRACTAL_MANDELBROT;
+	md->zpower = 2;
+	md->maxiter = 1000;
+	md->log_factor = 0.0;
+	mpf_set_str (md->cx, "-.5", 10);
+	mpf_set_str (md->cy, "0", 10);
+	mpf_set_str (md->magf, ".5", 10);
+	GtkMandelApplication *app = gtk_mandel_application_new (md);
+	mandeldata_clear (md);
 	gtk_mandel_application_start (app);
 	gtk_main ();
 

@@ -48,12 +48,7 @@ typedef struct {
 	GtkWidget *open_coord_chooser;
 	GtkWidget *save_coord_chooser;
 	GSList *undo, *redo;
-	GtkMandelArea *area;
-	unsigned maxiter;
-	render_method_t render_method;
-	double log_factor;
-	unsigned zpower;
-	unsigned thread_count;
+	struct mandeldata *md;
 } GtkMandelApplication;
 
 typedef struct {
@@ -67,11 +62,8 @@ typedef struct {
 #define GTK_IS_MANDEL_APPLICATION(obj) GET_CHECK_TYPE (obj, gtk_mandel_application_get_type ())
 
 GType gtk_mandel_application_get_type ();
-GtkMandelApplication *gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor, unsigned zpower);
-void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
-void gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter);
-void gtk_mandel_application_set_zpower (GtkMandelApplication *app, unsigned zpower);
-void gtk_mandel_application_set_threads (GtkMandelApplication *app, unsigned threads);
+GtkMandelApplication *gtk_mandel_application_new (const struct mandeldata *md);
+void gtk_mandel_application_set_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
 void gtk_mandel_application_start (GtkMandelApplication *app);
 
 #endif /* _GTKMANDEL_GUI_H */

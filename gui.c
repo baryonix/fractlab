@@ -36,10 +36,12 @@ static void save_coord_file (GtkMandelApplication *app, gpointer data);
 static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void quit_selected (GtkMandelApplication *app, gpointer data);
 static void update_area_info (GtkMandelApplication *app);
+static void update_gui_from_mandeldata (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void set_entry_from_long (GtkEntry *entry, long value);
+static void set_entry_from_double (GtkEntry *entry, double value, int prec);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
@@ -48,6 +50,8 @@ static void zoomed_in (GtkMandelApplication *app, gpointer data);
 static void zoomed_out (GtkMandelApplication *app, gpointer data);
 static void zpower_updated (GtkMandelApplication *app, gpointer data);
 static void threads_updated (GtkMandelApplication *app, gpointer data);
+static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
+static void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
 
 
 GType
@@ -91,7 +95,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	connect_signals (app);
 	app->undo = NULL;
 	app->redo = NULL;
-	app->area = NULL;
+	app->md = NULL;
 }
 
 
@@ -326,15 +330,14 @@ gtk_mandel_application_start (GtkMandelApplication *app)
 
 
 GtkMandelApplication *
-gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method_t render_method, double log_factor, unsigned zpower)
+gtk_mandel_application_new (const struct mandeldata *initmd)
 {
 	GtkMandelApplication *app = g_object_new (gtk_mandel_application_get_type (), NULL);
-	gtk_mandel_application_set_area (app, area);
-	gtk_mandel_application_set_maxiter (app, maxiter);
-	gtk_mandel_application_set_zpower (app, zpower);
-	gtk_mandel_application_set_threads (app, 1);
-	app->render_method = render_method;
-	app->log_factor = log_factor;
+	if (initmd != NULL) {
+		struct mandeldata *md = malloc (sizeof (*md));
+		mandeldata_clone (md, initmd);
+		gtk_mandel_application_set_mandeldata (app, md);
+	}
 	return app;
 }
 
@@ -409,10 +412,11 @@ area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 static void maxiter_updated (GtkMandelApplication *app, gpointer data)
 {
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
-	if (i > 0) {
-		app->maxiter = i;
-		restart_thread (app);
-	}
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	md->maxiter = i;
+	gtk_mandel_application_set_mandeldata (app, md);
+	restart_thread (app);
 }
 
 
@@ -423,7 +427,7 @@ render_method_updated (GtkMandelApplication *app, gpointer data)
 	if (!item->active)
 		return;
 	render_method_t *method = (render_method_t *) g_object_get_data (G_OBJECT (item), "render_method");
-	app->render_method = *method;
+	gtk_mandel_set_render_method (GTK_MANDEL (app->mainwin.mandel), *method);
 	restart_thread (app);
 }
 
@@ -437,32 +441,34 @@ log_colors_updated (GtkMandelApplication *app, gpointer data)
 	if (active)
 		lf = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
 	if (isfinite (lf)) {
-		app->log_factor = lf;
+		struct mandeldata *md = malloc (sizeof (*md));
+		mandeldata_clone (md, app->md);
+		md->log_factor = lf;
+		gtk_mandel_application_set_mandeldata (app, md);
 		restart_thread (app);
 	}
 }
 
 
 void
-gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
+gtk_mandel_application_set_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 {
 	GSList *l;
-	if (app->area != NULL) {
-		app->undo = g_slist_prepend (app->undo, (gpointer) app->area);
+	if (app->md != NULL) {
+		app->undo = g_slist_prepend (app->undo, (gpointer) app->md);
 		gtk_widget_set_sensitive (app->mainwin.undo, TRUE);
 	}
-	app->area = area;
-	g_object_ref (app->area);
+	update_mandeldata (app, md);
 	l = app->redo;
 	while (l != NULL) {
 		GSList *next_l = g_slist_next (l);
-		g_object_unref (G_OBJECT (l->data));
+		mandeldata_clear (l->data);
+		free (l->data);
 		g_slist_free_1 (l);
 		l = next_l;
 	}
 	app->redo = NULL;
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
-	update_area_info (app);
 }
 
 
@@ -473,8 +479,8 @@ undo_pressed (GtkMandelApplication *app, gpointer data)
 		fprintf (stderr, "! Undo called with empty history.\n");
 		return;
 	}
-	app->redo = g_slist_prepend (app->redo, (gpointer) app->area);
-	app->area = (GtkMandelArea *) app->undo->data;
+	app->redo = g_slist_prepend (app->redo, (gpointer) app->md);
+	update_mandeldata (app, (struct mandeldata *) app->undo->data);
 	GSList *old = app->undo;
 	app->undo = g_slist_next (app->undo);
 	g_slist_free_1 (old);
@@ -482,7 +488,6 @@ undo_pressed (GtkMandelApplication *app, gpointer data)
 		gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
 	gtk_widget_set_sensitive (app->mainwin.redo, TRUE);
 	restart_thread (app);
-	update_area_info (app);
 }
 
 
@@ -494,8 +499,8 @@ redo_pressed (GtkMandelApplication *app, gpointer data)
 		fprintf (stderr, "! Redo called with empty history.\n");
 		return;
 	}
-	app->undo = g_slist_prepend (app->undo, (gpointer) app->area);
-	app->area = (GtkMandelArea *) app->redo->data;
+	app->undo = g_slist_prepend (app->undo, (gpointer) app->md);
+	update_mandeldata (app, (struct mandeldata *) app->redo->data);
 	GSList *old = app->redo;
 	app->redo = g_slist_next (app->redo);
 	g_slist_free_1 (old);
@@ -503,27 +508,13 @@ redo_pressed (GtkMandelApplication *app, gpointer data)
 		gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 	gtk_widget_set_sensitive (app->mainwin.undo, TRUE);
 	restart_thread (app);
-	update_area_info (app);
 }
 
 
 static void
 restart_thread (GtkMandelApplication *app)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
-	GtkMandelArea *area = app->area;
-	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_init (md);
-	mpf_set (md->cx, area->cx);
-	mpf_set (md->cy, area->cy);
-	mpf_set (md->magf, area->magf);
-	md->type = FRACTAL_MANDELBROT;
-	md->maxiter = app->maxiter;
-	md->render_method = app->render_method;
-	md->log_factor = app->log_factor;
-	md->zpower = app->zpower;
-	md->thread_count = app->thread_count;
-	gtk_mandel_restart_thread (mandel, md);
+	gtk_mandel_start (GTK_MANDEL (app->mainwin.mandel));
 }
 
 
@@ -553,6 +544,7 @@ open_coord_file (GtkMandelApplication *app, gpointer data)
 }
 
 
+/* XXX */
 static void
 open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 {
@@ -585,7 +577,7 @@ update_area_info (GtkMandelApplication *app)
 	char b0[1024], b1[1024], b2[1024];
 	mpf_t xmin, xmax, ymin, ymax;
 
-	if (center_coords_to_string (app->area->cx, app->area->cy, app->area->magf, b0, b1, b2, 1024) >= 0) {
+	if (center_coords_to_string (app->md->cx, app->md->cy, app->md->magf, b0, b1, b2, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.center.items[0].buffer, b0, strlen (b0));
 		gtk_text_buffer_set_text (app->area_info.center.items[1].buffer, b1, strlen (b1));
 		gtk_text_buffer_set_text (app->area_info.center.items[2].buffer, b2, strlen (b2));
@@ -596,7 +588,7 @@ update_area_info (GtkMandelApplication *app)
 	mpf_init (ymin);
 	mpf_init (ymax);
 
-	center_to_corners (xmin, xmax, ymin, ymax, app->area->cx, app->area->cy, app->area->magf, (double) app->mainwin.mandel->allocation.width / app->mainwin.mandel->allocation.height);
+	center_to_corners (xmin, xmax, ymin, ymax, app->md->cx, app->md->cy, app->md->magf, GTK_MANDEL (app->mainwin.mandel)->aspect);
 
 	if (coord_pair_to_string (xmin, xmax, b0, b1, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, b0, strlen (b0));
@@ -611,6 +603,21 @@ update_area_info (GtkMandelApplication *app)
 	mpf_clear (xmax);
 	mpf_clear (ymin);
 	mpf_clear (ymax);
+}
+
+
+static void
+update_gui_from_mandeldata (GtkMandelApplication *app)
+{
+	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->md->maxiter);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->md->zpower);
+	if (app->md->log_factor == 0.0)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), FALSE);
+	else {
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), FALSE);
+		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
+	}
+	update_area_info (app);
 }
 
 
@@ -652,24 +659,8 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 	}
 
-	fwrite_center_coords (f, app->area->cx, app->area->cy, app->area->magf);
+	fwrite_center_coords (f, app->md->cx, app->md->cy, app->md->magf);
 	fclose (f);
-}
-
-
-void
-gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter)
-{
-	app->maxiter = maxiter;
-	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->maxiter);
-}
-
-
-void
-gtk_mandel_application_set_zpower (GtkMandelApplication *app, unsigned zpower)
-{
-	app->zpower = zpower;
-	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->zpower);
 }
 
 
@@ -679,6 +670,18 @@ set_entry_from_long (GtkEntry *entry, long value)
 	char buf[64];
 	int r;
 	r = snprintf (buf, sizeof (buf), "%ld", value);
+	if (r < 0 || r >= sizeof (buf))
+		return;
+	gtk_entry_set_text (entry, buf);
+}
+
+
+static void
+set_entry_from_double (GtkEntry *entry, double value, int prec)
+{
+	char buf[64];
+	int r;
+	r = snprintf (buf, sizeof (buf), "%.*f", prec, value);
 	if (r < 0 || r >= sizeof (buf))
 		return;
 	gtk_entry_set_text (entry, buf);
@@ -711,7 +714,7 @@ stop_pressed (GtkMandelApplication *app, gpointer data)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
 	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Stopping...");
-	mandel->md->terminate = TRUE;
+	gtk_mandel_stop (mandel);
 }
 
 
@@ -749,7 +752,11 @@ zoomed_out (GtkMandelApplication *app, gpointer data)
 static void
 zpower_updated (GtkMandelApplication *app, gpointer data)
 {
-	app->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
+	printf ("* zpower updated!\n");
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	md->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
+	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
 
@@ -757,13 +764,34 @@ zpower_updated (GtkMandelApplication *app, gpointer data)
 static void
 threads_updated (GtkMandelApplication *app, gpointer data)
 {
-	app->thread_count = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.threads_input));
+	gtk_mandel_set_thread_count (GTK_MANDEL (app->mainwin.mandel), gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.threads_input)));
 }
 
 
 void
 gtk_mandel_application_set_threads (GtkMandelApplication *app, unsigned threads)
 {
-	app->thread_count = threads;
-	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.threads_input), app->thread_count);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.threads_input), threads);
+}
+
+
+static void
+update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
+{
+	app->md = md;
+	gtk_mandel_set_mandeldata (GTK_MANDEL (app->mainwin.mandel), md);
+	update_gui_from_mandeldata (app);
+}
+
+
+/* XXX this should disappear */
+static void
+gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
+{
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	mpf_set (md->cx, area->cx);
+	mpf_set (md->cy, area->cy);
+	mpf_set (md->magf, area->magf);
+	gtk_mandel_application_set_mandeldata (app, md);
 }

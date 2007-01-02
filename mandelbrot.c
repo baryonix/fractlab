@@ -10,18 +10,18 @@
 
 
 struct sr_state {
-	struct mandeldata *md;
+	struct mandel_renderer *renderer;
 	int y, chunk_size;
 	GStaticMutex mutex;
 };
 
 
 struct ms_state {
-	struct mandeldata *md;
+	struct mandel_renderer *renderer;
 	GMutex *mutex;
 	GQueue *queue;
 	GCond *cond;
-	int idle_threads;
+	volatile int idle_threads;
 };
 
 struct ms_q_entry {
@@ -29,16 +29,16 @@ struct ms_q_entry {
 };
 
 
-static void calc_sr_row (struct mandeldata *mandel, int y, int chunk_size);
-static void calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size);
+static void calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size);
+static void calc_sr_mt_pass (struct mandel_renderer *mandel, int chunk_size);
 static gpointer sr_mt_thread_func (gpointer data);
-static void calc_ms_mt (struct mandeldata *mandel);
+static void calc_ms_mt (struct mandel_renderer *mandel);
 static gpointer ms_mt_thread_func (gpointer data);
 static void ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1);
-static void ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data);
+static void ms_do_work (struct mandel_renderer *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data);
 static void ms_enqueue (int x0, int y0, int x1, int y1, void *data);
 static void ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data);
-static void render_btrace (struct mandeldata *md, int x0, int y0, unsigned char *flags, bool fill_mode);
+static void render_btrace (struct mandel_renderer *md, int x0, int y0, unsigned char *flags, bool fill_mode);
 static void bt_turn_right (int xs, int ys, int *xsn, int *ysn);
 static void bt_turn_left (int xs, int ys, int *xsn, int *ysn);
 static unsigned *pascal_triangle (unsigned n);
@@ -48,9 +48,10 @@ static void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, ma
 static void store_powers (mp_limb_t *powers, bool *signs, mp_limb_t *x, bool xsign, unsigned n, unsigned frac_limbs);
 static void complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sign, unsigned n, mp_limb_t *real, bool *rreal_sign, mp_limb_t *imag, bool *rimag_sign, unsigned frac_limbs, unsigned *pascal);
 static unsigned mandel_julia_z2 (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
-static unsigned mandel_julia_zpower (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
+static unsigned mandel_julia_zpower (const struct mandel_renderer *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
-static unsigned mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+static void mandeldata_init_mpvars (struct mandeldata *md);
 
 
 const char *render_method_names[] = {
@@ -61,7 +62,7 @@ const char *render_method_names[] = {
 
 
 void
-mandel_convert_x (struct mandeldata *mandel, mpz_t rop, unsigned op)
+mandel_convert_x (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 {
 	mpz_sub (rop, mandel->xmax, mandel->xmin);
 	mpz_mul_ui (rop, rop, op);
@@ -71,7 +72,7 @@ mandel_convert_x (struct mandeldata *mandel, mpz_t rop, unsigned op)
 
 
 void
-mandel_convert_y (struct mandeldata *mandel, mpz_t rop, unsigned op)
+mandel_convert_y (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 {
 	mpz_sub (rop, mandel->ymin, mandel->ymax);
 	mpz_mul_ui (rop, rop, op);
@@ -81,7 +82,7 @@ mandel_convert_y (struct mandeldata *mandel, mpz_t rop, unsigned op)
 
 
 void
-mandel_convert_x_f (struct mandeldata *mandel, mpf_t rop, unsigned op)
+mandel_convert_x_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op)
 {
 	mpf_sub (rop, mandel->xmax_f, mandel->xmin_f);
 	mpf_mul_ui (rop, rop, op);
@@ -91,7 +92,7 @@ mandel_convert_x_f (struct mandeldata *mandel, mpf_t rop, unsigned op)
 
 
 void
-mandel_convert_y_f (struct mandeldata *mandel, mpf_t rop, unsigned op)
+mandel_convert_y_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op)
 {
 	mpf_sub (rop, mandel->ymin_f, mandel->ymax_f);
 	mpf_mul_ui (rop, rop, op);
@@ -100,14 +101,14 @@ mandel_convert_y_f (struct mandeldata *mandel, mpf_t rop, unsigned op)
 }
 
 void
-mandel_set_pixel (struct mandeldata *mandel, int x, int y, unsigned iter)
+mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter)
 {
 	mandel->data[x * mandel->h + y] = iter;
 }
 
 
 void
-mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned iter)
+mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter)
 {
 	mandel_set_pixel (mandel, x, y, iter);
 	if (mandel->display_pixel != NULL)
@@ -116,13 +117,14 @@ mandel_put_pixel (struct mandeldata *mandel, unsigned x, unsigned y, unsigned it
 
 
 int
-mandel_get_pixel (const struct mandeldata *mandel, int x, int y)
+mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y)
 {
 	return mandel->data[x * mandel->h + y];
 }
 
+
 bool
-mandel_all_neighbors_same (struct mandeldata *mandel, unsigned x, unsigned y, unsigned d)
+mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d)
 {
 	int px = mandel_get_pixel (mandel, x, y);
 	return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
@@ -234,14 +236,14 @@ mandel_julia_z2 (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_li
 
 
 static unsigned
-mandel_julia_zpower (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
+mandel_julia_zpower (const struct mandel_renderer *renderer, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
 {
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
 	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
 	unsigned i;
-	unsigned zpower = md->zpower;
-	unsigned *ptri = md->ptriangle;
+	unsigned zpower = renderer->md->zpower;
+	unsigned *ptri = renderer->ptriangle;
 
 	/* FIXME we shouldn't have to do this for every call */
 	four[0] = 4;
@@ -321,11 +323,11 @@ mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp
 
 
 static unsigned
-mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+mandel_julia_zpower_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
 {
 	unsigned i = 0, k = 1, m = 1;
-	unsigned zpower = md->zpower;
-	unsigned *ptri = md->ptriangle;
+	unsigned zpower = renderer->md->zpower;
+	unsigned *ptri = renderer->ptriangle;
 	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
 	while (i < maxiter && x * x + y * y < 4.0) {
 		complex_pow_fp (x, y, zpower, &x, &y, ptri);
@@ -352,7 +354,7 @@ mandel_julia_zpower_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t
 
 
 int
-mandel_render_pixel (struct mandeldata *mandel, int x, int y)
+mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 {
 	int i = mandel_get_pixel (mandel, x, y);
 	if (i >= 0)
@@ -366,23 +368,23 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
 		mandel_fp_t xf = x * (xmax - xmin) / mandel->w + xmin;
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
-		switch (mandel->type) {
+		switch (mandel->md->type) {
 			case FRACTAL_MANDELBROT: {
 #ifdef MANDELBROT_FP_ASM
-				if (mandel->zpower == 2) {
-					i = mandelbrot_fp (xf, yf, mandel->maxiter);
+				if (mandel->md->zpower == 2) {
+					i = mandelbrot_fp (xf, yf, mandel->md->maxiter);
 					break;
 				}
 #endif
-				i = mandel_julia_fp (mandel, xf, yf, xf, yf, mandel->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, xf, yf, mandel->md->maxiter);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia_fp (mandel, xf, yf, mandel->preal_float, mandel->pimag_float, mandel->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, mandel->preal_float, mandel->pimag_float, mandel->md->maxiter);
 				break;
 			}
 			default: {
-				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
+				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->md->type);
 				return 0;
 			}
 		}
@@ -406,23 +408,23 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 		y0_sign = mpz_sgn (z) < 0;
 
 		mpz_clear (z);
-		switch (mandel->type) {
+		switch (mandel->md->type) {
 			case FRACTAL_MANDELBROT: {
-				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, x0, x0_sign, y0, y0_sign, mandel->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, x0, x0_sign, y0, y0_sign, mandel->md->maxiter, mandel->frac_limbs);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, mandel->preal, mandel->preal_sign, mandel->pimag, mandel->pimag_sign, mandel->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, x0_sign, y0, y0_sign, mandel->preal, mandel->preal_sign, mandel->pimag, mandel->pimag_sign, mandel->md->maxiter, mandel->frac_limbs);
 				break;
 			}
 			default: {
-				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->type);
+				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->md->type);
 				return 0;
 			}
 		}
 	}
-	if (mandel->log_factor != 0.0)
-		i = mandel->log_factor * log (i);
+	if (mandel->md->log_factor != 0.0)
+		i = mandel->md->log_factor * log (i);
 	mandel_put_pixel (mandel, x, y, i);
 	return i;
 }
@@ -430,7 +432,7 @@ mandel_render_pixel (struct mandeldata *mandel, int x, int y)
 
 
 void
-mandel_display_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter)
+mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter)
 {
 	if (mandel->display_rect != NULL)
 		mandel->display_rect (x, y, w, h, iter, mandel->user_data);
@@ -440,7 +442,7 @@ mandel_display_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsi
 
 
 void
-mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned iter)
+mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter)
 {
 	int xc, yc;
 	for (xc = x; xc < x + w; xc++)
@@ -451,17 +453,38 @@ mandel_put_rect (struct mandeldata *mandel, int x, int y, int w, int h, unsigned
 
 
 void
-mandeldata_configure (struct mandeldata *mandel)
+mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h)
 {
-	mandel->aspect = (double) mandel->w / mandel->h;
-	center_to_corners (mandel->xmin_f, mandel->xmax_f, mandel->ymin_f, mandel->ymax_f, mandel->cx, mandel->cy, mandel->magf, mandel->aspect);
+	memset (renderer, 0, sizeof (*renderer)); /* just to be safe... */
+	renderer->ptriangle = NULL;
+	renderer->data = NULL;
+	renderer->terminate = false;
+	renderer->preal = NULL;
+	renderer->pimag = NULL;
+	renderer->display_pixel = NULL;
+	renderer->display_rect = NULL;
+	mpf_init (renderer->xmin_f);
+	mpf_init (renderer->xmax_f);
+	mpf_init (renderer->ymin_f);
+	mpf_init (renderer->ymax_f);
+	mpz_init (renderer->xmin);
+	mpz_init (renderer->xmax);
+	mpz_init (renderer->ymin);
+	mpz_init (renderer->ymax);
+
+	renderer->md = md;
+	renderer->w = w;
+	renderer->h = h;
+
+	renderer->aspect = (double) renderer->w / renderer->h;
+	center_to_corners (renderer->xmin_f, renderer->xmax_f, renderer->ymin_f, renderer->ymax_f, renderer->md->cx, renderer->md->cy, renderer->md->magf, renderer->aspect);
 
 	// Determine the required precision.
 	mpf_t dx;
 	mpf_init (dx);
 
-	mpf_sub (dx, mandel->xmax_f, mandel->xmin_f);
-	mpf_div_ui (dx, dx, mandel->w);
+	mpf_sub (dx, renderer->xmax_f, renderer->xmin_f);
+	mpf_div_ui (dx, dx, renderer->w);
 
 	long exponent;
 	mpf_get_d_2exp (&exponent, dx);
@@ -475,70 +498,83 @@ mandeldata_configure (struct mandeldata *mandel)
 	int required_bits = 4 - exponent;
 
 	if (required_bits < MP_THRESHOLD)
-		mandel->frac_limbs = 0;
+		renderer->frac_limbs = 0;
 	else
-		mandel->frac_limbs = required_bits / mp_bits_per_limb + INT_LIMBS;
+		renderer->frac_limbs = required_bits / mp_bits_per_limb + INT_LIMBS;
 
-	unsigned frac_limbs = mandel->frac_limbs;
+	unsigned frac_limbs = renderer->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 
 	// Convert coordinates to integer values.
 	mpf_t f;
 	mpf_init2 (f, total_limbs * mp_bits_per_limb);
 
-	mpf_mul_2exp (f, mandel->xmin_f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (mandel->xmin, f);
+	mpf_mul_2exp (f, renderer->xmin_f, frac_limbs * mp_bits_per_limb);
+	mpz_set_f (renderer->xmin, f);
 
-	mpf_mul_2exp (f, mandel->xmax_f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (mandel->xmax, f);
+	mpf_mul_2exp (f, renderer->xmax_f, frac_limbs * mp_bits_per_limb);
+	mpz_set_f (renderer->xmax, f);
 
-	mpf_mul_2exp (f, mandel->ymin_f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (mandel->ymin, f);
+	mpf_mul_2exp (f, renderer->ymin_f, frac_limbs * mp_bits_per_limb);
+	mpz_set_f (renderer->ymin, f);
 
-	mpf_mul_2exp (f, mandel->ymax_f, frac_limbs * mp_bits_per_limb);
-	mpz_set_f (mandel->ymax, f);
+	mpf_mul_2exp (f, renderer->ymax_f, frac_limbs * mp_bits_per_limb);
+	mpz_set_f (renderer->ymax, f);
 
-	if (mandel->type == FRACTAL_JULIA) {
+	if (renderer->md->type == FRACTAL_JULIA) {
 		if (frac_limbs > 0) {
-			mandel->preal = malloc (total_limbs * sizeof (mp_limb_t));
-			mandel->pimag = malloc (total_limbs * sizeof (mp_limb_t));
+			renderer->preal = malloc (total_limbs * sizeof (mp_limb_t));
+			renderer->pimag = malloc (total_limbs * sizeof (mp_limb_t));
 			mpz_t z;
 			mpz_init (z);
-			mpf_mul_2exp (f, mandel->preal_f, frac_limbs * mp_bits_per_limb);
+			mpf_mul_2exp (f, renderer->md->preal_f, frac_limbs * mp_bits_per_limb);
 			mpz_set_f (z, f);
 			int i;
 			for (i = 0; i < total_limbs; i++)
-				mandel->preal[i] = mpz_getlimbn (z, i);
-			mpf_mul_2exp (f, mandel->pimag_f, frac_limbs * mp_bits_per_limb);
+				renderer->preal[i] = mpz_getlimbn (z, i);
+			mpf_mul_2exp (f, renderer->md->pimag_f, frac_limbs * mp_bits_per_limb);
 			mpz_set_f (z, f);
 			for (i = 0; i < total_limbs; i++)
-				mandel->pimag[i] = mpz_getlimbn (z, i);
+				renderer->pimag[i] = mpz_getlimbn (z, i);
 			mpz_clear (z);
 		} else {
-			mandel->preal_float = mpf_get_mandel_fp (mandel->preal_f);
-			mandel->pimag_float = mpf_get_mandel_fp (mandel->pimag_f);
+			renderer->preal_float = mpf_get_mandel_fp (renderer->md->preal_f);
+			renderer->pimag_float = mpf_get_mandel_fp (renderer->md->pimag_f);
 		}
 	}
 
 	mpf_clear (f);
 
-	if (mandel->zpower < 2)
+	if (renderer->md->zpower < 2)
 		fprintf (stderr, "* ERROR: zpower < 2 used\n");
-	else if (mandel->zpower > 2)
-		mandel->ptriangle = pascal_triangle (mandel->zpower);
+	else if (renderer->md->zpower > 2)
+		renderer->ptriangle = pascal_triangle (renderer->md->zpower);
 
-	mandel->data = malloc (mandel->w * mandel->h * sizeof (*mandel->data));
-
-	mandel->configured = true;
+	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
 }
 
 
 void
-mandel_render (struct mandeldata *mandel)
+mandel_renderer_clear (struct mandel_renderer *renderer)
 {
-	if (!mandel->configured)
-		mandeldata_configure (mandel);
+	free_not_null (renderer->ptriangle);
+	free_not_null (renderer->data);
+	free_not_null (renderer->preal);
+	free_not_null (renderer->pimag);
+	mpf_clear (renderer->xmin_f);
+	mpf_clear (renderer->xmax_f);
+	mpf_clear (renderer->ymin_f);
+	mpf_clear (renderer->ymax_f);
+	mpz_clear (renderer->xmin);
+	mpz_clear (renderer->xmax);
+	mpz_clear (renderer->ymin);
+	mpz_clear (renderer->ymax);
+}
 
+
+void
+mandel_render (struct mandel_renderer *mandel)
+{
 	int i;
 	for (i = 0; i < mandel->w * mandel->h; i++)
 		mandel->data[i] = -1;
@@ -608,7 +644,7 @@ mandel_render (struct mandeldata *mandel)
 
 
 void
-calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1)
+calcpart (struct mandel_renderer *md, int x0, int y0, int x1, int y1)
 {
 	if (md->terminate)
 		return;
@@ -616,59 +652,8 @@ calcpart (struct mandeldata *md, int x0, int y0, int x1, int y1)
 }
 
 
-void
-mandeldata_init (struct mandeldata *md)
-{
-	memset (md, 0, sizeof (*md)); /* just to be safe... */
-	md->configured = false;
-	md->ptriangle = NULL;
-	md->data = NULL;
-	md->terminate = false;
-	md->preal = NULL;
-	md->pimag = NULL;
-	md->display_pixel = NULL;
-	md->display_rect = NULL;
-	mpf_init (md->cx);
-	mpf_init (md->cy);
-	mpf_init (md->magf);
-	mpf_init (md->xmin_f);
-	mpf_init (md->xmax_f);
-	mpf_init (md->ymin_f);
-	mpf_init (md->ymax_f);
-	mpz_init (md->xmin);
-	mpz_init (md->xmax);
-	mpz_init (md->ymin);
-	mpz_init (md->ymax);
-	mpf_init (md->preal_f);
-	mpf_init (md->pimag_f);
-}
-
-
-void
-mandeldata_clear (struct mandeldata *md)
-{
-	free_not_null (md->ptriangle);
-	free_not_null (md->data);
-	free_not_null (md->preal);
-	free_not_null (md->pimag);
-	mpf_clear (md->cx);
-	mpf_clear (md->cy);
-	mpf_clear (md->magf);
-	mpf_clear (md->xmin_f);
-	mpf_clear (md->xmax_f);
-	mpf_clear (md->ymin_f);
-	mpf_clear (md->ymax_f);
-	mpz_clear (md->xmin);
-	mpz_clear (md->xmax);
-	mpz_clear (md->ymin);
-	mpz_clear (md->ymax);
-	mpf_clear (md->preal_f);
-	mpf_clear (md->pimag_f);
-}
-
-
 static void
-calc_sr_row (struct mandeldata *mandel, int y, int chunk_size)
+calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size)
 {
 	int x;
 
@@ -704,7 +689,7 @@ calc_sr_row (struct mandeldata *mandel, int y, int chunk_size)
 
 
 static void
-calc_sr_mt_pass (struct mandeldata *mandel, int chunk_size)
+calc_sr_mt_pass (struct mandel_renderer *mandel, int chunk_size)
 {
 	struct sr_state state = {mandel, 0, chunk_size, G_STATIC_MUTEX_INIT};
 	GThread *threads[mandel->thread_count];
@@ -721,22 +706,22 @@ static gpointer
 sr_mt_thread_func (gpointer data)
 {
 	struct sr_state *state = (struct sr_state *) data;
-	while (!state->md->terminate) {
+	while (!state->renderer->terminate) {
 		int y;
 		g_static_mutex_lock (&state->mutex);
 		y = state->y;
 		state->y += state->chunk_size;
 		g_static_mutex_unlock (&state->mutex);
-		if (y >= state->md->h)
+		if (y >= state->renderer->h)
 			break; /* done */
-		calc_sr_row (state->md, y, state->chunk_size);
+		calc_sr_row (state->renderer, y, state->chunk_size);
 	}
 	return NULL;
 }
 
 
 static void
-calc_ms_mt (struct mandeldata *mandel)
+calc_ms_mt (struct mandel_renderer *mandel)
 {
 	struct ms_state state = {mandel, g_mutex_new (), g_queue_new (), g_cond_new (), 0};
 	GThread *threads[mandel->thread_count];
@@ -760,7 +745,7 @@ static gpointer
 ms_mt_thread_func (gpointer data)
 {
 	struct ms_state *state = (struct ms_state *) data;
-	struct mandeldata *md = state->md;
+	struct mandel_renderer *md = state->renderer;
 	while (!md->terminate) {
 		g_mutex_lock (state->mutex);
 		state->idle_threads++;
@@ -803,7 +788,7 @@ ms_queue_push (struct ms_state *state, int x0, int y0, int x1, int y1)
 
 
 static void
-ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data)
+ms_do_work (struct mandel_renderer *md, int x0, int y0, int x1, int y1, void (*enqueue) (int, int, int, int, void *), void *data)
 {
 	int x, y;
 	bool failed = false;
@@ -844,8 +829,8 @@ ms_do_work (struct mandeldata *md, int x0, int y0, int x1, int y1, void (*enqueu
 static void
 ms_enqueue (int x0, int y0, int x1, int y1, void *data)
 {
-	struct mandeldata *md = (struct mandeldata *) data;
-	calcpart (md, x0, y0, x1, y1);
+	struct mandel_renderer *renderer = (struct mandel_renderer *) data;
+	calcpart (renderer, x0, y0, x1, y1);
 }
 
 
@@ -858,7 +843,7 @@ ms_mt_enqueue (int x0, int y0, int x1, int y1, void *data)
 
 
 unsigned
-mandeldata_get_precision (const struct mandeldata *mandel)
+mandel_get_precision (const struct mandel_renderer *mandel)
 {
 	if (mandel->frac_limbs == 0)
 		return 0;
@@ -868,7 +853,7 @@ mandeldata_get_precision (const struct mandeldata *mandel)
 
 
 static bool
-is_inside (struct mandeldata *md, int x, int y, int iter)
+is_inside (struct mandel_renderer *md, int x, int y, int iter)
 {
 	int p = mandel_get_pixel (md, x, y);
 	return p == -1 || p == iter;
@@ -876,7 +861,7 @@ is_inside (struct mandeldata *md, int x, int y, int iter)
 
 
 static void
-render_btrace (struct mandeldata *md, int x0, int y0, unsigned char *flags, bool fill_mode)
+render_btrace (struct mandel_renderer *md, int x0, int y0, unsigned char *flags, bool fill_mode)
 {
 	int x = x0, y = y0;
 	/* XXX is it safe to choose this arbitrarily? */
@@ -1084,20 +1069,57 @@ complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sig
 
 
 unsigned
-mandel_julia (const struct mandeldata *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
+mandel_julia (const struct mandel_renderer *renderer, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs)
 {
-	if (md->zpower == 2)
+	if (renderer->md->zpower == 2)
 		return mandel_julia_z2 (x0, x0_sign, y0, y0_sign, preal, preal_sign, pimag, pimag_sign, maxiter, frac_limbs);
 	else
-		return mandel_julia_zpower (md, x0, x0_sign, y0, y0_sign, preal, preal_sign, pimag, pimag_sign, maxiter, frac_limbs);
+		return mandel_julia_zpower (renderer, x0, x0_sign, y0, y0_sign, preal, preal_sign, pimag, pimag_sign, maxiter, frac_limbs);
 }
 
 
 unsigned
-mandel_julia_fp (const struct mandeldata *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
 {
-	if (md->zpower == 2)
+	if (renderer->md->zpower == 2)
 		return mandel_julia_z2_fp (x0, y0, preal, pimag, maxiter);
 	else
-		return mandel_julia_zpower_fp (md, x0, y0, preal, pimag, maxiter);
+		return mandel_julia_zpower_fp (renderer, x0, y0, preal, pimag, maxiter);
+}
+
+
+static void
+mandeldata_init_mpvars (struct mandeldata *md)
+{
+	mpf_init (md->cx);
+	mpf_init (md->cy);
+	mpf_init (md->magf);
+}
+
+
+void
+mandeldata_init (struct mandeldata *md)
+{
+	memset (md, 0, sizeof (*md));
+	mandeldata_init_mpvars (md);
+}
+
+
+void
+mandeldata_clear (struct mandeldata *md)
+{
+	mpf_clear (md->cx);
+	mpf_clear (md->cy);
+	mpf_clear (md->magf);
+}
+
+
+void
+mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig)
+{
+	memcpy (clone, orig, sizeof (*clone));
+	mandeldata_init_mpvars (clone);
+	mpf_set (clone->cx, orig->cx);
+	mpf_set (clone->cy, orig->cy);
+	mpf_set (clone->magf, orig->magf);
 }

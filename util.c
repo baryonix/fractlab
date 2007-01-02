@@ -45,7 +45,7 @@ corners_to_center (mpf_t cx, mpf_t cy, mpf_t magf, mpf_t xmin, mpf_t xmax, mpf_t
 
 
 void
-center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, mpf_t cx, mpf_t cy, mpf_t magf, double aspect)
+center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, const mpf_t cx, const mpf_t cy, const mpf_t magf, double aspect)
 {
 	mpf_t dx, dy;
 	mpf_init (dx);

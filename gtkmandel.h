@@ -17,9 +17,15 @@ typedef struct
 	GdkGC *gc, *frame_gc;
 	GdkColor black, red, white;
 	GThread *thread;
-	struct mandeldata *md;
+	const struct mandeldata *md;
+	render_method_t render_method;
+	unsigned thread_count;
+	struct mandel_renderer *renderer;
 	guint redraw_source_id;
 	gdouble center_x, center_y, selection_size;
+	int cur_w, cur_h;
+	double aspect;
+	bool selection_active;
 } GtkMandel;
 
 
@@ -55,11 +61,15 @@ extern GdkColor mandelcolors[];
 
 GType gtk_mandel_get_type ();
 GtkWidget *gtk_mandel_new (void);
-void gtk_mandel_restart_thread (GtkMandel *mandel, struct mandeldata *md);
+void gtk_mandel_set_mandeldata (GtkMandel *mandel, const struct mandeldata *md);
+void gtk_mandel_set_render_method (GtkMandel *mandel, render_method_t render_method);
+void gtk_mandel_set_thread_count (GtkMandel *mandel, unsigned thread_count);
+void gtk_mandel_start (GtkMandel *mandel);
+void gtk_mandel_stop (GtkMandel *mandel);
 void gtk_mandel_redraw (GtkMandel *mandel);
 
 GType gtk_mandel_area_get_type ();
-GtkMandelArea *gtk_mandel_area_new (mpf_t cx, mpf_t cy, mpf_t magf);
+GtkMandelArea *gtk_mandel_area_new (const mpf_t cx, const mpf_t cy, const mpf_t magf);
 GtkMandelArea *gtk_mandel_area_new_from_file (const char *filename);
 
 #endif /* _GTKMANDEL_H */
