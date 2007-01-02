@@ -8,12 +8,10 @@
 
 
 gchar *option_start_coords;
-int thread_count = 1;
 
 
 static GOptionEntry option_entries[] = {
 	{"start-coords", 's', 0, G_OPTION_ARG_FILENAME, &option_start_coords, "Read start coordinates from FILE", "FILE"},
-	{"threads", 'T', 0, G_OPTION_ARG_INT, &thread_count, "Number of rendering threads"},
 	{NULL}
 };
 

@@ -12,7 +12,6 @@
 #include "gui.h"
 #include "util.h"
 #include "file.h"
-#include "cmdline.h"
 
 #define GTK_MANDEL_APPLICATION_GET_CLASS(app) G_TYPE_INSTANCE_GET_CLASS ((app), GtkMandelApplication, GtkMandelApplicationClass)
 
@@ -48,6 +47,7 @@ static void zoom_2exp (GtkMandelApplication *app, long exponent);
 static void zoomed_in (GtkMandelApplication *app, gpointer data);
 static void zoomed_out (GtkMandelApplication *app, gpointer data);
 static void zpower_updated (GtkMandelApplication *app, gpointer data);
+static void threads_updated (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -195,7 +195,15 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.zpower_input), 1.0);
 	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.zpower_input), 5);
 
-	app->mainwin.controls_table = gtk_table_new (2, 3, FALSE);
+	app->mainwin.threads_label = gtk_label_new ("Threads");
+	gtk_misc_set_alignment (GTK_MISC (app->mainwin.threads_label), 0.0, 0.5);
+
+	app->mainwin.threads_input = gtk_spin_button_new_with_range (1.0, 1024.0, 1.0);
+	gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (app->mainwin.threads_input), TRUE);
+	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.threads_input), 1.0);
+	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.threads_input), 5);
+
+	app->mainwin.controls_table = gtk_table_new (2, 4, FALSE);
 	gtk_table_set_homogeneous (GTK_TABLE (app->mainwin.controls_table), FALSE);
 	gtk_table_set_row_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
 	gtk_table_set_col_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
@@ -206,6 +214,8 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_input, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 3, 4, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_widget_set_size_request (app->mainwin.mandel, 50, 50);
@@ -322,6 +332,7 @@ gtk_mandel_application_new (GtkMandelArea *area, unsigned maxiter, render_method
 	gtk_mandel_application_set_area (app, area);
 	gtk_mandel_application_set_maxiter (app, maxiter);
 	gtk_mandel_application_set_zpower (app, zpower);
+	gtk_mandel_application_set_threads (app, 1);
 	app->render_method = render_method;
 	app->log_factor = log_factor;
 	return app;
@@ -355,6 +366,8 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.zpower_input), "value-changed", (GCallback) zpower_updated, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.threads_input), "value-changed", (GCallback) threads_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
 
@@ -509,7 +522,7 @@ restart_thread (GtkMandelApplication *app)
 	md->render_method = app->render_method;
 	md->log_factor = app->log_factor;
 	md->zpower = app->zpower;
-	md->thread_count = thread_count;
+	md->thread_count = app->thread_count;
 	gtk_mandel_restart_thread (mandel, md);
 }
 
@@ -738,4 +751,19 @@ zpower_updated (GtkMandelApplication *app, gpointer data)
 {
 	app->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
 	restart_thread (app);
+}
+
+
+static void
+threads_updated (GtkMandelApplication *app, gpointer data)
+{
+	app->thread_count = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.threads_input));
+}
+
+
+void
+gtk_mandel_application_set_threads (GtkMandelApplication *app, unsigned threads)
+{
+	app->thread_count = threads;
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.threads_input), app->thread_count);
 }

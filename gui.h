@@ -17,6 +17,7 @@ typedef struct {
 		GtkWidget *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_checkbox, *log_colors_input;
 		GtkWidget *zpower_label, *zpower_input;
+		GtkWidget *threads_label, *threads_input;
 		GtkWidget *mandel;
 		GtkWidget *status_hbox, *status_info, *status_info_frame, *math_info, *math_info_frame;
 	} mainwin;
@@ -52,6 +53,7 @@ typedef struct {
 	render_method_t render_method;
 	double log_factor;
 	unsigned zpower;
+	unsigned thread_count;
 } GtkMandelApplication;
 
 typedef struct {
@@ -69,6 +71,7 @@ GtkMandelApplication *gtk_mandel_application_new (GtkMandelArea *area, unsigned 
 void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
 void gtk_mandel_application_set_maxiter (GtkMandelApplication *app, unsigned long maxiter);
 void gtk_mandel_application_set_zpower (GtkMandelApplication *app, unsigned zpower);
+void gtk_mandel_application_set_threads (GtkMandelApplication *app, unsigned threads);
 void gtk_mandel_application_start (GtkMandelApplication *app);
 
 #endif /* _GTKMANDEL_GUI_H */
