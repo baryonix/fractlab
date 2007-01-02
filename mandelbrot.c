@@ -952,12 +952,15 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 				break;
 			continue;
 		}
-		if (fill_mode && (xstep == 1 || ystep == 1)) {
+		/* Do the filling if we're looking into the oppisite of the initial
+		 * direction, or right of it. It's not exactly clear why this works
+		 * (and filling in other directions doesn't), this was determined
+		 * empirically... */
+		if (fill_mode && ((xstep == -xstep0 && ystep == -ystep0) || (xstep == -ystep0 && ystep == xstep0))) {
 			int xfs, yfs;
 			bt_turn_left (xstep, ystep, &xfs, &yfs);
 			int xf = x + xfs, yf = y + yfs;
 			while (pixel_in_bounds (md, xf, yf) && is_inside (md, xf, yf, inside)) {
-			//while (pixel_in_bounds (md, xf, yf) && mandel_get_pixel (md, xf, yf) == inside) {
 				flags[xf * md->h + yf] = 1;
 				mandel_put_pixel (md, xf, yf, inside);
 				xf += xfs;
