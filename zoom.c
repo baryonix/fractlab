@@ -29,11 +29,17 @@ static void init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mp
 
 static gchar *start_coords = NULL, *target_coords = NULL;
 static double aspect;
+static gint zpower = 2;
+static gdouble log_factor = 0.0;
+static gint maxiter = DEFAULT_MAXITER;
 
 
 static GOptionEntry option_entries [] = {
 	{"start-coords", 's', 0, G_OPTION_ARG_FILENAME, &start_coords, "Start coordinates", "FILE"},
 	{"target-coords", 't', 0, G_OPTION_ARG_FILENAME, &target_coords, "Target coordinates", "FILE"},
+	{"maxiter", 'i', 0, G_OPTION_ARG_INT, &maxiter, "Maximum # of iterations", "N"},
+	{"z-power", 'Z', 0, G_OPTION_ARG_INT, &zpower, "Set power of Z in iteration to N", "N"},
+	{"log-factor", 'l', 0, G_OPTION_ARG_DOUBLE, &log_factor, "Use logarithmic colors, color = LF * ln (iter)", "LF"},
 	{NULL}
 };
 
@@ -125,14 +131,14 @@ render_frame (void *data, struct mandeldata *md, unsigned long i)
 	const struct thread_state *state = (const struct thread_state *) data;
 	mpfr_t cfr, dfr, tmp0;
 
-	mpf_init (md->cx);
-	mpf_init (md->cy);
-	mpf_init (md->magf);
+	md->type = FRACTAL_MANDELBROT;
+	md->zpower = zpower;
+	md->maxiter = maxiter;
+	md->log_factor = log_factor;
+
 	mpfr_init (cfr);
 	mpfr_init (dfr);
 	mpfr_init (tmp0);
-
-	md->type = FRACTAL_MANDELBROT;
 
 	get_frame (&state->xstate, i, cfr, dfr);
 	mpfr_ui_div (dfr, 1, dfr, GMP_RNDN);

@@ -9,7 +9,7 @@
 
 typedef void (*frame_func_t) (void *data, struct mandeldata *md, unsigned long i);
 
-extern gint img_width, img_height, maxiter, frame_count;
+extern gint img_width, img_height, frame_count;
 
 GOptionGroup *anim_get_option_group (void);
 void anim_render (frame_func_t frame_func, void *data);

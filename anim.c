@@ -26,7 +26,7 @@ struct anim_state {
 };
 
 
-static void write_png (const struct anim_state *state, const struct mandeldata *md, const char *filename);
+static void write_png (const struct anim_state *state, const struct mandel_renderer *md, const char *filename);
 static gpointer thread_func (gpointer data);
 static void render_frame (struct anim_state *state, unsigned long i);
 
@@ -35,26 +35,19 @@ struct color colors[COLORS];
 
 static long clock_ticks;
 
-gint maxiter = DEFAULT_MAXITER, frame_count = 0;
-static gdouble log_factor = 0.0;
-gint img_width = 200, img_height = 200;
+gint img_width = 200, img_height = 200, frame_count = 0;
 static gint zoom_threads = 1;
 static gint compression = -1;
 static gint start_frame = 0;
-static gint zpower = 2;
-
 
 
 static GOptionEntry option_entries[] = {
-	{"maxiter", 'i', 0, G_OPTION_ARG_INT, &maxiter, "Maximum # of iterations", "N"},
 	{"frames", 'n', 0, G_OPTION_ARG_INT, &frame_count, "# of frames in animation", "N"},
 	{"start-frame", 'S', 0, G_OPTION_ARG_INT, &start_frame, "Start rendering at frame N", "N"},
-	{"log-factor", 'l', 0, G_OPTION_ARG_DOUBLE, &log_factor, "Use logarithmic colors, color = LF * ln (iter)", "LF"},
 	{"width", 'W', 0, G_OPTION_ARG_INT, &img_width, "Image width", "PIXELS"},
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
-	{"z-power", 'Z', 0, G_OPTION_ARG_INT, &zpower, "Set power of Z in iteration to N", "N"},
 	{NULL}
 };
 
@@ -108,7 +101,7 @@ void anim_render
 
 
 static void
-write_png (const struct anim_state *state, const struct mandeldata *md, const char *filename)
+write_png (const struct anim_state *state, const struct mandel_renderer *renderer, const char *filename)
 {
 	FILE *f = fopen (filename, "wb");
 
@@ -124,19 +117,19 @@ write_png (const struct anim_state *state, const struct mandeldata *md, const ch
 		png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
 	if (compression >= 0)
 		png_set_compression_level (png_ptr, compression);
-	png_set_IHDR (png_ptr, info_ptr, md->w, md->h, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+	png_set_IHDR (png_ptr, info_ptr, renderer->w, renderer->h, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
 		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	png_write_info (png_ptr, info_ptr);
 
-	unsigned char row[md->w * 3];
+	unsigned char row[renderer->w * 3];
 	png_bytep row_ptr[] = {(png_bytep) row};
 
 	unsigned int x, y;
 	//int opct = -1;
 
-	for (y = 0; y < md->h; y++) {
-		for (x = 0; x < md->w; x++) {
-			unsigned int i = mandel_get_pixel (md, x, y);
+	for (y = 0; y < renderer->h; y++) {
+		for (x = 0; x < renderer->w; x++) {
+			unsigned int i = mandel_get_pixel (renderer, x, y);
 
 			i %= 256;
 
@@ -176,16 +169,14 @@ static void
 render_frame (struct anim_state *state, unsigned long i)
 {
 	struct mandeldata md[1];
-	mandeldata_init (md);
-	md->zpower = zpower;
-	md->w = img_width;
-	md->h = img_height;
-	md->maxiter = maxiter;
-	md->render_method = RM_BOUNDARY_TRACE;
-	md->log_factor = log_factor;
-	md->thread_count = 1;
+	struct mandel_renderer renderer[1];
 
+	mandeldata_init (md);
 	state->frame_func (state->data, md, i);
+
+	mandel_renderer_init (renderer, md, img_width, img_height);
+	renderer->render_method = RM_BOUNDARY_TRACE;
+	renderer->thread_count = 1;
 
 	/*
 	 * Unfortunately, there is no way of determining the amount of CPU
@@ -203,8 +194,7 @@ render_frame (struct anim_state *state, unsigned long i)
 	clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
 
-	mandeldata_configure (md);
-	mandel_render (md);
+	mandel_render (renderer);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 	clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
@@ -212,20 +202,20 @@ render_frame (struct anim_state *state, unsigned long i)
 
 	char name[64];
 	sprintf (name, "file%06lu.png", i);
-	write_png (state, md, name);
-	free (md->data);
+	write_png (state, renderer, name);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 	if (clock_ok)
 		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
 #endif
 	fprintf (stderr, "Frame %ld done", i);
-	unsigned bits = mandeldata_get_precision (md);
+	unsigned bits = mandel_get_precision (renderer);
 	if (bits == 0)
 		fprintf (stderr, ", using FP arithmetic");
 	else
 		fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
 	fprintf (stderr, ".\n");
 
+	mandel_renderer_clear (renderer);
 	mandeldata_clear (md);
 }
