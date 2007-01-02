@@ -954,10 +954,6 @@ stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers)
 }
 
 
-/*
- * FIXME real power series should be used here, instead of simple
- * one-by-one multiply
- */
 static void
 store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n)
 {
@@ -999,10 +995,6 @@ complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *r
 }
 
 
-/*
- * FIXME real power series should be used here, instead of simple
- * one-by-one multiply
- */
 static void
 store_powers (mp_limb_t *powers, bool *signs, mp_limb_t *x, bool xsign, unsigned n, unsigned frac_limbs)
 {
