@@ -62,10 +62,10 @@ struct mandel_renderer {
 };
 
 
-void mandel_convert_x (struct mandel_renderer *mandel, mpz_t rop, unsigned op);
-void mandel_convert_y (struct mandel_renderer *mandel, mpz_t rop, unsigned op);
-void mandel_convert_x_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op);
-void mandel_convert_y_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op);
+void mandel_convert_x (const struct mandel_renderer *mandel, mpz_t rop, unsigned op);
+void mandel_convert_y (const struct mandel_renderer *mandel, mpz_t rop, unsigned op);
+void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
+void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
 
 void mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter);
 void mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter);
@@ -81,6 +81,7 @@ unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
 unsigned mandel_julia_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 int mandel_render_pixel (struct mandel_renderer *mandel, int x, int y);
+int mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y);
 void calcpart (struct mandel_renderer *md, int x0, int y0, int x1, int y1);
 void mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);

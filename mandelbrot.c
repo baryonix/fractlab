@@ -70,7 +70,7 @@ const char *render_method_names[] = {
 
 
 void
-mandel_convert_x (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
+mandel_convert_x (const struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 {
 	mpz_sub (rop, mandel->xmax, mandel->xmin);
 	mpz_mul_ui (rop, rop, op);
@@ -80,7 +80,7 @@ mandel_convert_x (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 
 
 void
-mandel_convert_y (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
+mandel_convert_y (const struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 {
 	mpz_sub (rop, mandel->ymin, mandel->ymax);
 	mpz_mul_ui (rop, rop, op);
@@ -90,7 +90,7 @@ mandel_convert_y (struct mandel_renderer *mandel, mpz_t rop, unsigned op)
 
 
 void
-mandel_convert_x_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op)
+mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op)
 {
 	mpf_sub (rop, mandel->xmax_f, mandel->xmin_f);
 	mpf_mul_ui (rop, rop, op);
@@ -100,7 +100,7 @@ mandel_convert_x_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op)
 
 
 void
-mandel_convert_y_f (struct mandel_renderer *mandel, mpf_t rop, unsigned op)
+mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op)
 {
 	mpf_sub (rop, mandel->ymin_f, mandel->ymax_f);
 	mpf_mul_ui (rop, rop, op);
@@ -362,11 +362,9 @@ mandel_julia_zpower_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, 
 
 
 int
-mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
+mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 {
-	int i = mandel_get_pixel (mandel, x, y);
-	if (i >= 0)
-		return i; /* pixel has been rendered previously */
+	int i = 0; /* initialize to make gcc happy */
 	if (mandel->frac_limbs == 0) {
 		// FP
 		/* FIXME we shouldn't do this for every pixel */
@@ -433,6 +431,17 @@ mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 	}
 	if (mandel->md->log_factor != 0.0)
 		i = mandel->md->log_factor * log (i);
+	return i;
+}
+
+
+int
+mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
+{
+	int i = mandel_get_pixel (mandel, x, y);
+	if (i >= 0)
+		return i; /* pixel has been rendered previously */
+	i = mandel_pixel_value (mandel, x, y);
 	mandel_put_pixel (mandel, x, y, i);
 	return i;
 }
@@ -935,7 +944,6 @@ static void
 render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int ystep0, GQueue *queue, unsigned char *flags, bool fill_mode)
 {
 	int x = x0, y = y0;
-	/* XXX is it safe to choose this arbitrarily? */
 	int xstep = xstep0, ystep = ystep0;
 	unsigned inside = mandel_render_pixel (md, x0, y0);
 
