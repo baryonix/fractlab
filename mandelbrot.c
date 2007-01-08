@@ -639,18 +639,14 @@ mandel_render (struct mandel_renderer *mandel)
 		case RM_BOUNDARY_TRACE: {
 			unsigned char flags[mandel->w * mandel->h];
 			memset (flags, 0, sizeof (flags));
-			/*render_btrace (mandel, 0, 0, flags, false);
-			render_btrace (mandel, 0, 0, flags, true);
-			break;*/
-			/* This is the single-threaded approach, currently commented out for testing.
 			int x, y;
 			for (y = 0; !mandel->terminate && y < mandel->h; y++)
 				for (x = 0; !mandel->terminate && x < mandel->w; x++)
 					if (!flags[x * mandel->h + y]) {
 						render_btrace (mandel, x, y, flags, false);
 						render_btrace (mandel, x, y, flags, true);
-					}*/
-			GQueue *queue = g_queue_new ();
+					}
+			/*GQueue *queue = g_queue_new ();
 			btrace_queue_push (queue, 0, 0, 0, -1);
 			while (!g_queue_is_empty (queue)) {
 				int x, y, xstep, ystep;
@@ -659,7 +655,7 @@ mandel_render (struct mandel_renderer *mandel)
 					render_btrace_test (mandel, x, y, xstep, ystep, queue, flags, false);
 					render_btrace_test (mandel, x, y, xstep, ystep, queue, flags, true);
 				}
-			}
+			}*/
 			break;
 		}
 
