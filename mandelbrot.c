@@ -173,6 +173,7 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 		mpn_add_n (rop, op1, op2, total_limbs);
 		return op1_sign;
 	} else {
+#ifdef MY_MPN_SUB_SLOW
 		if (mpn_cmp (op1, op2, total_limbs) > 0) {
 			mpn_sub_n (rop, op1, op2, total_limbs);
 			return op1_sign;
@@ -180,6 +181,18 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 			mpn_sub_n (rop, op2, op1, total_limbs);
 			return op2_sign;
 		}
+#else /* MY_MPN_SUB_SLOW */
+		/*
+		 * For some obscure reason, this doesn't work, although it does
+		 * deliver correct results in an external test case.
+		 * The sign of zero seems not to be the problem here.
+		 */
+		if (mpn_sub_n (rop, op1, op2, total_limbs) != 0) {
+			mpn_sub_n (rop, op2, op1, total_limbs);
+			return op2_sign;
+		} else
+			return op1_sign;
+#endif /* MY_MPN_SUB_SLOW */
 	}
 }
 

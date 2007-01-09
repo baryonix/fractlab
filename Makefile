@@ -4,7 +4,7 @@ CC = gcc
 LEX = lex
 YACC = yacc
 NASM = nasm
-COPTS = -O3 -march=pentium4 -Wall -g -std=c99
+COPTS = -O3 -march=pentium4 -Wall -g -std=c99 -DMY_MPN_SUB_SLOW
 USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
