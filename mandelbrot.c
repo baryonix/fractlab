@@ -182,17 +182,31 @@ my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2
 			return op2_sign;
 		}
 #else /* MY_MPN_SUB_SLOW */
-		/*
-		 * For some obscure reason, this doesn't work, although it does
-		 * deliver correct results in an external test case.
-		 * The sign of zero seems not to be the problem here.
-		 */
 		if (mpn_sub_n (rop, op1, op2, total_limbs) != 0) {
-			mpn_sub_n (rop, op2, op1, total_limbs);
+			my_mpn_invert (rop, total_limbs);
 			return op2_sign;
 		} else
 			return op1_sign;
 #endif /* MY_MPN_SUB_SLOW */
+	}
+}
+
+
+/* XXX this doesn't work with GMP nails */
+void
+my_mpn_invert (mp_limb_t *op, unsigned total_limbs)
+{
+	int i = 0;
+	while (i < total_limbs) {
+		bool bk = op[i] != 0;
+		op[i] = ~op[i] + 1;
+		i++;
+		if (bk)
+			break;
+	}
+	while (i < total_limbs) {
+		op[i] = ~op[i];
+		i++;
 	}
 }
 

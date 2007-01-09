@@ -4,7 +4,11 @@ CC = gcc
 LEX = lex
 YACC = yacc
 NASM = nasm
-COPTS = -O3 -march=pentium4 -Wall -g -std=c99 -DMY_MPN_SUB_SLOW
+# Define MY_MPN_SUB_SLOW if it's faster on your machine (yes, despite the
+# name, it might actually be!), or if your machine doesn't use two's complement,
+# or if you have nails enabled in GMP.
+# On Pentium4, _not_ defining MY_MPN_SUB_SLOW increases performance by ~5%.
+COPTS = -O3 -march=pentium4 -Wall -g -std=c99 #-DMY_MPN_SUB_SLOW
 USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
