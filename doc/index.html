@@ -1,0 +1,212 @@
+<html>
+	<head>
+		<title>mandel-gtk -- Render Mandelbrot graphics, fast!</title>
+	</head>
+
+<body>
+	<h1><code>mandel-gtk</code></h1>
+
+	<h2>Overview</h2>
+
+	<p><code>mandel-gtk</code> is a toolkit for rendering fractal graphics.
+	Currently, the only fractal type supported is the Mandelbrot set, but
+	(just as potentially anything else) this is subject to change in the
+	future. Julia sets are now implemented in the rendering backend, but
+	the GUI doesn't support them yet.</p>
+
+	<p>The package consists of <code>mandel-gtk</code> itself, a graphical
+	frontend for interactive zooming based on GTK&nbsp;2.0, as well as
+	<code>mandel-zoom</code>, a command-line utility which can be used to
+	render those fancy zooming animations I like so much.</p>
+
+	<h2>Arbitrary-Precision Math</h2>
+
+	<p><code>mandel-gtk</code> relies on the
+	<a href="http://www.swox.com/gmp/">GNU GMP</a> library (and partly
+	on <a href="http://www.mpfr.org/">MPFR</a>, an extension to GMP) to do
+	its calculations with arbitrarily
+	high precision. So, you can zoom in as far as you want and will never
+	hit any limits, except for those of your machine's CPU power. I have
+	rendered images at magnifications of around 10<sup>90</sup>, and
+	the performance is still workable on a single-CPU Pentium&nbsp;4 machine
+	running at 1.6&nbsp;GHz.</p>
+
+	<p><strong>NOTE:</strong> As of this writing, this is not entirely true.
+	In some non-critical places, the program currently still uses
+	fixed-precision variables. However, those variables have a very high
+	precision by default (1024&nbsp;bits); if you need more, you can easily
+	increase their precision by changing the parameter of the
+	<code>mpf_set_default_prec()</code> and
+	<code>mpfr_set_default_prec()</code> calls in the source code. Increasing
+	the precision of these variables will have virtually no impact on the
+	rendering performance, but 1024&nbsp;bits have always been enough for
+	me.</p>
+
+	<h2>Optimizations</h2>
+
+	<p>The three main targets in the development of <code>mandel-gtk</code> are
+	performance, performance, and performance. Different optimization
+	techniques make the rendering process much faster than the "basecase"
+	of rendering each pixel in turn would be.</p>
+
+	<p>The gory details of these optimizations are described in great detail
+	at <a href="http://www.mrob.com/pub/muency.html">Mu-Ency</a>, which is
+	also where I learned them from. Thanks, Rob!</p>
+
+	<p>Of course, <code>mandel-gtk</code> and </code>mandel-zoom</code> are
+	both built on the same backend algorithms, so these performance
+	considerations apply similarly to both of them.</p>
+
+	<h3>Dynamically Scaled Precision</h3>
+
+	<p><code>mandel-gtk</code> dynamically adjusts the precision of its
+	computations to provide as much precision as required, but not (much) more.
+	Floating-point hardware will be used as long as its precision is
+	sufficient. On the IA32 architecture, a hand-optimized assembly routine
+	will be used for this purpose. This assembly routine currently doesn't
+	support Julia sets (so the C implementation is used instead to render
+	them).</p>
+	
+	<p>As the required precision grows, <code>mandel-gtk</code> will reside
+	to software-supported multi-precision arithmetics, performing only
+	fixed-point integer computations. The critical loops interface with GMP
+	at the lowest level possible (known as the <code>mpn</code> layer of
+	GMP) to gain the highest possible performance.</p>
+
+	<h3>Cycle Detection</h3>
+
+	<p><code>mandel-gtk</code> will detect when its iteration for some point
+	gets caught in a loop, calculating the same values over and over again,
+	and proceed to the next point immediately, assuming that the current
+	point is in fact an element of the Mandelbrot set.</p>
+
+	<h3>Parallel Computation</h3>
+
+	<p>Both the Successive Refinement and the Mariani-Silver algorithms
+	(see Area Detection, below) can render a single image in parallel using
+	multiple threads, so you will be able to make efficient use of multi-core
+	CPUs or multi-CPU machines (or multi-multicore-CPU machines:-) in the
+	<code>mandel-gtk</code> GUI.</p>
+
+	<p><code>mandel-zoom</code> uses a different approach here: Each frame
+	of the animation is computed in a single thread, and multiple threads
+	work on different frames at the same time. This minimizes the
+	interdependencies between the threads' computation results (possibly
+	making more efficient use of the CPU caches) and the required amount of
+	inter-thread communications. In fact, the only place where
+	<code>mandel-zoom</code> has a need for thread synchronization is when
+	it determines which frame should be rendered next.</p>
+
+	<p>I'm also planning to implement clustering functionality, so you will
+	be able to render in parallel using the CPUs of multiple machines connected
+	via a network. Most probably, this feature will first become available only
+	in <code>mandel-zoom</code>.</p>
+
+	<h3>Area Detection</h3>
+
+	<p><code>mandel-gtk</code> can detect solid areas in the image it
+	generates, and will skip over most part of the interior of those areas.
+	Three different algorithms are implemented to achieve this.</p>
+
+	<h4>Successive Refinement</h4>
+
+	<p>This algorithm works by first computing a coarse view of the whole
+	image, then refining the image in multiple passes and skipping over areas
+	which are expected to show up in a solid color. Successive Refinement
+	parallelizes well and is
+	best suited for interactive zooming, as you don't usually have to wait
+	for the computation to finish at full resolution before selecting an area
+	to zoom into.</p>
+
+	<p>Note however that, although not too bad, the accuracy of the images
+	generated using successive refinement is not as good as that of the
+	other two methods.</p>
+
+	<h4>Mariani-Silver</h4>
+
+	<p>This is more of a divide-and-conquer approach, which works by dividing
+	the image into smaller and smaller rectangular areas and further dividing
+	each sub-area only if more detail is expected to show up inside.
+	Mariani-Silver also parallelizes well and is useful for rendering
+	a single image with high accuracy.</p>
+
+	<h4>Boundary Tracing</h4>
+
+	<p>This method works by "walking along" the boundaries of solid regions
+	and flood filling the interior after the complete boundary of a region
+	has been rendered. Boundary tracing is slightly faster than Mariani-Silver,
+	but is hard (if not impossible) to parallelize -- the current
+	implementation runs in a single thread only. This is the weapon of choice
+	for the rendering of animations (where parallelization takes place at the
+	frame level), and of single images if you're using a single processor.</p>
+
+	<h2>Portability</h2>
+
+	<p><code>mandel-gtk</code> theoretically supports any architecture where
+	Glib (with threading support) and GTK are available. It has been tested
+	on 32-bit and 64-bit, both little and big endian architectures. It is
+	unclear whether systems with a smaller word size work, but there is no
+	inherent reason why they shouldn't. The <code>mandel-gtk</code> GUI has
+	now been reworked to make all calls to GDK/GTK functions from within
+	just a single thread, so it should theoretically be possible to build
+	a native Win32 version too, but I haven't yet tried this.</p>
+
+	<p><code>mandel-gtk</code> does not, and will never use the GNU
+	<code>autoconf</code> framework.</p>
+
+	<p>If you manage (or don't manage) to run <code>mandel-gtk</code> on a
+	platform not mentioned below, I'll be glad to hear from you! I will then
+	add your platform to the list, and happily include any patches
+	you applied to make it work. I'm also willing to give assistance in
+	porting <code>mandel-gtk</code> to new platforms.</p>
+
+	<p><code>mandel-gtk</code> has been tested on the following systems:</p>
+
+	<ul>
+		<li><p>Linux on IA32</p></li>
+		<li><p>FreeBSD on IA32</p></li>
+		<li>
+			<p>Linux on x86-64 (aka AMD64 or Intel&nbsp;EM64T)</p>
+			<p>Tested on an HP ProLiant server system with two dual-core
+			Xeon (Core&nbsp;Duo architecture) CPUs. This machine gives you
+			the Mandelbrot power you need for the 21st century!</p>
+		</li>
+		<li>
+			<p>Solaris on UltraSPARC (compiled in 64-bit mode)</p>
+			<p>For best performance, build GMP and <code>mandel-gtk</code>
+			using the Sun C Compiler, which comes bundled with the
+			freely-available (though closed-source)
+			<a href="http://developers.sun.com/sunstudio/index.jsp">Sun&nbsp;Studio</a>
+			IDE. The recommended compiler flags for both GMP, MPFR
+			and <code>mandel-gtk</code> are
+			<code>-fast -fsimple=0 -fns=no</code>.
+			Make sure you verify your compiler flags by running
+			<code>make&nbsp;check</code> on GMP and MPFR!</p>
+		</li>
+	</ul>
+
+	<h2>Building <code>mandel-gtk</code></h2>
+
+	<p>First, make sure you have the latest versions of
+	<a href="http://www.swox.com/gmp/">GMP</a> and
+	<a href="http://www.mpfr.org/">MPFR</a>. Any
+	older version will probably work, but will also most probably not give
+	the same level of performance. It is also adviseable to compile both of
+	them on your own for the specific machine you intend to run
+	<code>mandel-gtk</code> on. If you use precompiled binaries, GMP may not
+	be able to use all the features your CPU provides, and may not deliver
+	the performance it actually could if optimized properly.</p>
+
+	<p>You will also need
+	<a href="http://www.libpng.org/pub/png/libpng.html">libpng</a>; using
+	a precompiled version is safe here.</p>
+
+	<p>Download the source code, extract it and take a look at the
+	<code>Makefile</code>. You will most probably have to change a few
+	parameters in it to successfully build <code>mandel-gtk</code>. If you
+	have a basic understanding of how <code>make</code> and your C compiler
+	work, this will be an easy thing to do. If you don't, you'll probably have
+	to wait until foolproof build instructions become available (which may
+	never happen).</p>
+
+</body>
