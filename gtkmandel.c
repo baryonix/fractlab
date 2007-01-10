@@ -261,7 +261,12 @@ gtk_mandel_start (GtkMandel *mandel)
 
 	mandel->redraw_source_id = g_timeout_add (500, redraw_source_func, mandel);
 
-	mandel->thread = g_thread_create (calcmandel, (gpointer) mandel->renderer, true, NULL);
+	GError *thread_err;
+	mandel->thread = g_thread_create (calcmandel, (gpointer) mandel->renderer, true, &thread_err);
+	if (mandel->thread == NULL) {
+		fprintf (stderr, "* BUG: g_thread_create() error: %s\n", thread_err->message);
+		g_error_free (thread_err);
+	}
 }
 
 
@@ -431,7 +436,9 @@ calcmandel (gpointer data)
 
 	mandel_render (renderer);
 
-	g_source_remove (mandel->redraw_source_id);
+	if (!g_source_remove (mandel->redraw_source_id))
+		fprintf (stderr, "* BUG: g_source_remove failed for source %u\n", (unsigned) mandel->redraw_source_id);
+
 	g_idle_add (redraw_source_func_once, mandel);
 
 	struct rendering_stopped_info *info = malloc (sizeof (struct rendering_stopped_info));
