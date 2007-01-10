@@ -621,12 +621,11 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 	app->updating_gui = true;
 	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->md->maxiter);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->md->zpower);
-	if (app->md->log_factor == 0.0)
-		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), FALSE);
-	else {
-		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), FALSE);
+	bool use_log_factor = app->md->log_factor != 0.0;
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), use_log_factor);
+	gtk_widget_set_sensitive (app->mainwin.log_colors_input, use_log_factor);
+	if (use_log_factor)
 		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
-	}
 	update_area_info (app);
 	app->updating_gui = false;
 }
