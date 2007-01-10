@@ -1,6 +1,17 @@
 #ifndef _GTKMANDEL_UTIL_H
 #define _GTKMANDEL_UTIL_H
 
+#include "fpdefs.h"
+
+static inline double
+my_fmax (double a, double b)
+{
+	if (a > b)
+		return a;
+	else
+		return b;
+}
+
 #define MY_MIN(a, b) ((a)<(b)?(a):(b))
 #define MY_MAX(a, b) ((a)>(b)?(a):(b))
 

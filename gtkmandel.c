@@ -20,6 +20,7 @@
 #include "mandelbrot.h"
 #include "defs.h"
 #include "file.h"
+#include "util.h"
 
 
 struct rendering_started_info {
@@ -342,7 +343,7 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 		case GDK_MOTION_NOTIFY: {
 			if (!mandel->selection_active)
 				return TRUE;
-			double d = fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->aspect);
+			double d = my_fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->aspect);
 			int oldx = mandel->center_x - mandel->selection_size;
 			int oldy = mandel->center_y - mandel->selection_size / mandel->aspect;
 			int oldw = 2 * mandel->selection_size + 1;

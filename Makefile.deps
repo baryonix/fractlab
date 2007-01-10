@@ -2,8 +2,9 @@ anim.o: anim.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h
 btrace.o: btrace.c mandelbrot.h fpdefs.h
 cmdline.o: cmdline.c cmdline.h
 crc.o: crc.c crc.h
-file.o: file.c file.h util.h
-gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h file.h
+file.o: file.c file.h util.h fpdefs.h
+gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h file.h \
+  util.h
 gui.o: gui.c defs.h mandelbrot.h fpdefs.h gtkmandel.h gui.h util.h file.h
 lissajoulia.o: lissajoulia.c anim.h mandelbrot.h fpdefs.h file.h
 main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h gtkmandel.h defs.h \
@@ -11,5 +12,5 @@ main.o: main.c cmdline.h file.h fpdefs.h mandelbrot.h gtkmandel.h defs.h \
 mandelbrot.o: mandelbrot.c mandelbrot.h fpdefs.h util.h
 stupidmng.o: stupidmng.c crc.h
 test_parser.o: test_parser.c
-util.o: util.c util.h
+util.o: util.c util.h fpdefs.h
 zoom.o: zoom.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h
