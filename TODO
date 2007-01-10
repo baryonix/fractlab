@@ -14,5 +14,7 @@ TODO
   in mandeldata
 - Use mandeldata struct for loading and saving files, instead of GtkMandelArea
 - redo sometimes breaks, apparently related to change of zpower
-- looks like the event sources for updating the screen don't get removed properly (can no more reproduce now?)
+- looks like the event sources for updating the screen don't get removed properly
+  This problem still occurs, but rarely. For some reason, g_source_remove()
+  seems to fail occasionally.
 - implement my_mpn_invert() in IA32 assembler (using SSE2?)
