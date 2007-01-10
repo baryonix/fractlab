@@ -13,7 +13,6 @@ TODO
 - don't pass so many parameters to mandel_julia() and friends, some of them are
   in mandeldata
 - Use mandeldata struct for loading and saving files, instead of GtkMandelArea
-- redo sometimes breaks, apparently related to change of zpower
 - looks like the event sources for updating the screen don't get removed properly
   This problem still occurs, but rarely. For some reason, g_source_remove()
   seems to fail occasionally.

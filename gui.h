@@ -49,6 +49,7 @@ typedef struct {
 	GtkWidget *save_coord_chooser;
 	GSList *undo, *redo;
 	struct mandeldata *md;
+	bool updating_gui;
 } GtkMandelApplication;
 
 typedef struct {

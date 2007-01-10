@@ -89,6 +89,7 @@ gtk_mandel_application_class_init (GtkMandelApplicationClass *class)
 static void
 gtk_mandel_application_init (GtkMandelApplication *app)
 {
+	app->updating_gui = true;
 	create_menus (app);
 	create_mainwin (app);
 	create_dialogs (app);
@@ -96,6 +97,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	app->undo = NULL;
 	app->redo = NULL;
 	app->md = NULL;
+	app->updating_gui = false;
 }
 
 
@@ -409,8 +411,11 @@ area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
 }
 
 
-static void maxiter_updated (GtkMandelApplication *app, gpointer data)
+static void
+maxiter_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
@@ -423,6 +428,8 @@ static void maxiter_updated (GtkMandelApplication *app, gpointer data)
 static void
 render_method_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	GtkCheckMenuItem *item = GTK_CHECK_MENU_ITEM (data);
 	if (!item->active)
 		return;
@@ -435,6 +442,8 @@ render_method_updated (GtkMandelApplication *app, gpointer data)
 static void
 log_colors_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox));
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, active);
 	double lf = 0.0;
@@ -609,6 +618,7 @@ update_area_info (GtkMandelApplication *app)
 static void
 update_gui_from_mandeldata (GtkMandelApplication *app)
 {
+	app->updating_gui = true;
 	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->md->maxiter);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->md->zpower);
 	if (app->md->log_factor == 0.0)
@@ -618,6 +628,7 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
 	}
 	update_area_info (app);
+	app->updating_gui = false;
 }
 
 
@@ -752,6 +763,8 @@ zoomed_out (GtkMandelApplication *app, gpointer data)
 static void
 zpower_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	printf ("* zpower updated!\n");
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
@@ -764,6 +777,8 @@ zpower_updated (GtkMandelApplication *app, gpointer data)
 static void
 threads_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	gtk_mandel_set_thread_count (GTK_MANDEL (app->mainwin.mandel), gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.threads_input)));
 }
 
