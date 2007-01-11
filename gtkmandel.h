@@ -26,6 +26,7 @@ typedef struct
 	int cur_w, cur_h;
 	double aspect;
 	bool selection_active;
+	bool realized;
 } GtkMandel;
 
 

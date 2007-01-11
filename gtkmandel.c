@@ -152,6 +152,8 @@ gtk_mandel_init (GtkMandel *mandel)
 	mandel->renderer = NULL;
 	mandel->pixbuf = NULL;
 	mandel->gc = NULL;
+	mandel->thread = NULL;
+	mandel->realized = false;
 
 	mandel->cur_w = -1;
 	mandel->cur_h = -1;
@@ -291,7 +293,7 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	gdk_gc_set_background (mandel->frame_gc, &mandel->white);
 	gdk_gc_set_line_attributes (mandel->frame_gc, 1, GDK_LINE_DOUBLE_DASH, GDK_CAP_NOT_LAST, GDK_JOIN_MITER);
 
-	mandel->thread = NULL;
+	mandel->realized = true;
 }
 
 
@@ -494,7 +496,7 @@ size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer data)
 		mandel->pb_data = gdk_pixbuf_get_pixels (mandel->pixbuf);
 	}
 
-	if (mandel->md != NULL)
+	if (mandel->realized && mandel->md != NULL)
 		gtk_mandel_start (mandel);
 }
 
