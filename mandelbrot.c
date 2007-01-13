@@ -544,7 +544,7 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	if (required_bits < MP_THRESHOLD)
 		renderer->frac_limbs = 0;
 	else
-		renderer->frac_limbs = required_bits / mp_bits_per_limb + INT_LIMBS;
+		renderer->frac_limbs = (required_bits + mp_bits_per_limb - 1) / mp_bits_per_limb;
 
 	unsigned frac_limbs = renderer->frac_limbs;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
