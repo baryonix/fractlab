@@ -36,7 +36,7 @@ struct rendering_stopped_info {
 
 static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
 static void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
-static gboolean mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data);
+static gboolean mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data);
 static void my_realize (GtkWidget *my_img, gpointer user_data);
 static void gtk_mandel_class_init (GtkMandelClass *class);
 static void gtk_mandel_init (GtkMandel *mandel);
@@ -299,22 +299,26 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 
 
 static gboolean
-mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
+mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	switch (e->type) {
 		case GDK_BUTTON_PRESS: {
-			mandel->center_x = e->x;
-			mandel->center_y = e->y;
+			if (e->button.button != 1)
+				return FALSE;
+			mandel->center_x = e->button.x;
+			mandel->center_y = e->button.y;
 			mandel->selection_size = 0.0;
 			mandel->selection_active = true;
 			return TRUE;
 		}
 		case GDK_BUTTON_RELEASE: {
+			if (e->button.button != 1)
+				return FALSE;
 			if (!mandel->selection_active)
 				return TRUE;
 			mandel->selection_active = false;
-			if (mandel->center_x == e->x && mandel->center_y == e->y)
+			if (mandel->center_x == e->button.x && mandel->center_y == e->button.y)
 				return TRUE; /* avoid zero size selections */
 			mpf_t cx, cy, dx, dy, mpaspect;
 			mpf_init (cx);
@@ -325,8 +329,8 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 			mpf_set_d (mpaspect, mandel->aspect);
 			mandel_convert_x_f (mandel->renderer, cx, mandel->center_x);
 			mandel_convert_y_f (mandel->renderer, cy, mandel->center_y);
-			mandel_convert_x_f (mandel->renderer, dx, e->x);
-			mandel_convert_y_f (mandel->renderer, dy, e->y);
+			mandel_convert_x_f (mandel->renderer, dx, e->button.x);
+			mandel_convert_y_f (mandel->renderer, dy, e->button.y);
 			mpf_sub (dx, cx, dx);
 			mpf_abs (dx, dx);
 			mpf_sub (dy, cy, dy);
@@ -351,7 +355,7 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 		case GDK_MOTION_NOTIFY: {
 			if (!mandel->selection_active)
 				return TRUE;
-			double d = my_fmax (fabs (e->x - mandel->center_x), fabs (e->y - mandel->center_y) * mandel->aspect);
+			double d = my_fmax (fabs (e->motion.x - mandel->center_x), fabs (e->motion.y - mandel->center_y) * mandel->aspect);
 			int oldx = mandel->center_x - mandel->selection_size;
 			int oldy = mandel->center_y - mandel->selection_size / mandel->aspect;
 			int oldw = 2 * mandel->selection_size + 1;
