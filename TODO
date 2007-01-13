@@ -17,3 +17,5 @@ TODO
 - fix zoom to use new coordinate file code
 - put image and controls in separate windows
 - orbit window
+- take precision of parameter into account when computing required precision
+  to render Julia set
