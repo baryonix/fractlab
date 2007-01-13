@@ -15,3 +15,5 @@ TODO
 - implement my_mpn_invert() in IA32 assembler (using SSE2?)
 - fix coord/*.coord, they are still in the old file format
 - fix zoom to use new coordinate file code
+- put image and controls in separate windows
+- orbit window
