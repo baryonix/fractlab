@@ -31,10 +31,8 @@ frame_func (void *data, struct mandeldata *md, unsigned long i)
 	double preal = state->A * sin (2 * M_PI * state->a * i / frame_count + state->delta);
 	double pimag = state->B * sin (2 * M_PI * state->b * i / frame_count);
 
-	mpf_init (md->preal_f);
-	mpf_set_d (md->preal_f, preal);
-	mpf_init (md->pimag_f);
-	mpf_set_d (md->pimag_f, pimag);
+	mpf_set_d (md->param.real, preal);
+	mpf_set_d (md->param.imag, pimag);
 }
 
 

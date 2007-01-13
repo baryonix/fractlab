@@ -571,19 +571,19 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 			renderer->pimag = malloc (total_limbs * sizeof (mp_limb_t));
 			mpz_t z;
 			mpz_init (z);
-			mpf_mul_2exp (f, renderer->md->preal_f, frac_limbs * mp_bits_per_limb);
+			mpf_mul_2exp (f, renderer->md->param.real, frac_limbs * mp_bits_per_limb);
 			mpz_set_f (z, f);
 			int i;
 			for (i = 0; i < total_limbs; i++)
 				renderer->preal[i] = mpz_getlimbn (z, i);
-			mpf_mul_2exp (f, renderer->md->pimag_f, frac_limbs * mp_bits_per_limb);
+			mpf_mul_2exp (f, renderer->md->param.imag, frac_limbs * mp_bits_per_limb);
 			mpz_set_f (z, f);
 			for (i = 0; i < total_limbs; i++)
 				renderer->pimag[i] = mpz_getlimbn (z, i);
 			mpz_clear (z);
 		} else {
-			renderer->preal_float = mpf_get_mandel_fp (renderer->md->preal_f);
-			renderer->pimag_float = mpf_get_mandel_fp (renderer->md->pimag_f);
+			renderer->preal_float = mpf_get_mandel_fp (renderer->md->param.real);
+			renderer->pimag_float = mpf_get_mandel_fp (renderer->md->param.imag);
 		}
 	}
 
@@ -1194,9 +1194,8 @@ mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_
 static void
 mandeldata_init_mpvars (struct mandeldata *md)
 {
-	mpf_init (md->area.center.real);
-	mpf_init (md->area.center.imag);
-	mpf_init (md->area.magf);
+	mandel_area_init (&md->area);
+	mandel_point_init (&md->param);
 }
 
 
@@ -1211,9 +1210,8 @@ mandeldata_init (struct mandeldata *md)
 void
 mandeldata_clear (struct mandeldata *md)
 {
-	mpf_clear (md->area.center.real);
-	mpf_clear (md->area.center.imag);
-	mpf_clear (md->area.magf);
+	mandel_area_clear (&md->area);
+	mandel_point_clear (&md->param);
 }
 
 
@@ -1225,6 +1223,8 @@ mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig)
 	mpf_set (clone->area.center.real, orig->area.center.real);
 	mpf_set (clone->area.center.imag, orig->area.center.imag);
 	mpf_set (clone->area.magf, orig->area.magf);
+	mpf_set (clone->param.real, orig->param.real);
+	mpf_set (clone->param.imag, orig->param.imag);
 }
 
 
@@ -1249,4 +1249,36 @@ btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep)
 	*xstep = entry->xstep;
 	*ystep = entry->ystep;
 	free (entry);
+}
+
+
+void
+mandel_point_init (struct mandel_point *point)
+{
+	mpf_init (point->real);
+	mpf_init (point->imag);
+}
+
+
+void
+mandel_point_clear (struct mandel_point *point)
+{
+	mpf_clear (point->real);
+	mpf_clear (point->imag);
+}
+
+
+void
+mandel_area_init (struct mandel_area *area)
+{
+	mandel_point_init (&area->center);
+	mpf_init (area->magf);
+}
+
+
+void
+mandel_area_clear (struct mandel_area *area)
+{
+	mandel_point_clear (&area->center);
+	mpf_clear (area->magf);
 }

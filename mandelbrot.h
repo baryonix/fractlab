@@ -46,7 +46,7 @@ struct mandeldata {
 	struct mandel_area area;
 	unsigned maxiter;
 	double log_factor;
-	mpf_t preal_f, pimag_f;
+	struct mandel_point param; /* parameter of Julia set */
 };
 
 
@@ -103,5 +103,11 @@ unsigned mandel_get_precision (const struct mandel_renderer *mandel);
 void mandeldata_init (struct mandeldata *md);
 void mandeldata_clear (struct mandeldata *md);
 void mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig);
+
+void mandel_point_init (struct mandel_point *point);
+void mandel_point_clear (struct mandel_point *point);
+
+void mandel_area_init (struct mandel_area *area);
+void mandel_area_clear (struct mandel_area *area);
 
 #endif /* _MANDEL_MANDELBROT_H */
