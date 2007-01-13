@@ -146,6 +146,8 @@ gtk_mandel_class_init (GtkMandelClass *class)
 static void
 gtk_mandel_init (GtkMandel *mandel)
 {
+	GtkWidget *widget = GTK_WIDGET (mandel);
+
 	mandel->render_method = RM_SUCCESSIVE_REFINE;
 	mandel->thread_count = 1;
 	mandel->md = NULL;
@@ -165,6 +167,8 @@ gtk_mandel_init (GtkMandel *mandel)
 
 	mandel->need_redraw = false;
 	mandel->pb_mutex = g_mutex_new ();
+
+	gtk_widget_set_events (widget, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK);
 
 	g_signal_connect (G_OBJECT (mandel), "realize", (GCallback) my_realize, NULL);
 	g_signal_connect (G_OBJECT (mandel), "button-press-event", (GCallback) mouse_event, NULL);
@@ -278,9 +282,6 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	GtkMandel *mandel = GTK_MANDEL (my_img);
 	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
 	mandel->frame_gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
-	gtk_widget_add_events (my_img, GDK_BUTTON_PRESS_MASK |
-		GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK |
-		GDK_EXPOSURE_MASK);
 	GdkColormap *cmap = gdk_colormap_get_system ();
 	gdk_color_parse ("black", &mandel->black);
 	gdk_color_alloc (cmap, &mandel->black);
