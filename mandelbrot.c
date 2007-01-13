@@ -567,6 +567,8 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 
 	if (renderer->md->type == FRACTAL_JULIA) {
 		if (frac_limbs > 0) {
+			renderer->preal_sign = mpf_sgn (renderer->md->param.real) < 0;
+			renderer->pimag_sign = mpf_sgn (renderer->md->param.imag) < 0;
 			renderer->preal = malloc (total_limbs * sizeof (mp_limb_t));
 			renderer->pimag = malloc (total_limbs * sizeof (mp_limb_t));
 			mpz_t z;
