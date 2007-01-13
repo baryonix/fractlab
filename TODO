@@ -8,7 +8,7 @@ TODO
 - fix asm routine to support Julia set
 - build a generic rendering framework to support arbitrary different fractal
   types
-- support Julia set in GUI
+- fully support Julia set in GUI
 - find a way to parallelize the boundary trace method
 - don't pass so many parameters to mandel_julia() and friends, some of them are
   in mandeldata

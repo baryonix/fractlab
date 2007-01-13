@@ -34,9 +34,14 @@ struct rendering_stopped_info {
 };
 
 
+typedef gboolean mouse_handler_t (GtkWidget *, GdkEvent *, gpointer);
+
+
 static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
 static void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
 static gboolean mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data);
+static gboolean select_area_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data);
+static gboolean select_point_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data);
 static void my_realize (GtkWidget *my_img, gpointer user_data);
 static void gtk_mandel_class_init (GtkMandelClass *class);
 static void gtk_mandel_init (GtkMandel *mandel);
@@ -49,7 +54,14 @@ static gboolean redraw_source_func (gpointer data);
 static gboolean redraw_source_func_once (gpointer data);
 static void redraw_area (GtkMandel *mandel, int x, int y, int w, int h);
 static void init_renderer (GtkMandel *mandel);
+static void update_selection_cursor (GtkMandel *mandel);
 
+
+mouse_handler_t *mouse_handlers[] = {
+	NULL,
+	select_area_mouse_handler,
+	select_point_mouse_handler
+};
 
 GdkColor mandelcolors[COLORS];
 
@@ -97,6 +109,16 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_POINTER
 	);
+	class->point_selected_signal = g_signal_new (
+		"point-selected",
+		G_TYPE_FROM_CLASS (class),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE,
+		1,
+		G_TYPE_POINTER
+	);
 	class->rendering_started_signal = g_signal_new (
 		"rendering-started",
 		G_TYPE_FROM_CLASS (class),
@@ -133,6 +155,7 @@ gtk_mandel_init (GtkMandel *mandel)
 	mandel->thread = NULL;
 	mandel->realized = false;
 
+	mandel->selection_type = GTK_MANDEL_SELECT_NONE;
 	mandel->cur_w = -1;
 	mandel->cur_h = -1;
 	mandel->selection_active = false;
@@ -256,7 +279,7 @@ my_realize (GtkWidget *widget, gpointer user_data)
 	mandel->bottom_cursor = gdk_cursor_new_for_display (disp, GDK_SB_UP_ARROW);
 
 	/* XXX don't do this here once we have different selection modes implemented */
-	gdk_window_set_cursor (widget->window, mandel->crosshair);
+	update_selection_cursor (mandel);
 
 	mandel->realized = true;
 }
@@ -264,6 +287,18 @@ my_realize (GtkWidget *widget, gpointer user_data)
 
 static gboolean
 mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
+{
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	mouse_handler_t *handler = mouse_handlers[mandel->selection_type];
+	if (handler != NULL)
+		return handler (widget, e, user_data);
+	else
+		return FALSE;
+}
+
+
+static gboolean
+select_area_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 {
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	switch (e->type) {
@@ -282,7 +317,7 @@ mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 			if (!mandel->selection_active)
 				return TRUE;
 			mandel->selection_active = false;
-			gdk_window_set_cursor (widget->window, mandel->crosshair);
+			update_selection_cursor (mandel);
 			if (mandel->center_x == e->button.x && mandel->center_y == e->button.y)
 				return TRUE; /* avoid zero size selections */
 			mpf_t cx, cy, dx, dy, mpaspect;
@@ -360,6 +395,22 @@ mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 			return FALSE;
 		}
 	}
+}
+
+
+static gboolean
+select_point_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data)
+{
+	if (e->type != GDK_BUTTON_RELEASE || e->button.button != 1)
+		return FALSE;
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	struct mandel_point point[1];
+	mandel_point_init (point);
+	mandel_convert_x_f (mandel->renderer, point->real, round (e->button.x));
+	mandel_convert_y_f (mandel->renderer, point->imag, round (e->button.y));
+	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->point_selected_signal, 0, point);
+	mandel_point_clear (point);
+	return TRUE;
 }
 
 
@@ -567,4 +618,33 @@ redraw_area (GtkMandel *mandel, int x, int y, int w, int h)
 	g_mutex_lock (mandel->pb_mutex);
 	gdk_draw_pixbuf (GDK_DRAWABLE (widget->window), mandel->gc, mandel->pixbuf, my_x, my_y, my_x, my_y, my_w, my_h, GDK_RGB_DITHER_NORMAL, 0, 0);
 	g_mutex_unlock (mandel->pb_mutex);
+}
+
+
+void
+gtk_mandel_set_selection_type (GtkMandel *mandel, GtkMandelSelectionType selection_type)
+{
+	mandel->selection_type = selection_type;
+	if (mandel->realized)
+		update_selection_cursor (mandel);
+}
+
+
+static void
+update_selection_cursor (GtkMandel *mandel)
+{
+	GdkCursor *cursor;
+	switch (mandel->selection_type) {
+		case GTK_MANDEL_SELECT_NONE:
+			cursor = NULL;
+			break;
+		case GTK_MANDEL_SELECT_AREA:
+		case GTK_MANDEL_SELECT_POINT:
+			cursor = mandel->crosshair;
+			break;
+		default:
+			fprintf (stderr, "* Invalid selection type %d\n", (int) mandel->selection_type);
+			return;
+	}
+	gdk_window_set_cursor (GTK_WIDGET (mandel)->window, cursor);
 }

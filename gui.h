@@ -6,13 +6,20 @@ struct area_info_item {
 	GtkTextBuffer *buffer;
 };
 
+typedef enum {
+	GTK_MANDEL_APP_MODE_ZOOM = 0,
+	GTK_MANDEL_APP_MODE_TO_JULIA = 1,
+	GTK_MANDEL_APP_MODE_MAX = 2
+} GtkMandelAppMode;
+
 typedef struct {
 	GObject parent;
 	struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
-		GtkWidget *tool_bar;
-		GtkWidget *undo, *redo, *toolbar_sep1, *restart, *stop, *toolbar_sep2, *zoom_in, *zoom_out, *toggle_type;
+		GtkWidget *toolbar1, *undo, *redo, *toolbar1_sep1, *restart, *stop, *toolbar1_sep2, *zoom_out;
+		GtkWidget *toolbar2, *zoom_mode, *to_julia_mode;
+		GSList *mode_group;
 		GtkWidget *controls_table;
 		GtkWidget *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_checkbox, *log_colors_input;
@@ -50,6 +57,7 @@ typedef struct {
 	GSList *undo, *redo;
 	struct mandeldata *md;
 	bool updating_gui;
+	GtkMandelAppMode mode;
 } GtkMandelApplication;
 
 typedef struct {
@@ -66,5 +74,6 @@ GType gtk_mandel_application_get_type ();
 GtkMandelApplication *gtk_mandel_application_new (const struct mandeldata *md);
 void gtk_mandel_application_set_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
 void gtk_mandel_application_start (GtkMandelApplication *app);
+void gtk_mandel_app_set_mode (GtkMandelApplication *app, GtkMandelAppMode mode);
 
 #endif /* _GTKMANDEL_GUI_H */

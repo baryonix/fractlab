@@ -23,6 +23,7 @@ static void create_dialogs (GtkMandelApplication *app);
 static void create_area_info (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
+static void point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data);
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
 static void render_method_updated (GtkMandelApplication *app, gpointer data);
 static void log_colors_updated (GtkMandelApplication *app, gpointer data);
@@ -46,12 +47,13 @@ static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gp
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
 static void zoom_2exp (GtkMandelApplication *app, long exponent);
-static void zoomed_in (GtkMandelApplication *app, gpointer data);
 static void zoomed_out (GtkMandelApplication *app, gpointer data);
 static void zpower_updated (GtkMandelApplication *app, gpointer data);
 static void threads_updated (GtkMandelApplication *app, gpointer data);
 static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
+static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
+static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
 
 
 GType
@@ -154,34 +156,39 @@ create_mainwin (GtkMandelApplication *app)
 	app->mainwin.redo = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
 	gtk_widget_set_sensitive (app->mainwin.redo, FALSE);
 
-	app->mainwin.toolbar_sep1 = GTK_WIDGET (gtk_separator_tool_item_new ());
+	app->mainwin.toolbar1_sep1 = GTK_WIDGET (gtk_separator_tool_item_new ());
 
 	app->mainwin.restart = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_REFRESH));
 
 	app->mainwin.stop = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_STOP));
 	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
 
-	app->mainwin.toolbar_sep2 = GTK_WIDGET (gtk_separator_tool_item_new ());
-
-	app->mainwin.zoom_in = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_IN));
+	app->mainwin.toolbar1_sep2 = GTK_WIDGET (gtk_separator_tool_item_new ());
 
 	app->mainwin.zoom_out = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_OUT));
 
-	app->mainwin.toggle_type = GTK_WIDGET (gtk_tool_button_new (NULL, "-> Julia"));
-	gtk_tool_item_set_homogeneous (GTK_TOOL_ITEM (app->mainwin.toggle_type), FALSE);
+	app->mainwin.toolbar1 = gtk_toolbar_new ();
+	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.toolbar1), GTK_TOOLBAR_ICONS);
+	//gtk_toolbar_set_show_arrow (GTK_TOOLBAR (app->mainwin.toolbar1), FALSE);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.undo);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.redo);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.toolbar1_sep1);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.restart);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.stop);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.toolbar1_sep2);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.zoom_out);
 
-	app->mainwin.tool_bar = gtk_toolbar_new ();
-	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.tool_bar), GTK_TOOLBAR_ICONS);
-	//gtk_toolbar_set_show_arrow (GTK_TOOLBAR (app->mainwin.tool_bar), FALSE);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.redo);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep1);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.restart);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.stop);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep2);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_in);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_out);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toggle_type);
+	app->mainwin.zoom_mode = GTK_WIDGET (gtk_radio_tool_button_new_from_stock (NULL, GTK_STOCK_ZOOM_IN));
+	app->mainwin.mode_group = gtk_radio_tool_button_get_group (GTK_RADIO_TOOL_BUTTON (app->mainwin.zoom_mode));
+	app->mainwin.to_julia_mode = GTK_WIDGET (gtk_radio_tool_button_new (app->mainwin.mode_group));
+	gtk_tool_button_set_label (GTK_TOOL_BUTTON (app->mainwin.to_julia_mode), "-> Julia");
+	gtk_tool_item_set_homogeneous (GTK_TOOL_ITEM (app->mainwin.to_julia_mode), FALSE);
+
+	app->mainwin.toolbar2 = gtk_toolbar_new ();
+	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.toolbar2), GTK_TOOLBAR_ICONS);
+	//gtk_toolbar_set_show_arrow (GTK_TOOLBAR (app->mainwin.toolbar2), FALSE);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar2), app->mainwin.zoom_mode);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar2), app->mainwin.to_julia_mode);
 
 	app->mainwin.maxiter_label = gtk_label_new ("Max Iterations");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.maxiter_label), 0.0, 0.5);
@@ -229,6 +236,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 3, 4, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
+	gtk_mandel_set_selection_type (GTK_MANDEL (app->mainwin.mandel), GTK_MANDEL_SELECT_AREA);
 	gtk_widget_set_size_request (app->mainwin.mandel, 50, 50);
 	/* FIXME how to set initial widget size? */
 
@@ -252,7 +260,8 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->menu.bar, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.tool_bar, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.toolbar1, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.toolbar2, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.controls_table, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.mandel, TRUE, TRUE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.main_vbox), app->mainwin.status_hbox, FALSE, FALSE, 0);
@@ -355,6 +364,7 @@ connect_signals (GtkMandelApplication *app)
 	int i;
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "area-selected", (GCallback) area_selected, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "point-selected", (GCallback) point_for_julia_selected, app); /* XXX */
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
 
@@ -383,13 +393,15 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_in), "clicked", (GCallback) zoomed_in, app);
-
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app);
-
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.stop), "clicked", (GCallback) stop_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_mode), "toggled", (GCallback) zoom_mode_selected, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.to_julia_mode), "toggled", (GCallback) to_julia_mode_selected, app);
 
 	/*
 	 * This prevents the window from being destroyed
@@ -412,6 +424,26 @@ static void
 area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data)
 {
 	gtk_mandel_application_set_area (app, area);
+	restart_thread (app);
+}
+
+
+static void
+point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data)
+{
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_init (md);
+	md->type = FRACTAL_JULIA;
+	md->zpower = app->md->zpower;
+	mpf_set (md->param.real, point->real);
+	mpf_set (md->param.imag, point->imag);
+	/* XXX get default params in a sensible way */
+	mpf_set_str (md->area.center.real, "0", 10);
+	mpf_set_str (md->area.center.imag, "0", 10);
+	mpf_set_str (md->area.magf, ".5", 10);
+	md->maxiter = 1000;
+	md->log_factor = 0.0;
+	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
 
@@ -642,6 +674,8 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, use_log_factor);
 	if (use_log_factor)
 		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
+	gtk_widget_set_sensitive (app->mainwin.to_julia_mode, app->md->type == FRACTAL_MANDELBROT);
+	gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (app->mainwin.zoom_mode), TRUE);
 	update_area_info (app);
 	app->updating_gui = false;
 }
@@ -759,13 +793,6 @@ zoom_2exp (GtkMandelApplication *app, long exponent)
 
 
 static void
-zoomed_in (GtkMandelApplication *app, gpointer data)
-{
-	zoom_2exp (app, 1);
-}
-
-
-static void
 zoomed_out (GtkMandelApplication *app, gpointer data)
 {
 	zoom_2exp (app, -1);
@@ -821,4 +848,39 @@ gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *
 	mpf_set (md->area.center.imag, area->center.imag);
 	mpf_set (md->area.magf, area->magf);
 	gtk_mandel_application_set_mandeldata (app, md);
+}
+
+
+void
+gtk_mandel_app_set_mode (GtkMandelApplication *app, GtkMandelAppMode mode)
+{
+	app->mode = mode;
+	switch (app->mode) {
+		case GTK_MANDEL_APP_MODE_ZOOM: {
+			gtk_mandel_set_selection_type (GTK_MANDEL (app->mainwin.mandel), GTK_MANDEL_SELECT_AREA);
+			break;
+		}
+		case GTK_MANDEL_APP_MODE_TO_JULIA: {
+			gtk_mandel_set_selection_type (GTK_MANDEL (app->mainwin.mandel), GTK_MANDEL_SELECT_POINT);
+			break;
+		}
+		default: {
+			fprintf (stderr, "* Invalid GtkMandelApplication mode %d\n", (int) app->mode);
+			break;
+		}
+	}
+}
+
+
+static void
+zoom_mode_selected (GtkMandelApplication *app, gpointer data)
+{
+	gtk_mandel_app_set_mode (app, GTK_MANDEL_APP_MODE_ZOOM);
+}
+
+
+static void
+to_julia_mode_selected (GtkMandelApplication *app, gpointer data)
+{
+	gtk_mandel_app_set_mode (app, GTK_MANDEL_APP_MODE_TO_JULIA);
 }

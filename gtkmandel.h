@@ -5,6 +5,14 @@
 #include "mandelbrot.h"
 
 
+typedef enum {
+	GTK_MANDEL_SELECT_NONE = 0,
+	GTK_MANDEL_SELECT_AREA = 1,
+	GTK_MANDEL_SELECT_POINT = 2,
+	GTK_MANDEL_SELECT_MAX = 3
+} GtkMandelSelectionType;
+
+
 typedef struct
 {
 	GtkDrawingArea widget;
@@ -28,6 +36,7 @@ typedef struct
 	bool selection_active;
 	bool realized;
 	GdkCursor *crosshair, *left_cursor, *right_cursor, *top_cursor, *bottom_cursor;
+	GtkMandelSelectionType selection_type;
 } GtkMandel;
 
 
@@ -35,6 +44,7 @@ typedef struct
 {
 	GtkDrawingAreaClass parent_class;
 	guint area_selected_signal;
+	guint point_selected_signal;
 	guint rendering_started_signal;
 	guint rendering_stopped_signal;
 } GtkMandelClass;
@@ -55,5 +65,6 @@ void gtk_mandel_set_thread_count (GtkMandel *mandel, unsigned thread_count);
 void gtk_mandel_start (GtkMandel *mandel);
 void gtk_mandel_stop (GtkMandel *mandel);
 void gtk_mandel_redraw (GtkMandel *mandel);
+void gtk_mandel_set_selection_type (GtkMandel *mandel, GtkMandelSelectionType selection_type);
 
 #endif /* _GTKMANDEL_H */
