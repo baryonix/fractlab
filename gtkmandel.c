@@ -111,8 +111,8 @@ gtk_mandel_area_get_type ()
 static void
 gtk_mandel_class_init (GtkMandelClass *class)
 {
-	class->selection_signal = g_signal_new (
-		"selection",
+	class->area_selected_signal = g_signal_new (
+		"area-selected",
 		G_TYPE_FROM_CLASS (class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
@@ -343,7 +343,7 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 			mpf_clear (dx);
 			mpf_clear (dy);
 			mpf_clear (mpaspect);
-			g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->selection_signal, 0, area);
+			g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->area_selected_signal, 0, area);
 			g_object_unref (G_OBJECT (area));
 			return TRUE;
 		}

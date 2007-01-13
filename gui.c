@@ -349,7 +349,7 @@ connect_signals (GtkMandelApplication *app)
 {
 	int i;
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "selection", (GCallback) area_selected, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "area-selected", (GCallback) area_selected, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
 

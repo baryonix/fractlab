@@ -33,7 +33,7 @@ typedef struct
 typedef struct
 {
 	GtkDrawingAreaClass parent_class;
-	guint selection_signal;
+	guint area_selected_signal;
 	guint rendering_started_signal;
 	guint rendering_stopped_signal;
 } GtkMandelClass;
