@@ -44,20 +44,6 @@ typedef struct
 #define GTK_MANDEL_GET_CLASS(obj) G_TYPE_INSTANCE_GET_CLASS ((obj), GtkMandel, GtkMandelClass)
 
 
-typedef struct {
-	GObject parent;
-	mpf_t cx, cy, magf;
-} GtkMandelArea;
-
-typedef struct {
-	GObjectClass parent_class;
-} GtkMandelAreaClass;
-
-#define GTK_MANDEL_AREA(obj) GTK_CHECK_CAST (obj, gtk_mandel_area_get_type (), GtkMandelArea)
-#define GTK_MANDEL_AREA_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_area_get_type (), GtkMandelArea)
-#define GTK_IS_MANDEL_AREA(obj) GET_CHECK_TYPE (obj, gtk_mandel_area_get_type ())
-
-
 extern GdkColor mandelcolors[];
 
 GType gtk_mandel_get_type ();
@@ -68,9 +54,5 @@ void gtk_mandel_set_thread_count (GtkMandel *mandel, unsigned thread_count);
 void gtk_mandel_start (GtkMandel *mandel);
 void gtk_mandel_stop (GtkMandel *mandel);
 void gtk_mandel_redraw (GtkMandel *mandel);
-
-GType gtk_mandel_area_get_type ();
-GtkMandelArea *gtk_mandel_area_new (const mpf_t cx, const mpf_t cy, const mpf_t magf);
-GtkMandelArea *gtk_mandel_area_new_from_file (const char *filename);
 
 #endif /* _GTKMANDEL_H */

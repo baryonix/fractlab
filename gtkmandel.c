@@ -40,8 +40,6 @@ static gboolean mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 static void my_realize (GtkWidget *my_img, gpointer user_data);
 static void gtk_mandel_class_init (GtkMandelClass *class);
 static void gtk_mandel_init (GtkMandel *mandel);
-static void gtk_mandel_area_class_init (GtkMandelAreaClass *class);
-static void gtk_mandel_area_init (GtkMandelArea *mandel);
 static gboolean my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static gpointer calcmandel (gpointer data);
 static void size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer data);
@@ -86,28 +84,6 @@ gtk_mandel_get_type ()
 }
 
 
-GType
-gtk_mandel_area_get_type ()
-{
-	static GType type = 0;
-
-	if (!type) {
-		static const GTypeInfo info = {
-			sizeof (GtkMandelAreaClass),
-			NULL, NULL,
-			(GClassInitFunc) gtk_mandel_area_class_init,
-			NULL, NULL,
-			sizeof (GtkMandelArea),
-			0,
-			(GInstanceInitFunc) gtk_mandel_area_init
-		};
-		type = g_type_register_static (G_TYPE_OBJECT, "GtkMandelArea", &info, 0);
-	}
-
-	return type;
-}
-
-
 static void
 gtk_mandel_class_init (GtkMandelClass *class)
 {
@@ -116,10 +92,10 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		G_TYPE_FROM_CLASS (class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
-		g_cclosure_marshal_VOID__OBJECT,
+		g_cclosure_marshal_VOID__POINTER,
 		G_TYPE_NONE,
 		1,
-		gtk_mandel_area_get_type ()
+		G_TYPE_POINTER
 	);
 	class->rendering_started_signal = g_signal_new (
 		"rendering-started",
@@ -176,32 +152,6 @@ gtk_mandel_init (GtkMandel *mandel)
 	g_signal_connect (G_OBJECT (mandel), "motion-notify-event", (GCallback) mouse_event, NULL);
 	g_signal_connect (G_OBJECT (mandel), "expose-event", (GCallback) my_expose, NULL);
 	g_signal_connect (G_OBJECT (mandel), "size-allocate", (GCallback) size_allocate, NULL);
-}
-
-
-static void
-gtk_mandel_area_class_init (GtkMandelAreaClass *class)
-{
-}
-
-
-static void
-gtk_mandel_area_init (GtkMandelArea *area)
-{
-	mpf_init (area->cx);
-	mpf_init (area->cy);
-	mpf_init (area->magf);
-}
-
-
-GtkMandelArea *
-gtk_mandel_area_new (const mpf_t cx, const mpf_t cy, const mpf_t magf)
-{
-	GtkMandelArea *area = g_object_new (gtk_mandel_area_get_type (), NULL);
-	mpf_set (area->cx, cx);
-	mpf_set (area->cy, cy);
-	mpf_set (area->magf, magf);
-	return area;
 }
 
 
@@ -341,15 +291,18 @@ mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 				mpf_mul (dy, dy, mpaspect);
 			if (mpf_cmp (dx, dy) < 0)
 				mpf_set (dx, dy);
-			mpf_ui_div (dx, 1, dx);
-			GtkMandelArea *area = gtk_mandel_area_new (cx, cy, dx);
+			struct mandel_area area[1];
+			mandel_area_init (area);
+			mpf_set (area->center.real, cx);
+			mpf_set (area->center.imag, cy);
+			mpf_ui_div (area->magf, 1, dx);
 			mpf_clear (cx);
 			mpf_clear (cy);
 			mpf_clear (dx);
 			mpf_clear (dy);
 			mpf_clear (mpaspect);
 			g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->area_selected_signal, 0, area);
-			g_object_unref (G_OBJECT (area));
+			mandel_area_clear (area);
 			return TRUE;
 		}
 		case GDK_MOTION_NOTIFY: {
@@ -454,32 +407,6 @@ calcmandel (gpointer data)
 	g_idle_add (do_emit_rendering_stopped, info);
 
 	return NULL;
-}
-
-
-GtkMandelArea *
-gtk_mandel_area_new_from_file (const char *filename)
-{
-	FILE *f = fopen (filename, "r");
-	GtkMandelArea *area = NULL;
-	mpf_t cx, cy, magf;
-
-	if (f == NULL)
-		return NULL;
-
-	mpf_init (cx);
-	mpf_init (cy);
-	mpf_init (magf);
-
-	if (fread_coords_as_center (f, cx, cy, magf))
-		area = gtk_mandel_area_new (cx, cy, magf);
-	fclose (f);
-
-	mpf_clear (cx);
-	mpf_clear (cy);
-	mpf_clear (magf);
-
-	return area;
 }
 
 

@@ -22,7 +22,7 @@ static void create_mainwin (GtkMandelApplication *app);
 static void create_dialogs (GtkMandelApplication *app);
 static void create_area_info (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
-static void area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data);
+static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
 static void maxiter_updated (GtkMandelApplication *app, gpointer data);
 static void render_method_updated (GtkMandelApplication *app, gpointer data);
 static void log_colors_updated (GtkMandelApplication *app, gpointer data);
@@ -51,7 +51,7 @@ static void zoomed_out (GtkMandelApplication *app, gpointer data);
 static void zpower_updated (GtkMandelApplication *app, gpointer data);
 static void threads_updated (GtkMandelApplication *app, gpointer data);
 static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
-static void gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area);
+static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
 
 
 GType
@@ -404,7 +404,7 @@ connect_signals (GtkMandelApplication *app)
 
 
 static void
-area_selected (GtkMandelApplication *app, GtkMandelArea *area, gpointer data)
+area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data)
 {
 	gtk_mandel_application_set_area (app, area);
 	restart_thread (app);
@@ -563,13 +563,24 @@ open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 
 	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->open_coord_chooser));
-	GtkMandelArea *area = gtk_mandel_area_new_from_file (filename);
-	if (area != NULL) {
-		gtk_mandel_application_set_area (app, area);
-		g_object_unref (G_OBJECT (area));
-		restart_thread (app);
-	} else
+	FILE *f = fopen (filename, "r");
+	if (f == NULL) {
+		/* XXX show dialog box */
+		fprintf (stderr, "%s: fopen: %s\n", filename, strerror (errno));
+		return;
+	}
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_init (md);
+	bool ok = fread_mandeldata (f, md);
+	fclose (f);
+	if (!ok) {
 		fprintf (stderr, "%s: Something went wrong reading the file.\n", filename);
+		mandeldata_clear (md);
+		free (md);
+		return;
+	}
+	gtk_mandel_application_set_mandeldata (app, md);
+	restart_thread (app);
 }
 
 
@@ -669,7 +680,7 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 	}
 
-	fwrite_center_coords (f, app->md->area.center.real, app->md->area.center.imag, app->md->area.magf);
+	fwrite_mandeldata (f, app->md);
 	fclose (f);
 }
 
@@ -731,16 +742,13 @@ stop_pressed (GtkMandelApplication *app, gpointer data)
 static void
 zoom_2exp (GtkMandelApplication *app, long exponent)
 {
-	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
-	mpf_t magf;
-	mpf_init (magf);
-	if (exponent >= 0)
-		mpf_mul_2exp (magf, mandel->md->area.magf, exponent);
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	if (exponent > 0)
+		mpf_mul_2exp (md->area.magf, md->area.magf, exponent);
 	else
-		mpf_div_2exp (magf, mandel->md->area.magf, -exponent);
-	GtkMandelArea *area = gtk_mandel_area_new (mandel->md->area.center.real, mandel->md->area.center.imag, magf);
-	mpf_clear (magf);
-	gtk_mandel_application_set_area (app, area);
+		mpf_div_2exp (md->area.magf, md->area.magf, -exponent);
+	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
 
@@ -800,12 +808,12 @@ update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 
 /* XXX this should disappear */
 static void
-gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
+gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area)
 {
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
-	mpf_set (md->area.center.real, area->cx);
-	mpf_set (md->area.center.imag, area->cy);
+	mpf_set (md->area.center.real, area->center.real);
+	mpf_set (md->area.center.imag, area->center.imag);
 	mpf_set (md->area.magf, area->magf);
 	gtk_mandel_application_set_mandeldata (app, md);
 }
