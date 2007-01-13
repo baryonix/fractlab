@@ -167,8 +167,12 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.zoom_out = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_OUT));
 
+	app->mainwin.toggle_type = GTK_WIDGET (gtk_tool_button_new (NULL, "-> Julia"));
+	gtk_tool_item_set_homogeneous (GTK_TOOL_ITEM (app->mainwin.toggle_type), FALSE);
+
 	app->mainwin.tool_bar = gtk_toolbar_new ();
 	gtk_toolbar_set_style (GTK_TOOLBAR (app->mainwin.tool_bar), GTK_TOOLBAR_ICONS);
+	//gtk_toolbar_set_show_arrow (GTK_TOOLBAR (app->mainwin.tool_bar), FALSE);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.undo);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.redo);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep1);
@@ -177,6 +181,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toolbar_sep2);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_in);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.zoom_out);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.tool_bar), app->mainwin.toggle_type);
 
 	app->mainwin.maxiter_label = gtk_label_new ("Max Iterations");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.maxiter_label), 0.0, 0.5);

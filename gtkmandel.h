@@ -27,6 +27,7 @@ typedef struct
 	double aspect;
 	bool selection_active;
 	bool realized;
+	GdkCursor *crosshair, *left_cursor, *right_cursor, *top_cursor, *bottom_cursor;
 } GtkMandel;
 
 

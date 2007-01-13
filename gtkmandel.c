@@ -227,11 +227,11 @@ gtk_mandel_start (GtkMandel *mandel)
 
 
 static void
-my_realize (GtkWidget *my_img, gpointer user_data)
+my_realize (GtkWidget *widget, gpointer user_data)
 {
-	GtkMandel *mandel = GTK_MANDEL (my_img);
-	mandel->gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
-	mandel->frame_gc = gdk_gc_new (GDK_DRAWABLE (my_img->window));
+	GtkMandel *mandel = GTK_MANDEL (widget);
+	mandel->gc = gdk_gc_new (GDK_DRAWABLE (widget->window));
+	mandel->frame_gc = gdk_gc_new (GDK_DRAWABLE (widget->window));
 	GdkColormap *cmap = gdk_colormap_get_system ();
 	gdk_color_parse ("black", &mandel->black);
 	gdk_color_alloc (cmap, &mandel->black);
@@ -243,6 +243,20 @@ my_realize (GtkWidget *my_img, gpointer user_data)
 	gdk_gc_set_foreground (mandel->frame_gc, &mandel->red);
 	gdk_gc_set_background (mandel->frame_gc, &mandel->white);
 	gdk_gc_set_line_attributes (mandel->frame_gc, 1, GDK_LINE_DOUBLE_DASH, GDK_CAP_NOT_LAST, GDK_JOIN_MITER);
+
+	GdkDisplay *disp = gtk_widget_get_display (widget);
+	mandel->crosshair = gdk_cursor_new_for_display (disp, GDK_CROSSHAIR);
+	/*mandel->left_cursor = gdk_cursor_new_for_display (disp, GDK_LEFT_SIDE);
+	mandel->right_cursor = gdk_cursor_new_for_display (disp, GDK_RIGHT_SIDE);
+	mandel->top_cursor = gdk_cursor_new_for_display (disp, GDK_TOP_SIDE);
+	mandel->bottom_cursor = gdk_cursor_new_for_display (disp, GDK_BOTTOM_SIDE);*/
+	mandel->left_cursor = gdk_cursor_new_for_display (disp, GDK_SB_RIGHT_ARROW);
+	mandel->right_cursor = gdk_cursor_new_for_display (disp, GDK_SB_LEFT_ARROW);
+	mandel->top_cursor = gdk_cursor_new_for_display (disp, GDK_SB_DOWN_ARROW);
+	mandel->bottom_cursor = gdk_cursor_new_for_display (disp, GDK_SB_UP_ARROW);
+
+	/* XXX don't do this here once we have different selection modes implemented */
+	gdk_window_set_cursor (widget->window, mandel->crosshair);
 
 	mandel->realized = true;
 }
@@ -268,6 +282,7 @@ mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 			if (!mandel->selection_active)
 				return TRUE;
 			mandel->selection_active = false;
+			gdk_window_set_cursor (widget->window, mandel->crosshair);
 			if (mandel->center_x == e->button.x && mandel->center_y == e->button.y)
 				return TRUE; /* avoid zero size selections */
 			mpf_t cx, cy, dx, dy, mpaspect;
@@ -308,7 +323,22 @@ mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 		case GDK_MOTION_NOTIFY: {
 			if (!mandel->selection_active)
 				return TRUE;
-			double d = my_fmax (fabs (e->motion.x - mandel->center_x), fabs (e->motion.y - mandel->center_y) * mandel->aspect);
+			GdkCursor *cursor;
+			double d, dx = e->motion.x - mandel->center_x, dy = (e->motion.y - mandel->center_y) * mandel->aspect, dxabs = fabs (dx), dyabs = fabs (dy);
+			if (dxabs > dyabs) {
+				d = dxabs;
+				if (dx > 0.0)
+					cursor = mandel->right_cursor;
+				else
+					cursor = mandel->left_cursor;
+			} else {
+				d = dyabs;
+				if (dy > 0.0)
+					cursor = mandel->bottom_cursor;
+				else
+					cursor = mandel->top_cursor;
+			}
+			gdk_window_set_cursor (widget->window, cursor);
 			int oldx = mandel->center_x - mandel->selection_size;
 			int oldy = mandel->center_y - mandel->selection_size / mandel->aspect;
 			int oldw = 2 * mandel->selection_size + 1;
