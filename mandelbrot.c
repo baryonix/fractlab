@@ -521,7 +521,7 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	renderer->h = h;
 
 	renderer->aspect = (double) renderer->w / renderer->h;
-	center_to_corners (renderer->xmin_f, renderer->xmax_f, renderer->ymin_f, renderer->ymax_f, renderer->md->cx, renderer->md->cy, renderer->md->magf, renderer->aspect);
+	center_to_corners (renderer->xmin_f, renderer->xmax_f, renderer->ymin_f, renderer->ymax_f, renderer->md->area.center.real, renderer->md->area.center.imag, renderer->md->area.magf, renderer->aspect);
 
 	// Determine the required precision.
 	mpf_t dx;
@@ -1194,9 +1194,9 @@ mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_
 static void
 mandeldata_init_mpvars (struct mandeldata *md)
 {
-	mpf_init (md->cx);
-	mpf_init (md->cy);
-	mpf_init (md->magf);
+	mpf_init (md->area.center.real);
+	mpf_init (md->area.center.imag);
+	mpf_init (md->area.magf);
 }
 
 
@@ -1211,9 +1211,9 @@ mandeldata_init (struct mandeldata *md)
 void
 mandeldata_clear (struct mandeldata *md)
 {
-	mpf_clear (md->cx);
-	mpf_clear (md->cy);
-	mpf_clear (md->magf);
+	mpf_clear (md->area.center.real);
+	mpf_clear (md->area.center.imag);
+	mpf_clear (md->area.magf);
 }
 
 
@@ -1222,9 +1222,9 @@ mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig)
 {
 	memcpy (clone, orig, sizeof (*clone));
 	mandeldata_init_mpvars (clone);
-	mpf_set (clone->cx, orig->cx);
-	mpf_set (clone->cy, orig->cy);
-	mpf_set (clone->magf, orig->magf);
+	mpf_set (clone->area.center.real, orig->area.center.real);
+	mpf_set (clone->area.center.imag, orig->area.center.imag);
+	mpf_set (clone->area.magf, orig->area.magf);
 }
 
 

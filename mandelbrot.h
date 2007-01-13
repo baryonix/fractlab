@@ -31,10 +31,19 @@ extern const char *render_method_names[];
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 
 
+struct mandel_point {
+	mpf_t real, imag;
+};
+
+struct mandel_area {
+	struct mandel_point center;
+	mpf_t magf;
+};
+
 struct mandeldata {
 	fractal_type_t type;
 	unsigned zpower;
-	mpf_t cx, cy, magf;
+	struct mandel_area area;
 	unsigned maxiter;
 	double log_factor;
 	mpf_t preal_f, pimag_f;

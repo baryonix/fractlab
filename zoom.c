@@ -142,10 +142,10 @@ render_frame (void *data, struct mandeldata *md, unsigned long i)
 
 	get_frame (&state->xstate, i, cfr, dfr);
 	mpfr_ui_div (dfr, 1, dfr, GMP_RNDN);
-	mpfr_get_f (md->cx, cfr, GMP_RNDN);
-	mpfr_get_f (md->magf, dfr, GMP_RNDN);
+	mpfr_get_f (md->area.center.real, cfr, GMP_RNDN);
+	mpfr_get_f (md->area.magf, dfr, GMP_RNDN);
 	get_frame (&state->ystate, i, cfr, dfr);
-	mpfr_get_f (md->cy, cfr, GMP_RNDN);
+	mpfr_get_f (md->area.center.imag, cfr, GMP_RNDN);
 
 	mpfr_clear (cfr);
 	mpfr_clear (dfr);

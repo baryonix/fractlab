@@ -586,7 +586,7 @@ update_area_info (GtkMandelApplication *app)
 	char b0[1024], b1[1024], b2[1024];
 	mpf_t xmin, xmax, ymin, ymax;
 
-	if (center_coords_to_string (app->md->cx, app->md->cy, app->md->magf, b0, b1, b2, 1024) >= 0) {
+	if (center_coords_to_string (app->md->area.center.real, app->md->area.center.imag, app->md->area.magf, b0, b1, b2, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.center.items[0].buffer, b0, strlen (b0));
 		gtk_text_buffer_set_text (app->area_info.center.items[1].buffer, b1, strlen (b1));
 		gtk_text_buffer_set_text (app->area_info.center.items[2].buffer, b2, strlen (b2));
@@ -597,7 +597,7 @@ update_area_info (GtkMandelApplication *app)
 	mpf_init (ymin);
 	mpf_init (ymax);
 
-	center_to_corners (xmin, xmax, ymin, ymax, app->md->cx, app->md->cy, app->md->magf, GTK_MANDEL (app->mainwin.mandel)->aspect);
+	center_to_corners (xmin, xmax, ymin, ymax, app->md->area.center.real, app->md->area.center.imag, app->md->area.magf, GTK_MANDEL (app->mainwin.mandel)->aspect);
 
 	if (coord_pair_to_string (xmin, xmax, b0, b1, 1024) >= 0) {
 		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, b0, strlen (b0));
@@ -669,7 +669,7 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 	}
 
-	fwrite_center_coords (f, app->md->cx, app->md->cy, app->md->magf);
+	fwrite_center_coords (f, app->md->area.center.real, app->md->area.center.imag, app->md->area.magf);
 	fclose (f);
 }
 
@@ -735,10 +735,10 @@ zoom_2exp (GtkMandelApplication *app, long exponent)
 	mpf_t magf;
 	mpf_init (magf);
 	if (exponent >= 0)
-		mpf_mul_2exp (magf, mandel->md->magf, exponent);
+		mpf_mul_2exp (magf, mandel->md->area.magf, exponent);
 	else
-		mpf_div_2exp (magf, mandel->md->magf, -exponent);
-	GtkMandelArea *area = gtk_mandel_area_new (mandel->md->cx, mandel->md->cy, magf);
+		mpf_div_2exp (magf, mandel->md->area.magf, -exponent);
+	GtkMandelArea *area = gtk_mandel_area_new (mandel->md->area.center.real, mandel->md->area.center.imag, magf);
 	mpf_clear (magf);
 	gtk_mandel_application_set_area (app, area);
 	restart_thread (app);
@@ -804,8 +804,8 @@ gtk_mandel_application_set_area (GtkMandelApplication *app, GtkMandelArea *area)
 {
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
-	mpf_set (md->cx, area->cx);
-	mpf_set (md->cy, area->cy);
-	mpf_set (md->magf, area->magf);
+	mpf_set (md->area.center.real, area->cx);
+	mpf_set (md->area.center.imag, area->cy);
+	mpf_set (md->area.magf, area->magf);
 	gtk_mandel_application_set_mandeldata (app, md);
 }

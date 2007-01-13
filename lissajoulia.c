@@ -24,9 +24,9 @@ frame_func (void *data, struct mandeldata *md, unsigned long i)
 {
 	struct lj_state *state = (struct lj_state *) data;
 	md->type = FRACTAL_JULIA;
-	mpf_init_set (md->cx, state->cx);
-	mpf_init_set (md->cy, state->cy);
-	mpf_init_set (md->magf, state->magf);
+	mpf_init_set (md->area.center.real, state->cx);
+	mpf_init_set (md->area.center.imag, state->cy);
+	mpf_init_set (md->area.magf, state->magf);
 
 	double preal = state->A * sin (2 * M_PI * state->a * i / frame_count + state->delta);
 	double pimag = state->B * sin (2 * M_PI * state->b * i / frame_count);

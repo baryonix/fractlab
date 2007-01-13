@@ -64,9 +64,9 @@ main (int argc, char **argv)
 	md->zpower = 2;
 	md->maxiter = 1000;
 	md->log_factor = 0.0;
-	mpf_set_str (md->cx, "-.5", 10);
-	mpf_set_str (md->cy, "0", 10);
-	mpf_set_str (md->magf, ".5", 10);
+	mpf_set_str (md->area.center.real, "-.5", 10);
+	mpf_set_str (md->area.center.imag, "0", 10);
+	mpf_set_str (md->area.magf, ".5", 10);
 	GtkMandelApplication *app = gtk_mandel_application_new (md);
 	mandeldata_clear (md);
 	gtk_mandel_application_start (app);

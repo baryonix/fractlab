@@ -369,7 +369,7 @@ mouse_event (GtkWidget *widget, GdkEventButton *e, gpointer user_data)
 			return TRUE;
 		}
 		default: {
-			printf ("Other event!\n");
+			/* We don't care for double and triple clicks. */
 			return FALSE;
 		}
 	}
