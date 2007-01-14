@@ -1,5 +1,4 @@
 anim.o: anim.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h
-btrace.o: btrace.c mandelbrot.h fpdefs.h
 cmdline.o: cmdline.c cmdline.h
 crc.o: crc.c crc.h
 file.o: file.c file.h mandelbrot.h fpdefs.h util.h
