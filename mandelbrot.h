@@ -9,7 +9,7 @@
 #include "fpdefs.h"
 
 #define DEFAULT_RENDER_METHOD RM_SUCCESSIVE_REFINE
-#define INT_LIMBS 1
+#define INT_LIMBS 5
 #define MP_THRESHOLD 53
 #define SR_CHUNK_SIZE 32
 

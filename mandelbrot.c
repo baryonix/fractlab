@@ -279,10 +279,17 @@ my_mpn_to_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs)
 	int i;
 	/* DIRTY! */
 	mpf_set_prec (rop, total_limbs * mp_bits_per_limb);
-	for (i = 0; i < total_limbs; i++)
-		rop->_mp_d[i] = op[i];
 	rop->_mp_size = total_limbs;
 	rop->_mp_exp = INT_LIMBS;
+	bool zero = true;
+	for (i = total_limbs - 1; i >= 0; i--)
+		if (zero && op[i] == 0) {
+			rop->_mp_size--;
+			rop->_mp_exp--;
+		} else {
+			zero = false;
+			rop->_mp_d[i] = op[i];
+		}
 }
 
 
@@ -403,6 +410,7 @@ mandel_julia_z2_distest (mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sig
 	mpfr_t kk;
 	mpfr_init2 (kk, 1024);
 	mpfr_set_str (kk, "-12.353265", 10, GMP_RNDN);
+	//mpfr_set_str (kk, "-3.7059796", 10, GMP_RNDN);
 	//double distance = log (zabs * zabs) * zabs / dzabs;
 	mpfr_t distance;
 	mpfr_init2 (distance, 1024);
