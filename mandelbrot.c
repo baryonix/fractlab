@@ -62,6 +62,7 @@ static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel
 static void mandeldata_init_mpvars (struct mandeldata *md);
 static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep);
 static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep);
+static void my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs);
 static bool my_mpf_get_mpn (mp_limb_t *rop, const mpf_t op, unsigned frac_limbs);
 
 
@@ -261,7 +262,7 @@ mandel_julia_z2 (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf
 
 
 static void
-my_mpn_to_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs)
+my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs)
 {
 	const unsigned total_limbs = frac_limbs + INT_LIMBS;
 	int i;
@@ -380,11 +381,11 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	mpf_init (yf);
 	mpf_init (dxf);
 	mpf_init (dyf);
-	my_mpn_to_mpf (xf, x, frac_limbs);
+	my_mpn_get_mpf (xf, x, frac_limbs);
 	//gmp_printf ("* Estimate: %.10f\n* Actual: %.10Ff\n", (double) x[frac_limbs] + ldexp (x[frac_limbs - 1], -32) + ldexp (x[frac_limbs - 2], -64), xf);
-	my_mpn_to_mpf (yf, y, frac_limbs);
-	my_mpn_to_mpf (dxf, dx, frac_limbs);
-	my_mpn_to_mpf (dyf, dy, frac_limbs);
+	my_mpn_get_mpf (yf, y, frac_limbs);
+	my_mpn_get_mpf (dxf, dx, frac_limbs);
+	my_mpn_get_mpf (dyf, dy, frac_limbs);
 	mpf_mul (xf, xf, xf);
 	mpf_mul (yf, yf, yf);
 	mpf_add (xf, xf, yf);
