@@ -62,7 +62,7 @@ static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel
 static void mandeldata_init_mpvars (struct mandeldata *md);
 static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep);
 static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep);
-static void my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs);
+static void my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, bool sign, unsigned frac_limbs);
 static bool my_mpf_get_mpn (mp_limb_t *rop, const mpf_t op, unsigned frac_limbs);
 
 
@@ -262,7 +262,7 @@ mandel_julia_z2 (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf
 
 
 static void
-my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs)
+my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, bool sign, unsigned frac_limbs)
 {
 	const unsigned total_limbs = frac_limbs + INT_LIMBS;
 	int i;
@@ -279,6 +279,8 @@ my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, unsigned frac_limbs)
 			zero = false;
 			rop->_mp_d[i] = op[i];
 		}
+	if (sign)
+		mpf_neg (rop, rop);
 }
 
 
@@ -288,11 +290,11 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	mp_limb_t x0[total_limbs], y0[total_limbs], preal[total_limbs], pimag[total_limbs];
 	bool x0_sign, y0_sign, preal_sign, pimag_sign;
-	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS], dx[total_limbs], dy[total_limbs];
-	mp_limb_t cd_x[total_limbs], cd_y[total_limbs], one[total_limbs];
-	mp_limb_t tmp1[total_limbs], tmp2[total_limbs], tmp3[total_limbs];
-	bool tmp1_sign, tmp2_sign, tmp3_sign;
+	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
+	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
+	mp_limb_t tmp1[total_limbs];
 	unsigned i;
+	mpf_t dx, dy, xf, yf, ftmp1, ftmp2, ftmp3;
 
 	x0_sign = my_mpf_get_mpn (x0, x0f, frac_limbs);
 	y0_sign = my_mpf_get_mpn (y0, y0f, frac_limbs);
@@ -308,11 +310,17 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	memcpy (y, y0, sizeof (y));
 	memcpy (cd_y, y0, sizeof (cd_y));
 
-	for (i = 0; i < total_limbs; i++)
-		dx[i] = dy[i] = one[i] = 0;
-	one[frac_limbs] = 1;
+	mpf_init2 (dx, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (dy, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (xf, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (yf, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (ftmp1, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (ftmp2, total_limbs * GMP_NUMB_BITS);
+	mpf_init2 (ftmp3, total_limbs * GMP_NUMB_BITS);
+	mpf_set_ui (dx, 0);
+	mpf_set_ui (dy, 0);
 
-	bool x_sign = x0_sign, y_sign = y0_sign, dx_sign = false, dy_sign = false;
+	bool x_sign = x0_sign, y_sign = y0_sign;
 
 	int k = 1, m = 1;
 	i = 0;
@@ -320,33 +328,28 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
 	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
 	while (i < maxiter && mpn_cmp (sqrsum + frac_limbs, four, INT_LIMBS) < 0) {
+		my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
+		my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
 		/* tmp1 = dx * x */
-		my_mpn_mul_fast (tmp1, dx, x, frac_limbs);
-		tmp1_sign = x_sign != dx_sign;
+		mpf_mul (ftmp1, dx, xf);
 		/* tmp2 = dy * y */
-		my_mpn_mul_fast (tmp2, dy, y, frac_limbs);
-		tmp2_sign = y_sign != dy_sign;
+		mpf_mul (ftmp2, dy, yf);
 		/* tmp1 = tmp1 - tmp2 */
-		tmp1_sign = my_mpn_add_signed (tmp1, tmp1, tmp1_sign, tmp2, !tmp2_sign, frac_limbs);
+		mpf_sub (ftmp1, ftmp1, ftmp2);
 		/* tmp2 = 2 * tmp1 */
-		mpn_lshift (tmp2, tmp1, total_limbs, 1);
-		tmp2_sign = tmp1_sign;
+		mpf_mul_2exp (ftmp2, ftmp1, 1);
 		/* tmp1 = tmp2 + 1 */
-		tmp1_sign = my_mpn_add_signed (tmp1, tmp2, tmp2_sign, one, false, frac_limbs);
+		mpf_add_ui (ftmp1, ftmp2, 1);
 		/* tmp2 = dx * y */
-		my_mpn_mul_fast (tmp2, dx, y, frac_limbs);
-		tmp2_sign = dx_sign != y_sign;
+		mpf_mul (ftmp2, dx, yf);
 		/* tmp3 = x * dy */
-		my_mpn_mul_fast (tmp3, x, dy, frac_limbs);
-		tmp3_sign = x_sign != dy_sign;
+		mpf_mul (ftmp3, xf, dy);
 		/* tmp2 = tmp2 + tmp3 */
-		tmp2_sign = my_mpn_add_signed (tmp2, tmp2, tmp2_sign, tmp3, tmp3_sign, frac_limbs);
+		mpf_add (ftmp2, ftmp2, ftmp3);
 		/* dy = 2 * tmp2 */
-		mpn_lshift (dy, tmp2, total_limbs, 1);
-		dy_sign = tmp2_sign;
+		mpf_mul_2exp (dy, ftmp2, 1);
 		/* dx = tmp1 */
-		memcpy (dx, tmp1, sizeof (dx));
-		dx_sign = tmp1_sign;
+		mpf_set (dx, ftmp1);
 
 		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
 		mpn_lshift (y, tmp1, total_limbs, 1);
@@ -376,16 +379,8 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	}
 
 #if 1
-	mpf_t xf, yf, dxf, dyf;
-	mpf_init (xf);
-	mpf_init (yf);
-	mpf_init (dxf);
-	mpf_init (dyf);
-	my_mpn_get_mpf (xf, x, frac_limbs);
-	//gmp_printf ("* Estimate: %.10f\n* Actual: %.10Ff\n", (double) x[frac_limbs] + ldexp (x[frac_limbs - 1], -32) + ldexp (x[frac_limbs - 2], -64), xf);
-	my_mpn_get_mpf (yf, y, frac_limbs);
-	my_mpn_get_mpf (dxf, dx, frac_limbs);
-	my_mpn_get_mpf (dyf, dy, frac_limbs);
+	my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
+	my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
 	mpf_mul (xf, xf, xf);
 	mpf_mul (yf, yf, yf);
 	mpf_add (xf, xf, yf);
@@ -394,14 +389,14 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	mpfr_t zabs;
 	mpfr_init2 (zabs, 1024);
 	mpfr_set_f (zabs, xf, GMP_RNDN);
-	mpf_mul (dxf, dxf, dxf);
-	mpf_mul (dyf, dyf, dyf);
-	mpf_add (dxf, dxf, dyf);
-	mpf_sqrt (dxf, dxf);
+	mpf_mul (dx, dx, dx);
+	mpf_mul (dy, dy, dy);
+	mpf_add (dx, dx, dy);
+	mpf_sqrt (dx, dx);
 	//double dzabs = mpf_get_d (dxf);
 	mpfr_t dzabs;
 	mpfr_init2 (dzabs, 1024);
-	mpfr_set_f (dzabs, dxf, GMP_RNDN);
+	mpfr_set_f (dzabs, dx, GMP_RNDN);
 	//const double kk = 12.353265; /* 256.0 / log (1e9) */
 	mpfr_t kk;
 	mpfr_init2 (kk, 1024);
@@ -420,6 +415,19 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 
 	//int idx = ((int) round (-kk * log (fabs (distance)))) % 256;
 	int idx = ((int) round (mpfr_get_d (distance, GMP_RNDN))) % 256;
+
+	mpf_clear (xf);
+	mpf_clear (yf);
+	mpf_clear (dx);
+	mpf_clear (dy);
+	mpf_clear (ftmp1);
+	mpf_clear (ftmp2);
+	mpf_clear (ftmp3);
+	mpfr_clear (zabs);
+	mpfr_clear (dzabs);
+	mpfr_clear (distance);
+	mpfr_clear (kk);
+
 	if (idx < 0)
 		return idx + 256;
 	else
