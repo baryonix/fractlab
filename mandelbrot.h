@@ -56,15 +56,12 @@ struct mandel_renderer {
 	unsigned w, h;
 	unsigned *ptriangle;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
-	mpz_t xmin, xmax, ymin, ymax;
 	unsigned frac_limbs;
 	double aspect;
 	int *data; /* This is signed so we can represent not-yet-rendered pixels as -1 */
 	render_method_t render_method;
 	void *user_data;
 	volatile bool terminate;
-	mp_limb_t *preal, *pimag;
-	bool preal_sign, pimag_sign;
 	mandel_fp_t preal_float, pimag_float;
 	unsigned thread_count;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
@@ -72,8 +69,6 @@ struct mandel_renderer {
 };
 
 
-void mandel_convert_x (const struct mandel_renderer *mandel, mpz_t rop, unsigned op);
-void mandel_convert_y (const struct mandel_renderer *mandel, mpz_t rop, unsigned op);
 void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
 void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
 
@@ -86,7 +81,7 @@ void my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_
 bool my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs);
 void my_mpn_invert (mp_limb_t *op, unsigned total_limbs);
 
-unsigned mandel_julia (const struct mandel_renderer *md, mp_limb_t *x0, bool x0_sign, mp_limb_t *y0, bool y0_sign, mp_limb_t *preal, bool preal_sign, mp_limb_t *pimag, bool pimag_sign, unsigned maxiter, unsigned frac_limbs);
+unsigned mandel_julia (const struct mandel_renderer *md, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
 #ifdef MANDELBROT_FP_ASM
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
