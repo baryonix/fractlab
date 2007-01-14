@@ -64,6 +64,7 @@ main (int argc, char **argv)
 	md->zpower = 2;
 	md->maxiter = 1000;
 	md->log_factor = 0.0;
+	md->distance_est = true;
 	mpf_set_str (md->area.center.real, "-.5", 10);
 	mpf_set_str (md->area.center.imag, "0", 10);
 	mpf_set_str (md->area.magf, ".5", 10);

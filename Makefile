@@ -15,7 +15,7 @@ MPFR_DIR = $(GMP_DIR)
 CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -D_XOPEN_SOURCE=600 $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
 GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
 MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
-MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(GMP_LIBS) -lpthread -lm
+MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(GMP_LIBS) -lpthread -lm
 

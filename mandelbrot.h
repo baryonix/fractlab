@@ -47,6 +47,7 @@ struct mandeldata {
 	unsigned maxiter;
 	double log_factor;
 	struct mandel_point param; /* parameter of Julia set */
+	bool distance_est; /* Currently only works for Mandelbrot set! */
 };
 
 
