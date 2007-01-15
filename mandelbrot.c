@@ -595,7 +595,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		switch (mandel->md->type) {
 			case FRACTAL_MANDELBROT: {
 #ifdef MANDELBROT_FP_ASM
-				if (mandel->md->zpower == 2) {
+				if (mandel->md->zpower == 2 && !mandel->md->distance_est) {
 					i = mandelbrot_fp (xf, yf, mandel->md->maxiter);
 					break;
 				}
