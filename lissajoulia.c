@@ -12,7 +12,7 @@
 struct lj_state {
 	gdouble A, B, delta;
 	gint a, b;
-	mpf_t cx, cy, magf;
+	struct mandeldata md;
 };
 
 
@@ -23,10 +23,7 @@ static void
 frame_func (void *data, struct mandeldata *md, unsigned long i)
 {
 	struct lj_state *state = (struct lj_state *) data;
-	md->type = FRACTAL_JULIA;
-	mpf_init_set (md->area.center.real, state->cx);
-	mpf_init_set (md->area.center.imag, state->cy);
-	mpf_init_set (md->area.magf, state->magf);
+	mandeldata_clone (md, &state->md);
 
 	double preal = state->A * sin (2 * M_PI * state->a * i / frame_count + state->delta);
 	double pimag = state->B * sin (2 * M_PI * state->b * i / frame_count);
@@ -67,18 +64,18 @@ main (int argc, char *argv[])
 	g_option_context_parse (context, &argc, &argv, NULL);
 
 	state->delta *= M_PI;
-	mpf_init (state->cx);
-	mpf_init (state->cy);
-	mpf_init (state->magf);
+	mandeldata_init (&state->md);
 
 	FILE *f;
-	if (coord_file == NULL || !(f = fopen (coord_file, "r")) || !fread_coords_as_center (f, state->cx, state->cy, state->magf)) {
+	if (coord_file == NULL || !(f = fopen (coord_file, "r")) || !fread_mandeldata (f, &state->md)) {
 		fprintf (stderr, "* Error: No coordinates specified, or error reading the file.\n");
 		return 1;
 	}
 	fclose (f);
 
 	anim_render (frame_func, state);
+
+	mandeldata_clear (&state->md);
 
 	return 0;
 }

@@ -171,7 +171,6 @@ render_frame (struct anim_state *state, unsigned long i)
 	struct mandeldata md[1];
 	struct mandel_renderer renderer[1];
 
-	mandeldata_init (md);
 	state->frame_func (state->data, md, i);
 
 	mandel_renderer_init (renderer, md, img_width, img_height);

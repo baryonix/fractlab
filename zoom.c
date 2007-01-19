@@ -22,6 +22,7 @@ struct zoom_state {
 };
 
 struct thread_state {
+	struct mandeldata md;
 	struct zoom_state xstate, ystate;
 };
 
@@ -29,17 +30,11 @@ static void init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mp
 
 static gchar *start_coords = NULL, *target_coords = NULL;
 static double aspect;
-static gint zpower = 2;
-static gdouble log_factor = 0.0;
-static gint maxiter = DEFAULT_MAXITER;
 
 
 static GOptionEntry option_entries [] = {
 	{"start-coords", 's', 0, G_OPTION_ARG_FILENAME, &start_coords, "Start coordinates", "FILE"},
 	{"target-coords", 't', 0, G_OPTION_ARG_FILENAME, &target_coords, "Target coordinates", "FILE"},
-	{"maxiter", 'i', 0, G_OPTION_ARG_INT, &maxiter, "Maximum # of iterations", "N"},
-	{"z-power", 'Z', 0, G_OPTION_ARG_INT, &zpower, "Set power of Z in iteration to N", "N"},
-	{"log-factor", 'l', 0, G_OPTION_ARG_DOUBLE, &log_factor, "Use logarithmic colors, color = LF * ln (iter)", "LF"},
 	{NULL}
 };
 
@@ -131,10 +126,7 @@ render_frame (void *data, struct mandeldata *md, unsigned long i)
 	const struct thread_state *state = (const struct thread_state *) data;
 	mpfr_t cfr, dfr, tmp0;
 
-	md->type = FRACTAL_MANDELBROT;
-	md->zpower = zpower;
-	md->maxiter = maxiter;
-	md->log_factor = log_factor;
+	mandeldata_clone (md, &state->md);
 
 	mpfr_init (cfr);
 	mpfr_init (dfr);
@@ -159,18 +151,14 @@ main (int argc, char **argv)
 	mpf_set_default_prec (1024); /* ! */
 	mpfr_set_default_prec (1024); /* ! */
 	struct thread_state state[1];
-	mpf_t cx0, cy0, magf0, cxn, cyn, magfn;
 	mpf_t mpaspect;
-	mpf_init (cx0);
-	mpf_init (cy0);
-	mpf_init (magf0);
-	mpf_init (cxn);
-	mpf_init (cyn);
-	mpf_init (magfn);
 	mpf_init (mpaspect);
 	parse_command_line (&argc, &argv);
+	struct mandeldata md0[1], *const mdn = &state->md;
+	mandeldata_init (md0);
+	mandeldata_init (mdn);
 	FILE *f = NULL;
-	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_coords_as_center (f, cx0, cy0, magf0)) {
+	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_mandeldata (f, md0)) {
 		if (f != NULL)
 			fclose (f);
 		fprintf (stderr, "* Error: No start coordinates specified.\n");
@@ -178,7 +166,7 @@ main (int argc, char **argv)
 	}
 	fclose (f);
 	f = NULL;
-	if (target_coords == NULL || !(f = fopen (target_coords, "r")) || !fread_coords_as_center (f, cxn, cyn, magfn)) {
+	if (target_coords == NULL || !(f = fopen (target_coords, "r")) || !fread_mandeldata (f, &state->md)) {
 		if (f != NULL)
 			fclose (f);
 		fprintf (stderr, "* Error: No target coordinates specified.\n");
@@ -189,18 +177,26 @@ main (int argc, char **argv)
 	aspect = (double) img_width / img_height;
 	mpf_set_d (mpaspect, aspect);
 	if (aspect > 1.0) {
-		init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
-		mpf_div (magf0, magf0, mpaspect);
-		mpf_div (magfn, magfn, mpaspect);
-		init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
+		//init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
+		init_zoom_state (&state->ystate, md0->area.center.imag, md0->area.magf, mdn->area.center.imag, mdn->area.magf, frame_count - 1);
+		mpf_div (md0->area.magf, md0->area.magf, mpaspect);
+		mpf_div (mdn->area.magf, mdn->area.magf, mpaspect);
+		//init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
+		init_zoom_state (&state->xstate, md0->area.center.real, md0->area.magf, mdn->area.center.real, mdn->area.magf, frame_count - 1);
 	} else {
-		init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
-		mpf_mul (magf0, magf0, mpaspect);
-		mpf_mul (magfn, magfn, mpaspect);
-		init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
+		//init_zoom_state (&state->xstate, cx0, magf0, cxn, magfn, frame_count - 1);
+		init_zoom_state (&state->xstate, md0->area.center.real, md0->area.magf, mdn->area.center.real, mdn->area.magf, frame_count - 1);
+		mpf_mul (md0->area.magf, md0->area.magf, mpaspect);
+		mpf_mul (mdn->area.magf, mdn->area.magf, mpaspect);
+		//init_zoom_state (&state->ystate, cy0, magf0, cyn, magfn, frame_count - 1);
+		init_zoom_state (&state->ystate, md0->area.center.imag, md0->area.magf, mdn->area.center.imag, mdn->area.magf, frame_count - 1);
 	}
 
+	mandeldata_clear (md0);
+
 	anim_render (render_frame, state);
+
+	mandeldata_clear (&state->md);
 
 	return 0;
 }
