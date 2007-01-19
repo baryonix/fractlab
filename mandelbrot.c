@@ -614,8 +614,6 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		}
 	} else {
 		// MP
-		mpz_t z;
-		int j;
 		unsigned total_limbs = INT_LIMBS + mandel->frac_limbs;
 		mpf_t x0, y0;
 		mpf_init2 (x0, total_limbs * GMP_NUMB_BITS);
@@ -724,7 +722,6 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 		renderer->frac_limbs = (required_bits + mp_bits_per_limb - 1) / mp_bits_per_limb;
 
 	unsigned frac_limbs = renderer->frac_limbs;
-	unsigned total_limbs = INT_LIMBS + frac_limbs;
 
 	if (renderer->md->type == FRACTAL_JULIA && frac_limbs == 0) {
 		renderer->preal_float = mpf_get_mandel_fp (renderer->md->param.real);

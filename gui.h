@@ -12,6 +12,39 @@ typedef enum {
 	GTK_MANDEL_APP_MODE_MAX = 2
 } GtkMandelAppMode;
 
+
+struct mandelbrot_param {
+	GtkWidget *table;
+	GtkWidget *zpower_label, *zpower_input;
+	GtkWidget *distance_est;
+};
+
+
+struct julia_param {
+	GtkWidget *table;
+	GtkWidget *zpower_label, *zpower_input;
+	GtkWidget *preal_label, *preal_input;
+	GtkWidget *pimag_label, *pimag_input;
+};
+
+
+struct fractal_type_dlg {
+	GtkWidget *dialog;
+	GtkListStore *type_list;
+	GtkCellRenderer *type_renderer;
+	GtkWidget *type_hbox, *type_label, *type_input;
+	GtkWidget *area_frame, *area_table;
+	GtkWidget *area_creal_label, *area_creal_input;
+	GtkWidget *area_cimag_label, *area_cimag_input;
+	GtkWidget *area_magf_label, *area_magf_input;
+	GtkWidget *type_param_frame;
+	GtkWidget *type_param_notebook;
+	struct mandelbrot_param mandelbrot_param;
+	struct julia_param julia_param;
+};
+
+
+
 typedef struct {
 	GObject parent;
 	struct {
@@ -58,6 +91,7 @@ typedef struct {
 	struct mandeldata *md;
 	bool updating_gui;
 	GtkMandelAppMode mode;
+	struct fractal_type_dlg fractal_type_dlg;
 } GtkMandelApplication;
 
 typedef struct {
