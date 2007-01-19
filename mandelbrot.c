@@ -378,6 +378,8 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 		i++;
 	}
 
+	if (i == maxiter)
+		return i; /* solid inside color */
 #if 1
 	my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
 	my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
@@ -534,6 +536,8 @@ mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp
 		i++;
 	}
 	if (distance_est) {
+		if (i == maxiter)
+			return i; /* solid inside color */
 		const mandel_fp_t kk = 12.353265; /* 256.0 / log (1e9) */
 		mandel_fp_t zabs = sqrt (x * x + y * y);
 		mandel_fp_t dzabs = sqrt (dx * dx + dy * dy);
