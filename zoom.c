@@ -157,6 +157,7 @@ main (int argc, char **argv)
 	struct mandeldata md0[1], *const mdn = &state->md;
 	mandeldata_init (md0);
 	mandeldata_init (mdn);
+	mdn->distance_est = true; /* XXX */
 	FILE *f = NULL;
 	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_mandeldata (f, md0)) {
 		if (f != NULL)
