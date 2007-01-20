@@ -5,12 +5,12 @@
 #include "util.h"
 
 
-static void absdiff (mpf_t d, mpf_t a, mpf_t b);
-static void center (mpf_t c, mpf_t a, mpf_t b);
+static void absdiff (mpf_ptr d, mpf_srcptr a, mpf_srcptr b);
+static void center (mpf_ptr c, mpf_srcptr a, mpf_srcptr b);
 
 
 static void
-absdiff (mpf_t d, mpf_t a, mpf_t b)
+absdiff (mpf_ptr d, mpf_srcptr a, mpf_srcptr b)
 {
 	mpf_sub (d, a, b);
 	mpf_abs (d, d);
@@ -18,7 +18,7 @@ absdiff (mpf_t d, mpf_t a, mpf_t b)
 
 
 static void
-center (mpf_t c, mpf_t a, mpf_t b)
+center (mpf_ptr c, mpf_srcptr a, mpf_srcptr b)
 {
 	mpf_add (c, a, b);
 	mpf_div_ui (c, c, 2);
@@ -26,7 +26,7 @@ center (mpf_t c, mpf_t a, mpf_t b)
 
 
 void
-corners_to_center (mpf_t cx, mpf_t cy, mpf_t magf, mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax)
+corners_to_center (mpf_ptr cx, mpf_ptr cy, mpf_ptr magf, mpf_srcptr xmin, mpf_srcptr xmax, mpf_srcptr ymin, mpf_srcptr ymax)
 {
 	mpf_t dx, dy;
 	mpf_init (dx);
@@ -45,7 +45,7 @@ corners_to_center (mpf_t cx, mpf_t cy, mpf_t magf, mpf_t xmin, mpf_t xmax, mpf_t
 
 
 void
-center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, const mpf_t cx, const mpf_t cy, const mpf_t magf, double aspect)
+center_to_corners (mpf_ptr xmin, mpf_ptr xmax, mpf_ptr ymin, mpf_ptr ymax, mpf_srcptr cx, mpf_srcptr cy, mpf_srcptr magf, double aspect)
 {
 	mpf_t dx, dy;
 	mpf_init (dx);
@@ -69,7 +69,7 @@ center_to_corners (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, const mpf_t c
 
 
 int
-coord_pair_to_string (mpf_t a, mpf_t b, char *abuf, char *bbuf, int buf_size)
+coord_pair_to_string (mpf_srcptr a, mpf_srcptr b, char *abuf, char *bbuf, int buf_size)
 {
 	int r, digits;
 	long exponent;
@@ -92,7 +92,7 @@ coord_pair_to_string (mpf_t a, mpf_t b, char *abuf, char *bbuf, int buf_size)
 
 
 int
-corner_coords_to_string (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, char *xmin_buf, char *xmax_buf, char *ymin_buf, char *ymax_buf, int buf_size)
+corner_coords_to_string (mpf_srcptr xmin, mpf_srcptr xmax, mpf_srcptr ymin, mpf_srcptr ymax, char *xmin_buf, char *xmax_buf, char *ymin_buf, char *ymax_buf, int buf_size)
 {
 	if (coord_pair_to_string (xmin, xmax, xmin_buf, xmax_buf, buf_size) < 0)
 		return -1;
@@ -103,7 +103,7 @@ corner_coords_to_string (mpf_t xmin, mpf_t xmax, mpf_t ymin, mpf_t ymax, char *x
 
 
 int
-center_coords_to_string (mpf_t cx, mpf_t cy, mpf_t magf, char *cx_buf, char *cy_buf, char *magf_buf, int buf_size)
+center_coords_to_string (mpf_srcptr cx, mpf_srcptr cy, mpf_srcptr magf, char *cx_buf, char *cy_buf, char *magf_buf, int buf_size)
 {
 	long exponent;
 	int digits, r;
