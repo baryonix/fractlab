@@ -85,7 +85,7 @@ unsigned mandel_julia (const struct mandel_renderer *md, const mpf_t x0f, const 
 #ifdef MANDELBROT_FP_ASM
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
-unsigned mandel_julia_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+unsigned mandel_julia_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
 int mandel_render_pixel (struct mandel_renderer *mandel, int x, int y);
 int mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y);
 void calcpart (struct mandel_renderer *md, int x0, int y0, int x1, int y1);

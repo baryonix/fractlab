@@ -6,6 +6,7 @@
 #include <gmp.h>
 #include <mpfr.h>
 
+#include "defs.h"
 #include "mandelbrot.h"
 #include "util.h"
 
@@ -57,7 +58,7 @@ static void complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bo
 static unsigned mandel_julia_z2 (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_zpower (const struct mandel_renderer *md, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
-static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, bool distance_est);
+static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
 static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
 static void mandeldata_init_mpvars (struct mandeldata *md);
 static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep);
@@ -506,8 +507,9 @@ mandel_julia_zpower (const struct mandel_renderer *renderer, const mpf_t x0f, co
 
 
 static unsigned
-mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, bool distance_est)
+mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance)
 {
+	const bool distance_est = distance != NULL;
 	unsigned i = 0, k = 1, m = 1;
 	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y, dx = 0.0, dy = 0.0;
 	while (i < maxiter && x * x + y * y < 4.0) {
@@ -536,19 +538,19 @@ mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp
 		i++;
 	}
 	if (distance_est) {
-		if (i == maxiter)
-			return i; /* solid inside color */
-		const mandel_fp_t kk = 12.353265; /* 256.0 / log (1e9) */
 		mandel_fp_t zabs = sqrt (x * x + y * y);
 		mandel_fp_t dzabs = sqrt (dx * dx + dy * dy);
-		mandel_fp_t distance = log (zabs * zabs) * zabs / dzabs;
+		*distance = log (zabs * zabs) * zabs / dzabs;
+#if 0
+		const mandel_fp_t kk = 12.353265; /* 256.0 / log (1e9) */
 		int idx = ((int) round (-kk * log (fabs (distance)))) % 256;
 		if (idx < 0)
 			return idx + 256;
 		else
 			return idx;
-	} else
-		return i;
+#endif
+	}
+	return i;
 }
 
 
@@ -596,6 +598,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
 		mandel_fp_t xf = x * (xmax - xmin) / mandel->w + xmin;
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
+		mandel_fp_t distance;
 		switch (mandel->md->type) {
 			case FRACTAL_MANDELBROT: {
 #ifdef MANDELBROT_FP_ASM
@@ -604,17 +607,25 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 					break;
 				}
 #endif
-				i = mandel_julia_fp (mandel, xf, yf, xf, yf, mandel->md->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, xf, yf, mandel->md->maxiter, &distance);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia_fp (mandel, xf, yf, mandel->preal_float, mandel->pimag_float, mandel->md->maxiter);
+				i = mandel_julia_fp (mandel, xf, yf, mandel->preal_float, mandel->pimag_float, mandel->md->maxiter, NULL);
 				break;
 			}
 			default: {
 				fprintf (stderr, "* BUG: Unknown fractal type %d\n", mandel->md->type);
 				return 0;
 			}
+		}
+		if (mandel->md->distance_est && i < mandel->md->maxiter) {
+			/* XXX colors and "target" magf shouldn't be hardwired */
+			const mandel_fp_t kk = (mandel_fp_t) COLORS / log (1e9); 
+			int idx = ((int) round (-kk * log (fabs (distance)))) % COLORS;
+			if (idx < 0)
+				idx += COLORS;
+			i = idx;
 		}
 	} else {
 		// MP
@@ -1319,10 +1330,10 @@ mandel_julia (const struct mandel_renderer *renderer, const mpf_t x0f, const mpf
 
 
 unsigned
-mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance)
 {
 	if (renderer->md->zpower == 2)
-		return mandel_julia_z2_fp (x0, y0, preal, pimag, maxiter, renderer->md->distance_est);
+		return mandel_julia_z2_fp (x0, y0, preal, pimag, maxiter, renderer->md->distance_est ? distance : NULL);
 	else
 		return mandel_julia_zpower_fp (renderer, x0, y0, preal, pimag, maxiter);
 }

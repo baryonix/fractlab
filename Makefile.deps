@@ -8,7 +8,7 @@ gui.o: gui.c defs.h mandelbrot.h fpdefs.h gtkmandel.h gui.h util.h file.h
 lissajoulia.o: lissajoulia.c anim.h mandelbrot.h fpdefs.h file.h
 main.o: main.c cmdline.h file.h mandelbrot.h fpdefs.h gtkmandel.h defs.h \
   gui.h util.h
-mandelbrot.o: mandelbrot.c mandelbrot.h fpdefs.h util.h
+mandelbrot.o: mandelbrot.c defs.h mandelbrot.h fpdefs.h util.h
 stupidmng.o: stupidmng.c crc.h
 test_parser.o: test_parser.c
 util.o: util.c util.h fpdefs.h
