@@ -56,6 +56,7 @@ typedef struct {
 		GtkWidget *controls_table;
 		GtkWidget *maxiter_label, *maxiter_input;
 		GtkWidget *log_colors_checkbox, *log_colors_input;
+		GtkWidget *distance_est_checkbox;
 		GtkWidget *zpower_label, *zpower_input;
 		GtkWidget *threads_label, *threads_input;
 		GtkWidget *mandel;

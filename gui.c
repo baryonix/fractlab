@@ -58,6 +58,7 @@ static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
+static void distance_est_updated (GtkMandelApplication *app, gpointer data);
 static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 
 
@@ -214,6 +215,8 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "100"); /* FIXME get default value in a sensible way */
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
 
+	app->mainwin.distance_est_checkbox = gtk_check_button_new_with_label ("Distance Estimation");
+
 	app->mainwin.zpower_label = gtk_label_new ("Power of Z");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.zpower_label), 0.0, 0.5);
 
@@ -230,7 +233,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.threads_input), 1.0);
 	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.threads_input), 5);
 
-	app->mainwin.controls_table = gtk_table_new (2, 4, FALSE);
+	app->mainwin.controls_table = gtk_table_new (2, 5, FALSE);
 	gtk_table_set_homogeneous (GTK_TABLE (app->mainwin.controls_table), FALSE);
 	gtk_table_set_row_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
 	gtk_table_set_col_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
@@ -239,10 +242,11 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_input, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_checkbox, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_input, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 3, 4, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.distance_est_checkbox, 0, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 3, 4, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 4, 5, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 4, 5, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_mandel_set_selection_type (GTK_MANDEL (app->mainwin.mandel), GTK_MANDEL_SELECT_AREA);
@@ -490,6 +494,8 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.distance_est_checkbox), "toggled", (GCallback) distance_est_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.zpower_input), "value-changed", (GCallback) zpower_updated, app);
 
@@ -783,6 +789,14 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
 	gtk_widget_set_sensitive (app->mainwin.to_julia_mode, app->md->type == FRACTAL_MANDELBROT);
 	gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (app->mainwin.zoom_mode), TRUE);
+
+	gtk_widget_set_sensitive (app->mainwin.distance_est_checkbox, app->md->type == FRACTAL_MANDELBROT);
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.distance_est_checkbox), app->md->distance_est);
+	gtk_widget_set_sensitive (app->mainwin.log_colors_checkbox, !app->md->distance_est);
+	if (app->md->distance_est) {
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), FALSE);
+		gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
+	}
 	update_area_info (app);
 	app->updating_gui = false;
 }
@@ -1022,4 +1036,15 @@ rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data)
 	if (r > 0 && r < sizeof (buf))
 		gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), buf);
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (app->mainwin.status_info), progress);
+}
+
+
+static void
+distance_est_updated (GtkMandelApplication *app, gpointer data)
+{
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	md->distance_est = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.distance_est_checkbox));
+	gtk_mandel_application_set_mandeldata (app, md);
+	restart_thread (app);
 }
