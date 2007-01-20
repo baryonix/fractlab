@@ -54,6 +54,7 @@ struct mandeldata {
 struct mandel_renderer {
 	const struct mandeldata *md;
 	unsigned w, h;
+	volatile gint pixels_done;
 	unsigned *ptriangle;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
 	unsigned frac_limbs;
@@ -95,6 +96,7 @@ void mandel_render (struct mandel_renderer *mandel);
 void mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h);
 void mandel_renderer_clear (struct mandel_renderer *renderer);
 unsigned mandel_get_precision (const struct mandel_renderer *mandel);
+double mandel_renderer_progress (const struct mandel_renderer *renderer);
 
 void mandeldata_init (struct mandeldata *md);
 void mandeldata_clear (struct mandeldata *md);

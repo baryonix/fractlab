@@ -46,6 +46,7 @@ typedef struct
 	guint area_selected_signal;
 	guint point_selected_signal;
 	guint rendering_started_signal;
+	guint rendering_progress_signal;
 	guint rendering_stopped_signal;
 } GtkMandelClass;
 
@@ -66,5 +67,6 @@ void gtk_mandel_start (GtkMandel *mandel);
 void gtk_mandel_stop (GtkMandel *mandel);
 void gtk_mandel_redraw (GtkMandel *mandel);
 void gtk_mandel_set_selection_type (GtkMandel *mandel, GtkMandelSelectionType selection_type);
+double gtk_mandel_get_progress (GtkMandel *mandel);
 
 #endif /* _GTKMANDEL_H */

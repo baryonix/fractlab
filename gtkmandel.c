@@ -129,6 +129,16 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_ULONG
 	);
+	class->rendering_progress_signal = g_signal_new (
+		"rendering-progress",
+		G_TYPE_FROM_CLASS (class),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__DOUBLE,
+		G_TYPE_NONE,
+		1,
+		G_TYPE_DOUBLE
+	);
 	class->rendering_stopped_signal = g_signal_new (
 		"rendering-stopped",
 		G_TYPE_FROM_CLASS (class),
@@ -578,6 +588,7 @@ redraw_source_func (gpointer data)
 {
 	GtkMandel *mandel = GTK_MANDEL (data);
 	gtk_mandel_redraw (mandel);
+	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->rendering_progress_signal, 0, (gdouble) mandel_renderer_progress (mandel->renderer));
 	return TRUE;
 }
 
@@ -647,4 +658,14 @@ update_selection_cursor (GtkMandel *mandel)
 			return;
 	}
 	gdk_window_set_cursor (GTK_WIDGET (mandel)->window, cursor);
+}
+
+
+double
+gtk_mandel_get_progress (GtkMandel *mandel)
+{
+	if (mandel->renderer != NULL)
+		return mandel_renderer_progress (mandel->renderer);
+	else
+		return 0.0;
 }

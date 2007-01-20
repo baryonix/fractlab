@@ -59,7 +59,7 @@ typedef struct {
 		GtkWidget *zpower_label, *zpower_input;
 		GtkWidget *threads_label, *threads_input;
 		GtkWidget *mandel;
-		GtkWidget *status_hbox, *status_info, *status_info_frame, *math_info, *math_info_frame;
+		GtkWidget *status_hbox, *status_info, *math_info, *math_info_frame;
 	} mainwin;
 	struct {
 		GtkWidget *bar;
