@@ -56,7 +56,7 @@ static void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, ma
 static void store_powers (mp_limb_t *powers, bool *signs, mp_limb_t *x, bool xsign, unsigned n, unsigned frac_limbs);
 static void complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sign, unsigned n, mp_limb_t *real, bool *rreal_sign, mp_limb_t *imag, bool *rimag_sign, unsigned frac_limbs, unsigned *pascal);
 static unsigned mandel_julia_z2 (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
-static unsigned mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
+static unsigned mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance);
 static unsigned mandel_julia_zpower (const struct mandel_renderer *md, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
 static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
@@ -290,8 +290,9 @@ my_mpn_get_mpf (mpf_t rop, const mp_limb_t *op, bool sign, unsigned frac_limbs)
 
 
 static unsigned
-mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs)
+mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance)
 {
+	const bool distance_est = distance != NULL;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
 	mp_limb_t x0[total_limbs], y0[total_limbs], preal[total_limbs], pimag[total_limbs];
 	bool x0_sign, y0_sign, preal_sign, pimag_sign;
@@ -315,15 +316,17 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	memcpy (y, y0, sizeof (y));
 	memcpy (cd_y, y0, sizeof (cd_y));
 
-	mpf_init2 (dx, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (dy, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (xf, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (yf, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (ftmp1, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (ftmp2, total_limbs * GMP_NUMB_BITS);
-	mpf_init2 (ftmp3, total_limbs * GMP_NUMB_BITS);
-	mpf_set_ui (dx, 0);
-	mpf_set_ui (dy, 0);
+	if (distance_est) {
+		mpf_init2 (dx, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (dy, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (xf, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (yf, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (ftmp1, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (ftmp2, total_limbs * GMP_NUMB_BITS);
+		mpf_init2 (ftmp3, total_limbs * GMP_NUMB_BITS);
+		mpf_set_ui (dx, 0);
+		mpf_set_ui (dy, 0);
+	}
 
 	bool x_sign = x0_sign, y_sign = y0_sign;
 
@@ -333,28 +336,30 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
 	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
 	while (i < maxiter && mpn_cmp (sqrsum + frac_limbs, four, INT_LIMBS) < 0) {
-		my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
-		my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
-		/* tmp1 = dx * x */
-		mpf_mul (ftmp1, dx, xf);
-		/* tmp2 = dy * y */
-		mpf_mul (ftmp2, dy, yf);
-		/* tmp1 = tmp1 - tmp2 */
-		mpf_sub (ftmp1, ftmp1, ftmp2);
-		/* tmp2 = 2 * tmp1 */
-		mpf_mul_2exp (ftmp2, ftmp1, 1);
-		/* tmp1 = tmp2 + 1 */
-		mpf_add_ui (ftmp1, ftmp2, 1);
-		/* tmp2 = dx * y */
-		mpf_mul (ftmp2, dx, yf);
-		/* tmp3 = x * dy */
-		mpf_mul (ftmp3, xf, dy);
-		/* tmp2 = tmp2 + tmp3 */
-		mpf_add (ftmp2, ftmp2, ftmp3);
-		/* dy = 2 * tmp2 */
-		mpf_mul_2exp (dy, ftmp2, 1);
-		/* dx = tmp1 */
-		mpf_set (dx, ftmp1);
+		if (distance_est) {
+			my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
+			my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
+			/* tmp1 = dx * x */
+			mpf_mul (ftmp1, dx, xf);
+			/* tmp2 = dy * y */
+			mpf_mul (ftmp2, dy, yf);
+			/* tmp1 = tmp1 - tmp2 */
+			mpf_sub (ftmp1, ftmp1, ftmp2);
+			/* tmp2 = 2 * tmp1 */
+			mpf_mul_2exp (ftmp2, ftmp1, 1);
+			/* tmp1 = tmp2 + 1 */
+			mpf_add_ui (ftmp1, ftmp2, 1);
+			/* tmp2 = dx * y */
+			mpf_mul (ftmp2, dx, yf);
+			/* tmp3 = x * dy */
+			mpf_mul (ftmp3, xf, dy);
+			/* tmp2 = tmp2 + tmp3 */
+			mpf_add (ftmp2, ftmp2, ftmp3);
+			/* dy = 2 * tmp2 */
+			mpf_mul_2exp (dy, ftmp2, 1);
+			/* dx = tmp1 */
+			mpf_set (dx, ftmp1);
+		}
 
 		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
 		mpn_lshift (y, tmp1, total_limbs, 1);
@@ -383,65 +388,43 @@ mandel_julia_z2_distest (const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, c
 		i++;
 	}
 
-	if (i == maxiter)
-		return i; /* solid inside color */
-#if 1
-	my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
-	my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
-	mpf_mul (xf, xf, xf);
-	mpf_mul (yf, yf, yf);
-	mpf_add (xf, xf, yf);
-	mpf_sqrt (xf, xf);
-	//double zabs = mpf_get_d (xf);
-	mpfr_t zabs;
-	mpfr_init2 (zabs, 1024);
-	mpfr_set_f (zabs, xf, GMP_RNDN);
-	mpf_mul (dx, dx, dx);
-	mpf_mul (dy, dy, dy);
-	mpf_add (dx, dx, dy);
-	mpf_sqrt (dx, dx);
-	//double dzabs = mpf_get_d (dxf);
-	mpfr_t dzabs;
-	mpfr_init2 (dzabs, 1024);
-	mpfr_set_f (dzabs, dx, GMP_RNDN);
-	//const double kk = 12.353265; /* 256.0 / log (1e9) */
-	mpfr_t kk;
-	mpfr_init2 (kk, 1024);
-	mpfr_set_str (kk, "-12.353265", 10, GMP_RNDN);
-	//mpfr_set_str (kk, "-3.7059796", 10, GMP_RNDN);
-	//double distance = log (zabs * zabs) * zabs / dzabs;
-	mpfr_t distance;
-	mpfr_init2 (distance, 1024);
-	mpfr_sqr (distance, zabs, GMP_RNDN);
-	mpfr_log (distance, distance, GMP_RNDN);
-	mpfr_mul (distance, distance, zabs, GMP_RNDN);
-	mpfr_div (distance, distance, dzabs, GMP_RNDN);
-	mpfr_abs (distance, distance, GMP_RNDN);
-	mpfr_log (distance, distance, GMP_RNDN);
-	mpfr_mul (distance, distance, kk, GMP_RNDN);
+	if (distance_est) {
+		my_mpn_get_mpf (xf, x, x_sign, frac_limbs);
+		my_mpn_get_mpf (yf, y, y_sign, frac_limbs);
+		mpf_mul (xf, xf, xf);
+		mpf_mul (yf, yf, yf);
+		mpf_add (xf, xf, yf);
+		mpf_sqrt (xf, xf);
+		//double zabs = mpf_get_d (xf);
+		mpfr_t zabs;
+		mpfr_init2 (zabs, 1024); /* XXX */
+		mpfr_set_f (zabs, xf, GMP_RNDN);
+		mpf_mul (dx, dx, dx);
+		mpf_mul (dy, dy, dy);
+		mpf_add (dx, dx, dy);
+		mpf_sqrt (dx, dx);
+		//double dzabs = mpf_get_d (dxf);
+		mpfr_t dzabs;
+		mpfr_init2 (dzabs, 1024); /* XXX */
+		mpfr_set_f (dzabs, dx, GMP_RNDN);
+		//double distance = log (zabs * zabs) * zabs / dzabs;
+		mpfr_sqr (distance, zabs, GMP_RNDN);
+		mpfr_log (distance, distance, GMP_RNDN);
+		mpfr_mul (distance, distance, zabs, GMP_RNDN);
+		mpfr_div (distance, distance, dzabs, GMP_RNDN);
 
-	//int idx = ((int) round (-kk * log (fabs (distance)))) % 256;
-	int idx = ((int) round (mpfr_get_d (distance, GMP_RNDN))) % 256;
+		mpf_clear (xf);
+		mpf_clear (yf);
+		mpf_clear (dx);
+		mpf_clear (dy);
+		mpf_clear (ftmp1);
+		mpf_clear (ftmp2);
+		mpf_clear (ftmp3);
+		mpfr_clear (zabs);
+		mpfr_clear (dzabs);
+	}
 
-	mpf_clear (xf);
-	mpf_clear (yf);
-	mpf_clear (dx);
-	mpf_clear (dy);
-	mpf_clear (ftmp1);
-	mpf_clear (ftmp2);
-	mpf_clear (ftmp3);
-	mpfr_clear (zabs);
-	mpfr_clear (dzabs);
-	mpfr_clear (distance);
-	mpfr_clear (kk);
-
-	if (idx < 0)
-		return idx + 256;
-	else
-		return idx;
-#else
-		return i;
-#endif
+	return i;
 }
 
 
@@ -635,19 +618,22 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		// MP
 		unsigned total_limbs = INT_LIMBS + mandel->frac_limbs;
 		mpf_t x0, y0;
+		mpfr_t distance;
 		mpf_init2 (x0, total_limbs * GMP_NUMB_BITS);
 		mpf_init2 (y0, total_limbs * GMP_NUMB_BITS);
+		if (mandel->md->distance_est)
+			mpfr_init2 (distance, total_limbs * GMP_NUMB_BITS);
 
 		mandel_convert_x_f (mandel, x0, x);
 		mandel_convert_y_f (mandel, y0, y);
 
 		switch (mandel->md->type) {
 			case FRACTAL_MANDELBROT: {
-				i = mandel_julia (mandel, x0, y0, x0, y0, mandel->md->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, y0, x0, y0, mandel->md->maxiter, mandel->frac_limbs, mandel->md->distance_est ? distance : NULL);
 				break;
 			}
 			case FRACTAL_JULIA: {
-				i = mandel_julia (mandel, x0, y0, mandel->md->param.real, mandel->md->param.imag, mandel->md->maxiter, mandel->frac_limbs);
+				i = mandel_julia (mandel, x0, y0, mandel->md->param.real, mandel->md->param.imag, mandel->md->maxiter, mandel->frac_limbs, NULL);
 				break;
 			}
 			default: {
@@ -655,6 +641,21 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 				return 0;
 			}
 		}
+
+		if (mandel->md->distance_est && i < mandel->md->maxiter) {
+			mpfr_abs (distance, distance, GMP_RNDN);
+			mpfr_log (distance, distance, GMP_RNDN);
+			mpfr_mul (distance, distance, mandel->distance_est_k, GMP_RNDN);
+
+			//int idx = ((int) round (-kk * log (fabs (distance)))) % 256;
+			int idx = ((int) round (mpfr_get_d (distance, GMP_RNDN))) % 256;
+			if (idx < 0)
+				idx += COLORS;
+			i = idx;
+		}
+
+		if (mandel->md->distance_est)
+			mpfr_clear (distance);
 	}
 	if (mandel->md->log_factor != 0.0)
 		i = mandel->md->log_factor * log (i);
@@ -741,7 +742,8 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	else
 		renderer->frac_limbs = (required_bits + mp_bits_per_limb - 1) / mp_bits_per_limb;
 
-	unsigned frac_limbs = renderer->frac_limbs;
+	const unsigned frac_limbs = renderer->frac_limbs;
+	const unsigned total_limbs = frac_limbs + INT_LIMBS;
 
 	if (renderer->md->type == FRACTAL_JULIA && frac_limbs == 0) {
 		renderer->preal_float = mpf_get_mandel_fp (renderer->md->param.real);
@@ -754,6 +756,14 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 		renderer->ptriangle = pascal_triangle (renderer->md->zpower);
 
 	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
+
+	if (renderer->md->distance_est) {
+		mpfr_init2 (renderer->distance_est_k, total_limbs * GMP_NUMB_BITS);
+		//const double kk = 12.353265; /* 256.0 / log (1e9) */
+		/* XXX */
+		mpfr_set_str (renderer->distance_est_k, "-12.353265", 10, GMP_RNDN);
+		//mpfr_set_str (renderer->distance_est_k, "-3.7059796", 10, GMP_RNDN);
+	}
 }
 
 
@@ -766,6 +776,8 @@ mandel_renderer_clear (struct mandel_renderer *renderer)
 	mpf_clear (renderer->xmax_f);
 	mpf_clear (renderer->ymin_f);
 	mpf_clear (renderer->ymax_f);
+	if (renderer->md->distance_est)
+		mpfr_clear (renderer->distance_est_k);
 }
 
 
@@ -1325,10 +1337,10 @@ complex_pow (mp_limb_t *xreal, bool xreal_sign, mp_limb_t *ximag, bool ximag_sig
 
 
 unsigned
-mandel_julia (const struct mandel_renderer *renderer, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs)
+mandel_julia (const struct mandel_renderer *renderer, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance)
 {
 	if (renderer->md->zpower == 2)
-		return mandel_julia_z2_distest (x0f, y0f, prealf, pimagf, maxiter, frac_limbs);
+		return mandel_julia_z2_distest (x0f, y0f, prealf, pimagf, maxiter, frac_limbs, distance);
 	else
 		return mandel_julia_zpower (renderer, x0f, y0f, prealf, pimagf, maxiter, frac_limbs);
 }
