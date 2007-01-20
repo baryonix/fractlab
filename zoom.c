@@ -26,7 +26,7 @@ struct thread_state {
 	struct zoom_state xstate, ystate;
 };
 
-static void init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n);
+static void init_zoom_state (struct zoom_state *state, mpf_srcptr x0, mpf_srcptr magf0, mpf_srcptr xn, mpf_srcptr magfn, unsigned long n);
 
 static gchar *start_coords = NULL, *target_coords = NULL;
 static double aspect;
@@ -54,7 +54,7 @@ parse_command_line (int *argc, char ***argv)
  * of frames 0 .. n, so we'll actually generate n + 1 frames.
  */
 static void
-init_zoom_state (struct zoom_state *state, mpf_t x0, mpf_t magf0, mpf_t xn, mpf_t magfn, unsigned long n)
+init_zoom_state (struct zoom_state *state, mpf_srcptr x0, mpf_srcptr magf0, mpf_srcptr xn, mpf_srcptr magfn, unsigned long n)
 {
 	mpfr_t a_n; /* a^n */
 

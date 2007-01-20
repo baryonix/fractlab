@@ -9,7 +9,7 @@
 
 /* XXX some error checking must be performed here */
 static bool
-fread_mpf (FILE *f, mpf_t val)
+fread_mpf (FILE *f, mpf_ptr val)
 {
 	char buf[1024];
 	fgets (buf, sizeof (buf), f);

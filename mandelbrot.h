@@ -69,19 +69,19 @@ struct mandel_renderer {
 };
 
 
-void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
-void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op);
+void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
+void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
 
 void mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter);
 void mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter);
 
 int mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y);
 bool mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d);
-void my_mpn_mul_fast (mp_limb_t *p, mp_limb_t *f0, mp_limb_t *f1, unsigned frac_limbs);
-bool my_mpn_add_signed (mp_limb_t *rop, mp_limb_t *op1, bool op1_sign, mp_limb_t *op2, bool op2_sign, unsigned frac_limbs);
-void my_mpn_invert (mp_limb_t *op, unsigned total_limbs);
+void my_mpn_mul_fast (mp_ptr p, mp_srcptr f0, mp_srcptr f1, unsigned frac_limbs);
+bool my_mpn_add_signed (mp_ptr rop, mp_srcptr op1, bool op1_sign, mp_srcptr op2, bool op2_sign, unsigned frac_limbs);
+void my_mpn_invert (mp_ptr op, unsigned total_limbs);
 
-unsigned mandel_julia (const struct mandel_renderer *md, const mpf_t x0f, const mpf_t y0f, const mpf_t prealf, const mpf_t pimagf, unsigned maxiter, unsigned frac_limbs);
+unsigned mandel_julia (const struct mandel_renderer *md, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs);
 #ifdef MANDELBROT_FP_ASM
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
