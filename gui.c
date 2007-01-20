@@ -1042,6 +1042,8 @@ rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data)
 static void
 distance_est_updated (GtkMandelApplication *app, gpointer data)
 {
+	if (app->updating_gui)
+		return;
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
 	md->distance_est = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.distance_est_checkbox));
