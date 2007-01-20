@@ -22,7 +22,6 @@ TODO
 - why is the precision sometimes insufficient when rendering Julia set?!
 - verify that commit 2d6d396232bdbbc12984ec00e85ede4504aebfc4 didn't have any
   bad performance implications
-- support distance estimation for higher powers of z
 - support distance estimation in coordinate files
   Before we do this, we want to implement a more general "representation"
   scheme, instead of simply adding distance estimation as a binary flag.
