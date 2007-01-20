@@ -59,7 +59,7 @@ static void complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool
 static unsigned mandel_julia_z2 (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_zpower (const struct mandel_renderer *md, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
-static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
 static void mandeldata_init_mpvars (struct mandeldata *md);
 static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep);
 static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep);
@@ -542,14 +542,26 @@ mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp
 
 
 static unsigned
-mandel_julia_zpower_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter)
+mandel_julia_zpower_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance)
 {
+	const bool distance_est = distance != NULL;
 	unsigned i = 0, k = 1, m = 1;
 	unsigned zpower = renderer->md->zpower;
 	unsigned *ptri = renderer->ptriangle;
-	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y;
+	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y, dx = 0.0, dy = 0.0;
 	while (i < maxiter && x * x + y * y < 4.0) {
-		complex_pow_fp (x, y, zpower, &x, &y, ptri);
+		if (distance_est) {
+			mandel_fp_t treal, timag;
+			complex_pow_fp (x, y, zpower - 1, &treal, &timag, ptri);
+			mandel_fp_t new_dx = (mandel_fp_t) zpower * (treal * dx - timag * dy) + 1.0;
+			dy = (mandel_fp_t) zpower * (treal * dy + timag * dx);
+			dx = new_dx;
+			mandel_fp_t new_x = treal * x - timag * y;
+			y = treal * y + timag * x;
+			x = new_x;
+		} else
+			complex_pow_fp (x, y, zpower, &x, &y, ptri);
+
 		x += preal;
 		y += pimag;
 
@@ -567,6 +579,11 @@ mandel_julia_zpower_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, 
 		}
 
 		i++;
+	}
+	if (distance_est) {
+		mandel_fp_t zabs = sqrt (x * x + y * y);
+		mandel_fp_t dzabs = sqrt (dx * dx + dy * dy);
+		*distance = log (zabs * zabs) * zabs / dzabs;
 	}
 	return i;
 }
@@ -752,8 +769,12 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 
 	if (renderer->md->zpower < 2)
 		fprintf (stderr, "* ERROR: zpower < 2 used\n");
-	else if (renderer->md->zpower > 2)
-		renderer->ptriangle = pascal_triangle (renderer->md->zpower);
+	else if (renderer->md->zpower > 2) {
+		unsigned ptri_row = renderer->md->zpower;
+		if (renderer->md->distance_est)
+			ptri_row--;
+		renderer->ptriangle = pascal_triangle (ptri_row);
+	}
 
 	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
 
@@ -1352,7 +1373,7 @@ mandel_julia_fp (const struct mandel_renderer *renderer, mandel_fp_t x0, mandel_
 	if (renderer->md->zpower == 2)
 		return mandel_julia_z2_fp (x0, y0, preal, pimag, maxiter, renderer->md->distance_est ? distance : NULL);
 	else
-		return mandel_julia_zpower_fp (renderer, x0, y0, preal, pimag, maxiter);
+		return mandel_julia_zpower_fp (renderer, x0, y0, preal, pimag, maxiter, renderer->md->distance_est ? distance : NULL);
 }
 
 
