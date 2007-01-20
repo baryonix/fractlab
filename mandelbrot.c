@@ -89,10 +89,14 @@ mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_t rop, unsigned op
 	mpf_add (rop, rop, mandel->ymax_f);
 }
 
+
 void
 mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter)
 {
-	mandel->data[x * mandel->h + y] = iter;
+	volatile int *px = mandel->data + x * mandel->h + y;
+	if (*px < 0)
+		g_atomic_int_inc (&mandel->pixels_done);
+	*px = iter;
 }
 
 
@@ -498,6 +502,7 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	renderer->md = md;
 	renderer->w = w;
 	renderer->h = h;
+	g_atomic_int_set (&renderer->pixels_done, 0);
 
 	renderer->aspect = (double) renderer->w / renderer->h;
 	center_to_corners (renderer->xmin_f, renderer->xmax_f, renderer->ymin_f, renderer->ymax_f, renderer->md->area.center.real, renderer->md->area.center.imag, renderer->md->area.magf, renderer->aspect);
@@ -1237,4 +1242,11 @@ my_mpf_get_mpn (mp_limb_t *rop, const mpf_t op, unsigned frac_limbs)
 		rop[i] = mpz_getlimbn (z, i);
 	mpz_clear (z);
 	return mpf_sgn (op) < 0;
+}
+
+
+double
+mandel_renderer_progress (const struct mandel_renderer *renderer)
+{
+	return (double) g_atomic_int_get (&renderer->pixels_done) / (renderer->w * renderer->h);
 }

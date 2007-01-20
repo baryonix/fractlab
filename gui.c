@@ -34,6 +34,7 @@ static void undo_pressed (GtkMandelApplication *app, gpointer data);
 static void redo_pressed (GtkMandelApplication *app, gpointer data);
 static void restart_thread (GtkMandelApplication *app);
 static void rendering_started (GtkMandelApplication *app, gulong bits, gpointer data);
+static void rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data);
 static void open_coord_file (GtkMandelApplication *app, gpointer data);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void save_coord_file (GtkMandelApplication *app, gpointer data);
@@ -469,6 +470,7 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "area-selected", (GCallback) area_selected, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "point-selected", (GCallback) point_for_julia_selected, app); /* XXX */
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app);
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-progress", (GCallback) rendering_progress, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
@@ -998,4 +1000,14 @@ type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	gtk_tree_model_get (GTK_TREE_MODEL (dlg->type_list), iter, 0, &gi, -1);
 	//gtk_tree_iter_free (iter);
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), gi);
+}
+
+
+static void
+rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data)
+{
+	char buf[256];
+	int r = snprintf (buf, sizeof (buf), "Rendering (%.1f%%)", (double) progress * 100.0);
+	if (r > 0 && r < sizeof (buf))
+		gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), buf);
 }
