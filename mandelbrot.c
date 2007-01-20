@@ -53,10 +53,9 @@ static unsigned *pascal_triangle (unsigned n);
 static inline mandel_fp_t stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers);
 static void store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n);
 static void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, unsigned *pascal);
-static unsigned mandel_julia_z2_distest (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance);
+static unsigned mandel_julia_z2 (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance);
 static void store_powers (mp_ptr powers, bool *signs, mp_srcptr x, bool xsign, unsigned n, unsigned frac_limbs);
 static void complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool ximag_sign, unsigned n, mp_ptr real, bool *rreal_sign, mp_ptr imag, bool *rimag_sign, unsigned frac_limbs, unsigned *pascal);
-static unsigned mandel_julia_z2 (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs);
 static unsigned mandel_julia_zpower (const struct mandel_renderer *md, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance);
 static unsigned mandel_julia_z2_fp (mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
 static unsigned mandel_julia_zpower_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter, mandel_fp_t *distance);
@@ -203,69 +202,6 @@ my_mpn_invert (mp_ptr op, unsigned total_limbs)
 unsigned iter_saved = 0;
 
 
-static unsigned
-mandel_julia_z2 (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs)
-{
-	unsigned total_limbs = INT_LIMBS + frac_limbs;
-	mp_limb_t x0[total_limbs], y0[total_limbs], preal[total_limbs], pimag[total_limbs];
-	bool x0_sign, y0_sign, preal_sign, pimag_sign;
-	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
-	mp_limb_t cd_x[total_limbs], cd_y[total_limbs];
-	unsigned i;
-
-	x0_sign = my_mpf_get_mpn (x0, x0f, frac_limbs);
-	y0_sign = my_mpf_get_mpn (y0, y0f, frac_limbs);
-	preal_sign = my_mpf_get_mpn (preal, prealf, frac_limbs);
-	pimag_sign = my_mpf_get_mpn (pimag, pimagf, frac_limbs);
-
-	four[0] = 4;
-	for (i = 1; i < INT_LIMBS; i++)
-		four[i] = 0;
-
-	memcpy (x, x0, sizeof (x));
-	memcpy (cd_x, x0, sizeof (cd_x));
-	memcpy (y, y0, sizeof (y));
-	memcpy (cd_y, y0, sizeof (cd_y));
-
-	bool x_sign = x0_sign, y_sign = y0_sign;
-
-	int k = 1, m = 1;
-	i = 0;
-	my_mpn_mul_fast (xsqr, x, x, frac_limbs);
-	my_mpn_mul_fast (ysqr, y, y, frac_limbs);
-	mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
-	while (i < maxiter && mpn_cmp (sqrsum + frac_limbs, four, INT_LIMBS) < 0) {
-		mp_limb_t tmp1[total_limbs];
-		my_mpn_mul_fast (tmp1, x, y, frac_limbs);
-		mpn_lshift (y, tmp1, total_limbs, 1);
-		y_sign = my_mpn_add_signed (y, y, x_sign != y_sign, pimag, pimag_sign, frac_limbs);
-		x_sign = my_mpn_add_signed (x, xsqr, false, ysqr, true, frac_limbs);
-		x_sign = my_mpn_add_signed (x, x, x_sign, preal, preal_sign, frac_limbs);
-
-		k--;
-		/* FIXME we must compare the signs here! */
-		if (mpn_cmp (x, cd_x, total_limbs) == 0 && mpn_cmp (y, cd_y, total_limbs) == 0) {
-			//printf ("* Cycle of length %d detected after %u iterations.\n", m - k + 1, i);
-			iter_saved += maxiter - i;
-			i = maxiter;
-			break;
-		}
-		if (k == 0) {
-			k = m <<= 1;
-			memcpy (cd_x, x, sizeof (x));
-			memcpy (cd_y, y, sizeof (y));
-		}
-
-		my_mpn_mul_fast (xsqr, x, x, frac_limbs);
-		my_mpn_mul_fast (ysqr, y, y, frac_limbs);
-		mpn_add_n (sqrsum, xsqr, ysqr, total_limbs);
-
-		i++;
-	}
-	return i;
-}
-
-
 static void
 my_mpn_get_mpf (mpf_ptr rop, mp_srcptr op, bool sign, unsigned frac_limbs)
 {
@@ -290,7 +226,7 @@ my_mpn_get_mpf (mpf_ptr rop, mp_srcptr op, bool sign, unsigned frac_limbs)
 
 
 static unsigned
-mandel_julia_z2_distest (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance)
+mandel_julia_z2 (mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance)
 {
 	const bool distance_est = distance != NULL;
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
@@ -1443,7 +1379,7 @@ unsigned
 mandel_julia (const struct mandel_renderer *renderer, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs, mpfr_ptr distance)
 {
 	if (renderer->md->zpower == 2)
-		return mandel_julia_z2_distest (x0f, y0f, prealf, pimagf, maxiter, frac_limbs, distance);
+		return mandel_julia_z2 (x0f, y0f, prealf, pimagf, maxiter, frac_limbs, distance);
 	else
 		return mandel_julia_zpower (renderer, x0f, y0f, prealf, pimagf, maxiter, frac_limbs, distance);
 }
