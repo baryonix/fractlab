@@ -157,6 +157,8 @@ create_menus (GtkMandelApplication *app)
 static void
 create_mainwin (GtkMandelApplication *app)
 {
+	gint ww, wh;
+
 	app->mainwin.undo = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_BACK));
 	gtk_widget_set_sensitive (app->mainwin.undo, FALSE);
 
@@ -247,12 +249,11 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_widget_set_size_request (app->mainwin.mandel, 50, 50);
 	/* FIXME how to set initial widget size? */
 
-	app->mainwin.status_info = gtk_label_new ("");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.status_info), 0.0, 0.5);
-
-	app->mainwin.status_info_frame = gtk_frame_new (NULL);
-	gtk_frame_set_shadow_type (GTK_FRAME (app->mainwin.status_info_frame), GTK_SHADOW_IN);
-	gtk_container_add (GTK_CONTAINER (app->mainwin.status_info_frame), app->mainwin.status_info);
+	app->mainwin.status_info = gtk_progress_bar_new ();
+	gtk_progress_set_text_alignment (GTK_PROGRESS (app->mainwin.status_info), 0.0, 0.5);
+	/* The default size request of GtkProgressBar is too large here */
+	gtk_widget_get_size_request (app->mainwin.status_info, &ww, &wh);
+	gtk_widget_set_size_request (app->mainwin.status_info, 10, wh);
 
 	app->mainwin.math_info = gtk_label_new ("");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.math_info), 0.0, 0.5);
@@ -262,7 +263,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.math_info_frame), app->mainwin.math_info);
 
 	app->mainwin.status_hbox = gtk_hbox_new (false, 2);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.status_hbox), app->mainwin.status_info_frame, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.status_hbox), app->mainwin.status_info, TRUE, TRUE, 0);
 	gtk_box_pack_start (GTK_BOX (app->mainwin.status_hbox), app->mainwin.math_info_frame, FALSE, FALSE, 0);
 
 	app->mainwin.main_vbox = gtk_vbox_new (false, 2);
@@ -675,7 +676,8 @@ rendering_started (GtkMandelApplication *app, gulong bits, gpointer data)
 	char buf[64];
 	int r;
 
-	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Rendering");
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (app->mainwin.status_info), 0.0);
+	gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), "Rendering");
 	gtk_widget_set_sensitive (app->mainwin.stop, TRUE);
 	if (bits == 0)
 		gtk_label_set_text (GTK_LABEL (app->mainwin.math_info), "FP");
@@ -857,13 +859,22 @@ static void
 rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data)
 {
 	const char *msg;
-	if (completed)
+	char buf[256];
+	double progress;
+	if (completed) {
 		msg = "Finished";
-	else
+		progress = 1.0;
+	} else {
 		msg = "Stopped";
+		progress = gtk_mandel_get_progress (GTK_MANDEL (app->mainwin.mandel));
+		int r = snprintf (buf, sizeof (buf), "Stopped (%.1f%%)", progress * 100.0);
+		if (r > 0 && r < sizeof (buf))
+			msg = buf;
+	}
 
 	gtk_widget_set_sensitive (app->mainwin.stop, FALSE);
-	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), msg);
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (app->mainwin.status_info), progress);
+	gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), msg);
 }
 
 
@@ -878,7 +889,7 @@ static void
 stop_pressed (GtkMandelApplication *app, gpointer data)
 {
 	GtkMandel *mandel = GTK_MANDEL (app->mainwin.mandel);
-	gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), "Stopping...");
+	gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), "Stopping...");
 	gtk_mandel_stop (mandel);
 }
 
@@ -1009,5 +1020,6 @@ rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data)
 	char buf[256];
 	int r = snprintf (buf, sizeof (buf), "Rendering (%.1f%%)", (double) progress * 100.0);
 	if (r > 0 && r < sizeof (buf))
-		gtk_label_set_text (GTK_LABEL (app->mainwin.status_info), buf);
+		gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), buf);
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (app->mainwin.status_info), progress);
 }
