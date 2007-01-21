@@ -5,6 +5,7 @@
 #include <glib.h>
 
 #include <gmp.h>
+#include <mpfr.h>
 
 #include "fpdefs.h"
 
@@ -18,6 +19,11 @@ typedef enum fractal_type_enum {
 	FRACTAL_JULIA = 1,
 	FRACTAL_MAX = 2
 } fractal_type_t;
+
+typedef enum fractal_type_flags_enum {
+	FRAC_TYPE_ESCAPE_ITER = 1 << 0,
+	FRAC_TYPE_DISTANCE = 1 << 1
+} fractal_type_flags_t;
 
 typedef enum render_method_enum {
 	RM_SUCCESSIVE_REFINE = 0,
@@ -40,13 +46,14 @@ struct fractal_type {
 	fractal_type_t type;
 	const char *name;
 	const char *descr;
+	fractal_type_flags_t flags;
 	void *(*param_new) (void);
 	void *(*param_clone) (const void *orig);
 	void (*param_free) (void *param);
 	void *(*state_new) (const void *param, unsigned frac_limbs);
 	void (*state_free) (void *state);
-	unsigned (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag);
-	unsigned (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag);
+	unsigned (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
+	unsigned (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
 };
 
 struct mandel_point {

@@ -70,16 +70,16 @@ static void *mandelbrot_param_clone (const void *orig);
 static void mandelbrot_param_free (void *param);
 static void *mandelbrot_state_new (const void *param, unsigned frac_limbs);
 static void mandelbrot_state_free (void *state);
-static unsigned mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag);
-static unsigned mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag);
+static unsigned mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
+static unsigned mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
 
 static void *julia_param_new (void);
 static void *julia_param_clone (const void *orig);
 static void julia_param_free (void *param);
 static void *julia_state_new (const void *param, unsigned frac_limbs);
 static void julia_state_free (void *state);
-static unsigned julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag);
-static unsigned julia_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag);
+static unsigned julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
+static unsigned julia_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
 
 
 const char *const render_method_names[] = {
@@ -92,6 +92,7 @@ const char *const render_method_names[] = {
 const struct fractal_type fractal_types[] = {
 	{
 		FRACTAL_MANDELBROT, "mandelbrot", "Mandelbrot Set",
+		FRAC_TYPE_ESCAPE_ITER,
 		mandelbrot_param_new,
 		mandelbrot_param_clone,
 		mandelbrot_param_free,
@@ -102,6 +103,7 @@ const struct fractal_type fractal_types[] = {
 	},
 	{
 		FRACTAL_JULIA, "julia", "Julia Set",
+		FRAC_TYPE_ESCAPE_ITER,
 		julia_param_new,
 		julia_param_clone,
 		julia_param_free,
@@ -449,7 +451,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
 		mandel_fp_t xf = x * (xmax - xmin) / mandel->w + xmin;
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
-		i = mandel->md->type->compute_fp (mandel->fractal_state, xf, yf);
+		i = mandel->md->type->compute_fp (mandel->fractal_state, xf, yf, NULL);
 	} else {
 		// MP
 		unsigned total_limbs = INT_LIMBS + mandel->frac_limbs;
@@ -460,7 +462,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_convert_x_f (mandel, x0, x);
 		mandel_convert_y_f (mandel, y0, y);
 
-		i = mandel->md->type->compute (mandel->fractal_state, x0, y0);
+		i = mandel->md->type->compute (mandel->fractal_state, x0, y0, NULL);
 
 		mpf_clear (x0);
 		mpf_clear (y0);
@@ -1312,7 +1314,7 @@ mandelbrot_state_free (void *state_)
 
 
 static unsigned
-mandelbrot_compute (void *state_, mpf_srcptr real, mpf_srcptr imag)
+mandelbrot_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance)
 {
 	struct mandelbrot_state *state = (struct mandelbrot_state *) state_;
 	const struct mandelbrot_param *param = state->param;
@@ -1321,7 +1323,7 @@ mandelbrot_compute (void *state_, mpf_srcptr real, mpf_srcptr imag)
 
 
 static unsigned
-mandelbrot_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag)
+mandelbrot_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance)
 {
 	struct mandelbrot_state *state = (struct mandelbrot_state *) state_;
 	const struct mandelbrot_param *param = state->param;
@@ -1393,7 +1395,7 @@ julia_state_free (void *state_)
 
 
 static unsigned
-julia_compute (void *state_, mpf_srcptr real, mpf_srcptr imag)
+julia_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance)
 {
 	struct julia_state *state = (struct julia_state *) state_;
 	const struct julia_param *param = state->param;
@@ -1402,7 +1404,7 @@ julia_compute (void *state_, mpf_srcptr real, mpf_srcptr imag)
 
 
 static unsigned
-julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag)
+julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance)
 {
 	struct julia_state *state = (struct julia_state *) state_;
 	const struct julia_param *param = state->param;
