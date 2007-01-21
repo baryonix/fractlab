@@ -57,7 +57,7 @@ typedef struct {
 		GSList *mode_group;
 		GtkWidget *controls_table;
 		GtkWidget *maxiter_label, *maxiter_input;
-		GtkWidget *log_colors_checkbox, *log_colors_input;
+		GtkWidget *log_colors_checkbox, *log_colors_hbox, *log_colors_label, *log_colors_input;
 		GtkWidget *zpower_label, *zpower_input;
 		GtkWidget *threads_label, *threads_input;
 		GtkWidget *mandel;

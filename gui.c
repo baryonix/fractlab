@@ -210,11 +210,17 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
 
+	app->mainwin.log_colors_label = gtk_label_new ("b=");
+
 	app->mainwin.log_colors_input = gtk_entry_new ();
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.log_colors_input), 1.0);
 	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.log_colors_input), 10);
-	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "100"); /* FIXME get default value in a sensible way */
+	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "1.01"); /* FIXME get default value in a sensible way */
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
+
+	app->mainwin.log_colors_hbox = gtk_hbox_new (FALSE, 2);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_label, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input, TRUE, TRUE, 0);
 
 	app->mainwin.zpower_label = gtk_label_new ("Power of Z");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.zpower_label), 0.0, 0.5);
@@ -240,7 +246,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_input, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_checkbox, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_input, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_hbox, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
