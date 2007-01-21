@@ -788,7 +788,7 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 			break;
 		case REPRES_ESCAPE_LOG:
 			use_log_factor = true;
-			set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->repres.params.log_base, 1);
+			set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->repres.params.log_base, 3);
 			break;
 		default:
 			fprintf (stderr, "* ERROR: Unknown representation type %d in %s line %d\n", (int) app->md->repres.repres, __FILE__, __LINE__);
