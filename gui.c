@@ -21,9 +21,11 @@ static void create_menus (GtkMandelApplication *app);
 static void create_mainwin (GtkMandelApplication *app);
 static void create_dialogs (GtkMandelApplication *app);
 static void create_area_info (GtkMandelApplication *app);
+#if 0
 static void create_mandelbrot_param (struct mandelbrot_param *mp);
 static void create_julia_param (struct julia_param *jp);
 static void create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window);
+#endif
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
 static void point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data);
@@ -58,7 +60,7 @@ static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
-static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+//static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 
 
 GType
@@ -100,7 +102,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	create_menus (app);
 	create_mainwin (app);
 	create_dialogs (app);
-	create_type_dlg (&app->fractal_type_dlg, GTK_WINDOW (app->mainwin.win));
+	//create_type_dlg (&app->fractal_type_dlg, GTK_WINDOW (app->mainwin.win));
 	//gtk_widget_show_all (app->fractal_type_dlg.dialog); /* XXX for testing only */
 	connect_signals (app);
 	app->undo = NULL;
@@ -345,6 +347,7 @@ create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_
 }
 
 
+#if 0
 static void
 create_mandelbrot_param (struct mandelbrot_param *par)
 {
@@ -440,6 +443,7 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 
 	g_signal_connect (G_OBJECT (dlg->type_input), "changed", (GCallback) type_dlg_type_updated, (gpointer) dlg);
 }
+#endif
 
 
 void
@@ -538,16 +542,17 @@ static void
 point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data)
 {
 	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_init (md);
-	md->type = FRACTAL_JULIA;
-	md->zpower = app->md->zpower;
-	mpf_set (md->param.real, point->real);
-	mpf_set (md->param.imag, point->imag);
+	mandeldata_init (md, fractal_type_by_id (FRACTAL_JULIA));
+	struct mandelbrot_param *oldmparam = (struct mandelbrot_param *) app->md->type_param;
+	struct julia_param *jparam = (struct julia_param *) md->type_param;
+	jparam->mjparam.zpower = oldmparam->mjparam.zpower;
+	mpf_set (jparam->param.real, point->real);
+	mpf_set (jparam->param.imag, point->imag);
 	/* XXX get default params in a sensible way */
 	mpf_set_str (md->area.center.real, "0", 10);
 	mpf_set_str (md->area.center.imag, "0", 10);
 	mpf_set_str (md->area.magf, ".5", 10);
-	md->maxiter = 1000;
+	jparam->mjparam.maxiter = 1000;
 	md->log_factor = 0.0;
 	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
@@ -562,7 +567,8 @@ maxiter_updated (GtkMandelApplication *app, gpointer data)
 	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
-	md->maxiter = i;
+	struct mandel_julia_param *mjparam = (struct mandel_julia_param *) md->type_param;
+	mjparam->maxiter = i; /* XXX this is dirty, will go away when all the "type specific params" dialog stuff is there */
 	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
@@ -714,7 +720,6 @@ open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 		return;
 	}
 	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_init (md);
 	bool ok = fread_mandeldata (f, md);
 	fclose (f);
 	if (!ok) {
@@ -774,8 +779,9 @@ static void
 update_gui_from_mandeldata (GtkMandelApplication *app)
 {
 	app->updating_gui = true;
-	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), app->md->maxiter);
-	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), app->md->zpower);
+	const struct mandel_julia_param *mjparam = (const struct mandel_julia_param *) app->md->type_param;
+	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), mjparam->maxiter);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), mjparam->zpower);
 	bool use_log_factor = app->md->log_factor != 0.0;
 	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), use_log_factor);
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, use_log_factor);
@@ -923,7 +929,8 @@ zpower_updated (GtkMandelApplication *app, gpointer data)
 	printf ("* zpower updated!\n");
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
-	md->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
+	struct mandel_julia_param *mjparam = (struct mandel_julia_param *) md->type_param;
+	mjparam->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
 	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
@@ -1002,6 +1009,7 @@ to_julia_mode_selected (GtkMandelApplication *app, gpointer data)
 }
 
 
+#if 0
 static void
 type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 {
@@ -1012,6 +1020,7 @@ type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	//gtk_tree_iter_free (iter);
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), gi);
 }
+#endif
 
 
 static void

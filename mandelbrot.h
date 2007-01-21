@@ -26,10 +26,28 @@ typedef enum render_method_enum {
 	RM_MAX = 3
 } render_method_t;
 
-extern const char *render_method_names[];
 
-unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
+struct fractal_type;
+struct mandel_point;
+struct mandel_area;
+struct mandeldata;
+struct mandel_renderer;
+struct mandelbrot_param;
+struct mandelbrot_state;
 
+
+struct fractal_type {
+	fractal_type_t type;
+	const char *name;
+	const char *descr;
+	void *(*param_new) (void);
+	void *(*param_clone) (const void *orig);
+	void (*param_free) (void *param);
+	void *(*state_new) (const void *param, unsigned frac_limbs);
+	void (*state_free) (void *state);
+	unsigned (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag);
+	unsigned (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag);
+};
 
 struct mandel_point {
 	mpf_t real, imag;
@@ -40,13 +58,45 @@ struct mandel_area {
 	mpf_t magf;
 };
 
-struct mandeldata {
-	fractal_type_t type;
+struct mandel_julia_param {
 	unsigned zpower;
-	struct mandel_area area;
 	unsigned maxiter;
+};
+
+struct mandelbrot_param {
+	struct mandel_julia_param mjparam;
+};
+
+struct julia_param {
+	struct mandel_julia_param mjparam;
+	struct mandel_point param;
+};
+
+struct mandel_julia_state {
+	unsigned frac_limbs;
+	unsigned *ptriangle;
+};
+
+struct mandelbrot_state {
+	struct mandel_julia_state mjstate;
+	const struct mandelbrot_param *param;
+};
+
+struct julia_state {
+	struct mandel_julia_state mjstate;
+	const struct julia_param *param;
+	union {
+		struct {
+			mandel_fp_t preal_float, pimag_float;
+		} fp;
+	} mpvars;
+};
+
+struct mandeldata {
+	const struct fractal_type *type;
+	void *type_param;
+	struct mandel_area area;
 	double log_factor;
-	struct mandel_point param; /* parameter of Julia set */
 };
 
 
@@ -54,20 +104,28 @@ struct mandel_renderer {
 	const struct mandeldata *md;
 	unsigned w, h;
 	volatile gint pixels_done;
-	unsigned *ptriangle;
 	mpf_t xmin_f, xmax_f, ymin_f, ymax_f;
 	unsigned frac_limbs;
 	double aspect;
 	int *data; /* This is signed so we can represent not-yet-rendered pixels as -1 */
 	render_method_t render_method;
 	void *user_data;
+	void *fractal_state;
 	volatile bool terminate;
-	mandel_fp_t preal_float, pimag_float;
 	unsigned thread_count;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
 };
 
+
+extern const char *const render_method_names[];
+extern const struct fractal_type fractal_types[];
+
+const struct fractal_type *fractal_type_by_id (fractal_type_t type);
+const struct fractal_type *fractal_type_by_name (const char *name);
+
+/* This may be an external assembly routine. */
+unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 
 void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
 void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
@@ -81,11 +139,11 @@ void my_mpn_mul_fast (mp_ptr p, mp_srcptr f0, mp_srcptr f1, unsigned frac_limbs)
 bool my_mpn_add_signed (mp_ptr rop, mp_srcptr op1, bool op1_sign, mp_srcptr op2, bool op2_sign, unsigned frac_limbs);
 void my_mpn_invert (mp_ptr op, unsigned total_limbs);
 
-unsigned mandel_julia (const struct mandel_renderer *md, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf, unsigned maxiter, unsigned frac_limbs);
+unsigned mandel_julia (struct mandel_julia_state *state, const struct mandel_julia_param *param, mpf_srcptr x0f, mpf_srcptr y0f, mpf_srcptr prealf, mpf_srcptr pimagf);
 #ifdef MANDELBROT_FP_ASM
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);
 #endif
-unsigned mandel_julia_fp (const struct mandel_renderer *md, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag, unsigned maxiter);
+unsigned mandel_julia_fp (struct mandel_julia_state *state, const struct mandel_julia_param *param, mandel_fp_t x0, mandel_fp_t y0, mandel_fp_t preal, mandel_fp_t pimag);
 int mandel_render_pixel (struct mandel_renderer *mandel, int x, int y);
 int mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y);
 void calcpart (struct mandel_renderer *md, int x0, int y0, int x1, int y1);
@@ -97,7 +155,7 @@ void mandel_renderer_clear (struct mandel_renderer *renderer);
 unsigned mandel_get_precision (const struct mandel_renderer *mandel);
 double mandel_renderer_progress (const struct mandel_renderer *renderer);
 
-void mandeldata_init (struct mandeldata *md);
+void mandeldata_init (struct mandeldata *md, const struct fractal_type *type);
 void mandeldata_clear (struct mandeldata *md);
 void mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig);
 

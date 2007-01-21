@@ -59,10 +59,10 @@ main (int argc, char **argv)
 #endif
 
 	struct mandeldata md[1];
-	mandeldata_init (md);
-	md->type = FRACTAL_MANDELBROT;
-	md->zpower = 2;
-	md->maxiter = 1000;
+	mandeldata_init (md, fractal_type_by_id (FRACTAL_MANDELBROT));
+	struct mandelbrot_param *mparam = (struct mandelbrot_param *) md->type_param;
+	mparam->mjparam.zpower = 2;
+	mparam->mjparam.maxiter = 1000;
 	md->log_factor = 0.0;
 	mpf_set_str (md->area.center.real, "-.5", 10);
 	mpf_set_str (md->area.center.imag, "0", 10);

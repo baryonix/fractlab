@@ -13,6 +13,7 @@ typedef enum {
 } GtkMandelAppMode;
 
 
+#if 0
 struct mandelbrot_param {
 	GtkWidget *table;
 	GtkWidget *zpower_label, *zpower_input;
@@ -42,6 +43,7 @@ struct fractal_type_dlg {
 	struct mandelbrot_param mandelbrot_param;
 	struct julia_param julia_param;
 };
+#endif
 
 
 
@@ -91,7 +93,7 @@ typedef struct {
 	struct mandeldata *md;
 	bool updating_gui;
 	GtkMandelAppMode mode;
-	struct fractal_type_dlg fractal_type_dlg;
+	//struct fractal_type_dlg fractal_type_dlg;
 } GtkMandelApplication;
 
 typedef struct {

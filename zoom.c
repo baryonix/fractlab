@@ -155,8 +155,6 @@ main (int argc, char **argv)
 	mpf_init (mpaspect);
 	parse_command_line (&argc, &argv);
 	struct mandeldata md0[1], *const mdn = &state->md;
-	mandeldata_init (md0);
-	mandeldata_init (mdn);
 	FILE *f = NULL;
 	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_mandeldata (f, md0)) {
 		if (f != NULL)
