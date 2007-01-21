@@ -32,6 +32,13 @@ typedef enum render_method_enum {
 	RM_MAX = 3
 } render_method_t;
 
+typedef enum fractal_repres_enum {
+	REPRES_ESCAPE = 0,
+	REPRES_ESCAPE_LOG = 1,
+	REPRES_DISTANCE = 2,
+	REPRES_MAX = 3
+} fractal_repres_t;
+
 
 struct fractal_type;
 struct mandel_point;
@@ -40,6 +47,7 @@ struct mandeldata;
 struct mandel_renderer;
 struct mandelbrot_param;
 struct mandelbrot_state;
+struct mandel_representation;
 
 
 struct fractal_type {
@@ -99,11 +107,20 @@ struct julia_state {
 	} mpvars;
 };
 
+
+struct mandel_repres {
+	fractal_repres_t repres;
+	union {
+		double log_base; /* for escape-iter logarithmic */
+	} params;
+};
+
+
 struct mandeldata {
 	const struct fractal_type *type;
 	void *type_param;
 	struct mandel_area area;
-	double log_factor;
+	struct mandel_repres repres;
 };
 
 
@@ -120,6 +137,9 @@ struct mandel_renderer {
 	void *fractal_state;
 	volatile bool terminate;
 	unsigned thread_count;
+	union {
+		double log_factor;
+	} rep_state;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
 };
@@ -130,6 +150,7 @@ extern const struct fractal_type fractal_types[];
 
 const struct fractal_type *fractal_type_by_id (fractal_type_t type);
 const struct fractal_type *fractal_type_by_name (const char *name);
+int fractal_supported_representations (const struct fractal_type *type, fractal_repres_t *res);
 
 /* This may be an external assembly routine. */
 unsigned mandelbrot_fp (mandel_fp_t x0, mandel_fp_t y0, unsigned maxiter);

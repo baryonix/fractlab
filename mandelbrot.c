@@ -467,8 +467,16 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mpf_clear (x0);
 		mpf_clear (y0);
 	}
-	if (mandel->md->log_factor != 0.0)
-		i = mandel->md->log_factor * log (i);
+	switch (mandel->md->repres.repres) {
+		case REPRES_ESCAPE:
+			break;
+		case REPRES_ESCAPE_LOG:
+			i = mandel->rep_state.log_factor * log (i);
+			break;
+		default:
+			fprintf (stderr, "* ERROR: Unknown representation type %d in %s line %d\n", (int) mandel->md->repres.repres, __FILE__, __LINE__);
+			break;
+	}
 	return i;
 }
 
@@ -556,6 +564,19 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	renderer->fractal_state = renderer->md->type->state_new (renderer->md->type_param, frac_limbs);
 
 	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
+
+	switch (renderer->md->repres.repres) {
+		case REPRES_ESCAPE:
+			break;
+		case REPRES_ESCAPE_LOG:
+			renderer->rep_state.log_factor = 1.0 / log (renderer->md->repres.params.log_base);
+			break;
+		case REPRES_DISTANCE:
+			break;
+		default:
+			fprintf (stderr, "* ERROR: Invalid representation type %d in %s line %d\n", (int) renderer->md->repres.repres, __FILE__, __LINE__);
+			break;
+	}
 }
 
 
@@ -1443,4 +1464,19 @@ fractal_type_by_name (const char *name)
 		if (strcmp (name, fractal_types[i].name) == 0)
 			return &fractal_types[i];
 	return NULL;
+}
+
+
+int
+fractal_supported_representations (const struct fractal_type *type, fractal_repres_t *res)
+{
+	int i = 0;
+	if (type->flags & FRAC_TYPE_ESCAPE_ITER) {
+		res[i++] = REPRES_ESCAPE;
+		res[i++] = REPRES_ESCAPE_LOG;
+	}
+	if (type->flags & FRAC_TYPE_DISTANCE) {
+		res[i++] = REPRES_DISTANCE;
+	}
+	return i;
 }

@@ -77,8 +77,15 @@ fread_mandeldata (FILE *f, struct mandeldata *md)
 	if (!fread_mandel_area (f, &md->area))
 		return false;
 
-	r = fscanf (f, "%lf\n", &md->log_factor);
-	if (r == EOF || r < 1)
+	fgets (buf, sizeof (buf), f);
+	if (strcmp (buf, "escape") == 0)
+		md->repres.repres = REPRES_ESCAPE;
+	else if (strcmp (buf, "escape-log") == 0) {
+		md->repres.repres = REPRES_ESCAPE_LOG;
+		r = fscanf (f, "%lf\n", &md->repres.params.log_base);
+		if (r == EOF || r < 1)
+			return false;
+	} else
 		return false;
 
 	switch (type->type) {
@@ -112,7 +119,20 @@ fwrite_mandeldata (FILE *f, const struct mandeldata *md)
 	char creal[1024], cimag[1024], magf[1024];
 	if (center_coords_to_string (md->area.center.real, md->area.center.imag, md->area.magf, creal, cimag, magf, 1024) < 0)
 		return false;
-	fprintf (f, "%s\n%s\n%s\n%s\n%f\n", md->type->name, creal, cimag, magf, md->log_factor);
+	fprintf (f, "%s\n%s\n%s\n%s\n", md->type->name, creal, cimag, magf);
+	switch (md->repres.repres) {
+		case REPRES_ESCAPE:
+			fprintf (f, "escape\n");
+			break;
+		case REPRES_ESCAPE_LOG:
+			fprintf (f, "escape-log\n%f\n", md->repres.params.log_base);
+			break;
+		case REPRES_DISTANCE:
+			fprintf (f, "distance\n");
+			break;
+		default:
+			return false;
+	}
 	switch (md->type->type) {
 		case FRACTAL_MANDELBROT: {
 			if (!fwrite_mandel_julia (f, md->type_param))

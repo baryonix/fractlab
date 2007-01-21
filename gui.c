@@ -553,7 +553,7 @@ point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point,
 	mpf_set_str (md->area.center.imag, "0", 10);
 	mpf_set_str (md->area.magf, ".5", 10);
 	jparam->mjparam.maxiter = 1000;
-	md->log_factor = 0.0;
+	md->repres.repres = REPRES_ESCAPE;
 	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
@@ -595,16 +595,15 @@ log_colors_updated (GtkMandelApplication *app, gpointer data)
 		return;
 	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox));
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, active);
-	double lf = 0.0;
-	if (active)
-		lf = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
-	if (isfinite (lf)) {
-		struct mandeldata *md = malloc (sizeof (*md));
-		mandeldata_clone (md, app->md);
-		md->log_factor = lf;
-		gtk_mandel_application_set_mandeldata (app, md);
-		restart_thread (app);
-	}
+	struct mandeldata *md = malloc (sizeof (*md));
+	mandeldata_clone (md, app->md);
+	if (active) {
+		md->repres.repres = REPRES_ESCAPE_LOG;
+		md->repres.params.log_base = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
+	} else
+		md->repres.repres = REPRES_ESCAPE;
+	gtk_mandel_application_set_mandeldata (app, md);
+	restart_thread (app);
 }
 
 
@@ -782,11 +781,21 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 	const struct mandel_julia_param *mjparam = (const struct mandel_julia_param *) app->md->type_param;
 	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), mjparam->maxiter);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), mjparam->zpower);
-	bool use_log_factor = app->md->log_factor != 0.0;
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox), use_log_factor);
+	bool use_log_factor = false;
+	switch (app->md->repres.repres) {
+		case REPRES_ESCAPE:
+			use_log_factor = false;
+			break;
+		case REPRES_ESCAPE_LOG:
+			use_log_factor = true;
+			set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->repres.params.log_base, 1);
+			break;
+		default:
+			fprintf (stderr, "* ERROR: Unknown representation type %d in %s line %d\n", (int) app->md->repres.repres, __FILE__, __LINE__);
+			break;
+	}
 	gtk_widget_set_sensitive (app->mainwin.log_colors_input, use_log_factor);
 	if (use_log_factor)
-		set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->log_factor, 1);
 	gtk_widget_set_sensitive (app->mainwin.to_julia_mode, app->md->type == FRACTAL_MANDELBROT);
 	gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (app->mainwin.zoom_mode), TRUE);
 	update_area_info (app);
