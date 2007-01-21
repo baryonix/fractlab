@@ -21,11 +21,9 @@ static void create_menus (GtkMandelApplication *app);
 static void create_mainwin (GtkMandelApplication *app);
 static void create_dialogs (GtkMandelApplication *app);
 static void create_area_info (GtkMandelApplication *app);
-#if 0
-static void create_mandelbrot_param (struct mandelbrot_param *mp);
-static void create_julia_param (struct julia_param *jp);
+static struct gui_type_param *create_mandelbrot_param (void);
+static struct gui_type_param *create_julia_param (void);
 static void create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window);
-#endif
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
 static void point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data);
@@ -60,7 +58,13 @@ static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
-//static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+
+
+static struct gui_fractal_type gui_fractal_types[] = {
+	{GUI_FTYPE_HAS_MAXITER, create_mandelbrot_param},
+	{GUI_FTYPE_HAS_MAXITER, create_julia_param}
+};
 
 
 GType
@@ -102,7 +106,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	create_menus (app);
 	create_mainwin (app);
 	create_dialogs (app);
-	//create_type_dlg (&app->fractal_type_dlg, GTK_WINDOW (app->mainwin.win));
+	create_type_dlg (&app->fractal_type_dlg, GTK_WINDOW (app->mainwin.win));
 	//gtk_widget_show_all (app->fractal_type_dlg.dialog); /* XXX for testing only */
 	connect_signals (app);
 	app->undo = NULL;
@@ -353,46 +357,53 @@ create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_
 }
 
 
-#if 0
-static void
-create_mandelbrot_param (struct mandelbrot_param *par)
+static struct gui_type_param *
+create_mandelbrot_param (void)
 {
+	struct gui_mandelbrot_param *par = malloc (sizeof (*par));
+	memset (par, 0, sizeof (*par));
 	par->zpower_label = gtk_label_new ("Power of Z");
-	par->zpower_input = gtk_spin_button_new_with_range (2.0, 100.0, 1.0);
-	par->distance_est = gtk_check_button_new_with_label ("Distance Estimation");
-	par->table = gtk_table_new (2, 2, FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (par->table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (par->table), 2);
-	gtk_table_attach (GTK_TABLE (par->table), par->zpower_label, 0, 1, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->zpower_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->distance_est, 0, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	par->zpower_input = gtk_entry_new ();
+	par->ftype.main_widget = gtk_table_new (2, 2, FALSE);
+	GtkTable *table = GTK_TABLE (par->ftype.main_widget);
+	gtk_table_set_row_spacings (table, 2);
+	gtk_table_set_col_spacings (table, 2);
+	gtk_table_attach (table, par->zpower_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->zpower_input, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
+	return &par->ftype;
 }
 
 
-static void
-create_julia_param (struct julia_param *par)
+static struct gui_type_param *
+create_julia_param (void)
 {
+	struct gui_julia_param *par = malloc (sizeof (*par));
+	memset (par, 0, sizeof (*par));
 	par->zpower_label = gtk_label_new ("Power of Z");
-	par->zpower_input = gtk_spin_button_new_with_range (2.0, 100.0, 1.0);
-	par->preal_label = gtk_label_new ("preal");
+	par->zpower_input = gtk_entry_new ();
+	par->preal_label = gtk_label_new ("Real Part of Parameter");
 	par->preal_input = gtk_entry_new ();
-	par->pimag_label = gtk_label_new ("pimag");
+	par->pimag_label = gtk_label_new ("Imaginary Part of Parameter");
 	par->pimag_input = gtk_entry_new ();
-	par->table = gtk_table_new (2, 3, FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (par->table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (par->table), 2);
-	gtk_table_attach (GTK_TABLE (par->table), par->zpower_label, 0, 1, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->zpower_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->preal_label, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->preal_input, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->pimag_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (par->table), par->pimag_input, 1, 2, 2, 3, GTK_FILL, 0, 0, 0);
+	par->ftype.main_widget = gtk_table_new (2, 2, FALSE);
+	GtkTable *table = GTK_TABLE (par->ftype.main_widget);
+	gtk_table_set_row_spacings (table, 2);
+	gtk_table_set_col_spacings (table, 2);
+	gtk_table_attach (table, par->zpower_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->zpower_input, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->preal_label, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->preal_input, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->pimag_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (table, par->pimag_input, 1, 2, 2, 3, GTK_FILL, 0, 0, 0);
+	return &par->ftype;
 }
 
 
 static void
 create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 {
+	int i;
+
 	dlg->type_label = gtk_label_new ("Fractal Type");
 	dlg->type_list = gtk_list_store_new (2, G_TYPE_INT, G_TYPE_STRING);
 	GtkTreeIter iter[1];
@@ -431,25 +442,40 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 	dlg->area_frame = gtk_frame_new ("Area");
 	gtk_container_add (GTK_CONTAINER (dlg->area_frame), dlg->area_table);
 
-	create_mandelbrot_param (&dlg->mandelbrot_param);
-	create_julia_param (&dlg->julia_param);
+	dlg->maxiter_label = gtk_label_new ("Max Iterations");
+	dlg->maxiter_input = gtk_spin_button_new_with_range (1.0, 1000000000000.0, 100.0);
+
+	dlg->general_param_table = gtk_table_new (2, 1, FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (dlg->general_param_table), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (dlg->general_param_table), 2);
+	gtk_table_attach (GTK_TABLE (dlg->general_param_table), dlg->maxiter_label, 0, 1, 0, 1, 0, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (dlg->general_param_table), dlg->maxiter_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+
+	dlg->general_param_frame = gtk_frame_new ("General Parameters");
+	gtk_container_add (GTK_CONTAINER (dlg->general_param_frame), dlg->general_param_table);
+
 	dlg->type_param_notebook = gtk_notebook_new ();
 	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (dlg->type_param_notebook), FALSE);
 	gtk_notebook_set_show_border (GTK_NOTEBOOK (dlg->type_param_notebook), FALSE);
-	gtk_notebook_append_page (GTK_NOTEBOOK (dlg->type_param_notebook), dlg->mandelbrot_param.table, NULL);
-	gtk_notebook_append_page (GTK_NOTEBOOK (dlg->type_param_notebook), dlg->julia_param.table, NULL);
-	dlg->type_param_frame = gtk_frame_new ("Type-Specific Params");
+
+	for (i = 0; i < FRACTAL_MAX; i++) {
+		dlg->frac_types[i].repres_count = fractal_supported_representations (fractal_type_by_id (i), dlg->frac_types[i].repres);
+		dlg->frac_types[i].gui = gui_fractal_types[i].create_gui ();
+		gtk_notebook_append_page (GTK_NOTEBOOK (dlg->type_param_notebook), dlg->frac_types[i].gui->main_widget, NULL);
+	}
+
+	dlg->type_param_frame = gtk_frame_new ("Type-Specific Parameters");
 	gtk_container_add (GTK_CONTAINER (dlg->type_param_frame), dlg->type_param_notebook);
 
 	dlg->dialog = gtk_dialog_new_with_buttons ("Fractal Type", window, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_CLOSE, NULL);
 	GtkBox *dlg_vbox = GTK_BOX (GTK_DIALOG (dlg->dialog)->vbox);
 	gtk_box_pack_start (dlg_vbox, dlg->type_hbox, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->area_frame, FALSE, FALSE, 0);
+	gtk_box_pack_start (dlg_vbox, dlg->general_param_frame, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->type_param_frame, FALSE, FALSE, 0);
 
 	g_signal_connect (G_OBJECT (dlg->type_input), "changed", (GCallback) type_dlg_type_updated, (gpointer) dlg);
 }
-#endif
 
 
 void
@@ -1024,7 +1050,6 @@ to_julia_mode_selected (GtkMandelApplication *app, gpointer data)
 }
 
 
-#if 0
 static void
 type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 {
@@ -1035,7 +1060,6 @@ type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	//gtk_tree_iter_free (iter);
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), gi);
 }
-#endif
 
 
 static void

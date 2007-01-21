@@ -13,16 +13,34 @@ typedef enum {
 } GtkMandelAppMode;
 
 
-#if 0
-struct mandelbrot_param {
-	GtkWidget *table;
-	GtkWidget *zpower_label, *zpower_input;
-	GtkWidget *distance_est;
+typedef enum {
+	GUI_FTYPE_HAS_MAXITER = 1 << 0
+} gui_ftype_flags_t;
+
+/* Static type-specific information. */
+struct gui_fractal_type {
+	gui_ftype_flags_t flags;
+	struct gui_type_param *(*create_gui) (void);
 };
 
+/* Dynamic type-specific information. */
+struct gui_fractal_type_dynamic {
+	fractal_repres_t repres[REPRES_MAX];
+	int repres_count;
+	struct gui_type_param *gui;
+};
 
-struct julia_param {
-	GtkWidget *table;
+struct gui_type_param {
+	GtkWidget *main_widget;
+};
+
+struct gui_mandelbrot_param {
+	struct gui_type_param ftype;
+	GtkWidget *zpower_label, *zpower_input;
+};
+
+struct gui_julia_param {
+	struct gui_type_param ftype;
 	GtkWidget *zpower_label, *zpower_input;
 	GtkWidget *preal_label, *preal_input;
 	GtkWidget *pimag_label, *pimag_input;
@@ -38,12 +56,13 @@ struct fractal_type_dlg {
 	GtkWidget *area_creal_label, *area_creal_input;
 	GtkWidget *area_cimag_label, *area_cimag_input;
 	GtkWidget *area_magf_label, *area_magf_input;
+	GtkWidget *general_param_frame;
+	GtkWidget *general_param_table;
+	GtkWidget *maxiter_label, *maxiter_input;
 	GtkWidget *type_param_frame;
 	GtkWidget *type_param_notebook;
-	struct mandelbrot_param mandelbrot_param;
-	struct julia_param julia_param;
+	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
 };
-#endif
 
 
 
@@ -93,7 +112,7 @@ typedef struct {
 	struct mandeldata *md;
 	bool updating_gui;
 	GtkMandelAppMode mode;
-	//struct fractal_type_dlg fractal_type_dlg;
+	struct fractal_type_dlg fractal_type_dlg;
 } GtkMandelApplication;
 
 typedef struct {
