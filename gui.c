@@ -59,6 +59,8 @@ static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct m
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
 static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+static void type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+static bool repres_supported (const struct gui_fractal_type_dynamic *ftype, fractal_repres_t repres);
 
 
 static struct gui_fractal_type gui_fractal_types[] = {
@@ -467,14 +469,60 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 	dlg->type_param_frame = gtk_frame_new ("Type-Specific Parameters");
 	gtk_container_add (GTK_CONTAINER (dlg->type_param_frame), dlg->type_param_notebook);
 
+	dlg->repres_label = gtk_label_new ("Representation Method");
+
+	dlg->repres_list = gtk_list_store_new (3, G_TYPE_INT, G_TYPE_STRING, G_TYPE_BOOLEAN);
+	gtk_list_store_append (dlg->repres_list, iter);
+	gtk_list_store_set (dlg->repres_list, iter, 0, REPRES_ESCAPE, 1, "Escape-Iterations", 2, (gboolean) TRUE, -1);
+	gtk_list_store_append (dlg->repres_list, iter);
+	gtk_list_store_set (dlg->repres_list, iter, 0, REPRES_ESCAPE_LOG, 1, "Escape-Iterations (Logarithmic)", 2, (gboolean) TRUE, -1);
+	gtk_list_store_append (dlg->repres_list, iter);
+	gtk_list_store_set (dlg->repres_list, iter, 0, REPRES_DISTANCE, 1, "Distance", 2, (gboolean) TRUE, -1);
+	dlg->repres_renderer = gtk_cell_renderer_text_new ();
+	dlg->repres_input = gtk_combo_box_new_with_model (GTK_TREE_MODEL (dlg->repres_list));
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (dlg->repres_input), dlg->repres_renderer, FALSE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (dlg->repres_input), dlg->repres_renderer, "text", 1);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (dlg->repres_input), dlg->repres_renderer, "sensitive", 2);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (dlg->repres_input), REPRES_ESCAPE); /* XXX */
+
+	dlg->repres_hbox = gtk_hbox_new (FALSE, 2);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_hbox), dlg->repres_label, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_hbox), dlg->repres_input, FALSE, FALSE, 0);
+
+	dlg->repres_log_base_label = gtk_label_new ("Base of Logarithm");
+	dlg->repres_log_base_input = gtk_spin_button_new_with_range (1.0, 100000.0, 0.01);
+
+	dlg->repres_log_base_hbox = gtk_hbox_new (FALSE, 2);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_log_base_hbox), dlg->repres_log_base_label, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_log_base_hbox), dlg->repres_log_base_input, TRUE, TRUE, 0);
+
+	dlg->repres_notebook_tabs[REPRES_ESCAPE] = gtk_label_new (NULL);
+	dlg->repres_notebook_tabs[REPRES_ESCAPE_LOG] = dlg->repres_log_base_hbox;
+	dlg->repres_notebook_tabs[REPRES_DISTANCE] = gtk_label_new (NULL);
+
+	dlg->repres_notebook = gtk_notebook_new ();
+	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (dlg->repres_notebook), FALSE);
+	gtk_notebook_set_show_border (GTK_NOTEBOOK (dlg->repres_notebook), FALSE);
+	for (i = 0; i < REPRES_MAX; i++)
+		gtk_notebook_append_page (GTK_NOTEBOOK (dlg->repres_notebook), dlg->repres_notebook_tabs[i], NULL);
+
+	dlg->repres_vbox = gtk_vbox_new (FALSE, 2);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_vbox), dlg->repres_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (dlg->repres_vbox), dlg->repres_notebook, FALSE, FALSE, 0);
+
+	dlg->repres_frame = gtk_frame_new ("Representation Settings");
+	gtk_container_add (GTK_CONTAINER (dlg->repres_frame), dlg->repres_vbox);
+
 	dlg->dialog = gtk_dialog_new_with_buttons ("Fractal Type", window, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_CLOSE, NULL);
 	GtkBox *dlg_vbox = GTK_BOX (GTK_DIALOG (dlg->dialog)->vbox);
 	gtk_box_pack_start (dlg_vbox, dlg->type_hbox, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->area_frame, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->general_param_frame, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->type_param_frame, FALSE, FALSE, 0);
+	gtk_box_pack_start (dlg_vbox, dlg->repres_frame, FALSE, FALSE, 0);
 
 	g_signal_connect (G_OBJECT (dlg->type_input), "changed", (GCallback) type_dlg_type_updated, (gpointer) dlg);
+	g_signal_connect (G_OBJECT (dlg->repres_input), "changed", (GCallback) type_dlg_repres_updated, (gpointer) dlg);
 }
 
 
@@ -1053,6 +1101,7 @@ static void
 type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 {
 	GtkTreeIter iter[1];
+	int i;
 	gint gi;
 	gtk_combo_box_get_active_iter (combo, iter);
 	gtk_tree_model_get (GTK_TREE_MODEL (dlg->type_list), iter, 0, &gi, -1);
@@ -1060,6 +1109,24 @@ type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), gi);
 	gtk_widget_set_sensitive (dlg->maxiter_label, has_maxiter);
 	gtk_widget_set_sensitive (dlg->maxiter_input, has_maxiter);
+	gtk_tree_model_get_iter_first (GTK_TREE_MODEL (dlg->repres_list), iter);
+	do {
+		gint gi_repres;
+		gtk_tree_model_get (GTK_TREE_MODEL (dlg->repres_list), iter, 0, &gi_repres, -1);
+		gtk_list_store_set (dlg->repres_list, iter, 2, (gboolean) repres_supported (&dlg->frac_types[gi], (fractal_repres_t) gi_repres), -1);
+	} while (gtk_tree_model_iter_next (GTK_TREE_MODEL (dlg->repres_list), iter));
+}
+
+
+static void
+type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
+{
+	GtkTreeIter iter[1];
+	int i;
+	gint gi;
+	gtk_combo_box_get_active_iter (combo, iter);
+	gtk_tree_model_get (GTK_TREE_MODEL (dlg->repres_list), iter, 0, &gi, -1);
+	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->repres_notebook), gi);
 }
 
 
@@ -1071,4 +1138,15 @@ rendering_progress (GtkMandelApplication *app, gdouble progress, gpointer data)
 	if (r > 0 && r < sizeof (buf))
 		gtk_progress_bar_set_text (GTK_PROGRESS_BAR (app->mainwin.status_info), buf);
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (app->mainwin.status_info), progress);
+}
+
+
+static bool
+repres_supported (const struct gui_fractal_type_dynamic *ftype, fractal_repres_t repres)
+{
+	int i;
+	for (i = 0; i < ftype->repres_count; i++)
+		if (ftype->repres[i] == repres)
+			return true;
+	return false;
 }

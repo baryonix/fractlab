@@ -49,8 +49,8 @@ struct gui_julia_param {
 
 struct fractal_type_dlg {
 	GtkWidget *dialog;
-	GtkListStore *type_list;
-	GtkCellRenderer *type_renderer;
+	GtkListStore *type_list, *repres_list;
+	GtkCellRenderer *type_renderer, *repres_renderer;
 	GtkWidget *type_hbox, *type_label, *type_input;
 	GtkWidget *area_frame, *area_table;
 	GtkWidget *area_creal_label, *area_creal_input;
@@ -61,6 +61,10 @@ struct fractal_type_dlg {
 	GtkWidget *maxiter_label, *maxiter_input;
 	GtkWidget *type_param_frame;
 	GtkWidget *type_param_notebook;
+	GtkWidget *repres_frame, *repres_vbox;
+	GtkWidget *repres_hbox, *repres_label, *repres_input;
+	GtkWidget *repres_notebook, *repres_notebook_tabs[REPRES_MAX];
+	GtkWidget *repres_log_base_hbox, *repres_log_base_label, *repres_log_base_input;
 	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
 };
 
