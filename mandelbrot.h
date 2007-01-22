@@ -62,6 +62,7 @@ struct fractal_type {
 	void (*state_free) (void *state);
 	unsigned (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
 	unsigned (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
+	void (*set_defaults) (struct mandeldata *md);
 };
 
 struct mandel_point {
@@ -185,6 +186,7 @@ double mandel_renderer_progress (const struct mandel_renderer *renderer);
 
 void mandeldata_init (struct mandeldata *md, const struct fractal_type *type);
 void mandeldata_clear (struct mandeldata *md);
+void mandeldata_set_defaults (struct mandeldata *md);
 void mandeldata_clone (struct mandeldata *clone, const struct mandeldata *orig);
 
 void mandel_point_init (struct mandel_point *point);

@@ -17,10 +17,14 @@ typedef enum {
 	GUI_FTYPE_HAS_MAXITER = 1 << 0
 } gui_ftype_flags_t;
 
+struct fractal_type_dlg;
+
 /* Static type-specific information. */
 struct gui_fractal_type {
 	gui_ftype_flags_t flags;
-	struct gui_type_param *(*create_gui) (void);
+	struct gui_type_param *(*create_gui) (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
+	void (*set_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, const void *param);
+	void (*get_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, void *param);
 };
 
 /* Dynamic type-specific information. */
@@ -44,10 +48,13 @@ struct gui_julia_param {
 	GtkWidget *zpower_label, *zpower_input;
 	GtkWidget *preal_label, *preal_input;
 	GtkWidget *pimag_label, *pimag_input;
+	struct mandel_point param;
+	char preal_buf[1024], pimag_buf[1024];
 };
 
 
 struct fractal_type_dlg {
+	GtkSizeGroup *label_size_group, *input_size_group;
 	GtkWidget *dialog;
 	GtkListStore *type_list, *repres_list;
 	GtkCellRenderer *type_renderer, *repres_renderer;
@@ -65,6 +72,8 @@ struct fractal_type_dlg {
 	GtkWidget *repres_hbox, *repres_label, *repres_input;
 	GtkWidget *repres_notebook, *repres_notebook_tabs[REPRES_MAX];
 	GtkWidget *repres_log_base_hbox, *repres_log_base_label, *repres_log_base_input;
+	struct mandel_area area;
+	char creal_buf[1024], cimag_buf[1024], magf_buf[1024];
 	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
 };
 
@@ -91,6 +100,7 @@ typedef struct {
 		GtkWidget *file_item, *file_menu;
 		GtkWidget *open_coord_item;
 		GtkWidget *save_coord_item;
+		GtkWidget *fractal_type_item;
 		GtkWidget *area_info_item;
 		GtkWidget *render_item, *render_menu;
 		GtkWidget *render_method_items[RM_MAX];

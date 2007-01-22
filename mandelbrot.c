@@ -68,6 +68,7 @@ static void mandel_julia_state_clear (struct mandel_julia_state *state);
 static void *mandelbrot_param_new (void);
 static void *mandelbrot_param_clone (const void *orig);
 static void mandelbrot_param_free (void *param);
+static void mandelbrot_param_set_defaults (struct mandeldata *md);
 static void *mandelbrot_state_new (const void *param, unsigned frac_limbs);
 static void mandelbrot_state_free (void *state);
 static unsigned mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
@@ -76,6 +77,7 @@ static unsigned mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_
 static void *julia_param_new (void);
 static void *julia_param_clone (const void *orig);
 static void julia_param_free (void *param);
+static void julia_param_set_defaults (struct mandeldata *md);
 static void *julia_state_new (const void *param, unsigned frac_limbs);
 static void julia_state_free (void *state);
 static unsigned julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
@@ -99,7 +101,8 @@ const struct fractal_type fractal_types[] = {
 		mandelbrot_state_new,
 		mandelbrot_state_free,
 		mandelbrot_compute,
-		mandelbrot_compute_fp
+		mandelbrot_compute_fp,
+		mandelbrot_param_set_defaults
 	},
 	{
 		FRACTAL_JULIA, "julia", "Julia Set",
@@ -110,7 +113,8 @@ const struct fractal_type fractal_types[] = {
 		julia_state_new,
 		julia_state_free,
 		julia_compute,
-		julia_compute_fp
+		julia_compute_fp,
+		julia_param_set_defaults
 	}
 };
 
@@ -1291,8 +1295,6 @@ mandelbrot_param_new (void)
 {
 	struct mandelbrot_param *param = malloc (sizeof (*param));
 	memset (param, 0, sizeof (*param));
-	param->mjparam.zpower = 2;
-	param->mjparam.maxiter = 1000;
 	return (void *) param;
 }
 
@@ -1357,8 +1359,6 @@ julia_param_new (void)
 {
 	struct julia_param *param = malloc (sizeof (*param));
 	memset (param, 0, sizeof (*param));
-	param->mjparam.zpower = 2;
-	param->mjparam.maxiter = 1000;
 	mpf_init (param->param.real);
 	mpf_init (param->param.imag);
 	/* XXX initialize param to default value */
@@ -1479,4 +1479,39 @@ fractal_supported_representations (const struct fractal_type *type, fractal_repr
 		res[i++] = REPRES_DISTANCE;
 	}
 	return i;
+}
+
+
+static void
+mandelbrot_param_set_defaults (struct mandeldata *md)
+{
+	struct mandelbrot_param *param = (struct mandelbrot_param *) md->type_param;
+	mpf_set_d (md->area.center.real, 0.0);
+	mpf_set_d (md->area.center.imag, 0.0);
+	mpf_set_d (md->area.magf, 0.5);
+	param->mjparam.zpower = 2;
+	param->mjparam.maxiter = 1000;
+	md->repres.repres = REPRES_ESCAPE;
+}
+
+
+static void
+julia_param_set_defaults (struct mandeldata *md)
+{
+	struct julia_param *param = (struct julia_param *) md->type_param;
+	mpf_set_d (md->area.center.real, 0.0);
+	mpf_set_d (md->area.center.imag, 0.0);
+	mpf_set_d (md->area.magf, 0.5);
+	param->mjparam.zpower = 2;
+	param->mjparam.maxiter = 1000;
+	mpf_set_d (param->param.real, 0.42);
+	mpf_set_d (param->param.imag, 0.42);
+	md->repres.repres = REPRES_ESCAPE;
+}
+
+
+void
+mandeldata_set_defaults (struct mandeldata *md)
+{
+	md->type->set_defaults (md);
 }

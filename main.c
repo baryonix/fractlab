@@ -60,13 +60,7 @@ main (int argc, char **argv)
 
 	struct mandeldata md[1];
 	mandeldata_init (md, fractal_type_by_id (FRACTAL_MANDELBROT));
-	struct mandelbrot_param *mparam = (struct mandelbrot_param *) md->type_param;
-	mparam->mjparam.zpower = 2;
-	mparam->mjparam.maxiter = 1000;
-	md->repres.repres = REPRES_ESCAPE;
-	mpf_set_str (md->area.center.real, "-.5", 10);
-	mpf_set_str (md->area.center.imag, "0", 10);
-	mpf_set_str (md->area.magf, ".5", 10);
+	mandeldata_set_defaults (md);
 	GtkMandelApplication *app = gtk_mandel_application_new (md);
 	mandeldata_clear (md);
 	gtk_mandel_application_start (app);
