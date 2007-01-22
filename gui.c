@@ -27,9 +27,7 @@ static void create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window);
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
 static void point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data);
-static void maxiter_updated (GtkMandelApplication *app, gpointer data);
 static void render_method_updated (GtkMandelApplication *app, gpointer data);
-static void log_colors_updated (GtkMandelApplication *app, gpointer data);
 static void undo_pressed (GtkMandelApplication *app, gpointer data);
 static void redo_pressed (GtkMandelApplication *app, gpointer data);
 static void restart_thread (GtkMandelApplication *app);
@@ -53,7 +51,6 @@ static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
 static void zoom_2exp (GtkMandelApplication *app, long exponent);
 static void zoomed_out (GtkMandelApplication *app, gpointer data);
-static void zpower_updated (GtkMandelApplication *app, gpointer data);
 static void threads_updated (GtkMandelApplication *app, gpointer data);
 static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md);
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
@@ -233,35 +230,6 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar2), app->mainwin.zoom_mode);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar2), app->mainwin.to_julia_mode);
 
-	app->mainwin.maxiter_label = gtk_label_new ("Max Iterations");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.maxiter_label), 0.0, 0.5);
-
-	app->mainwin.maxiter_input = gtk_entry_new ();
-	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.maxiter_input), 1.0);
-	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.maxiter_input), 10);
-
-	app->mainwin.log_colors_checkbox = gtk_check_button_new_with_label ("Logarithmic Colors");
-
-	app->mainwin.log_colors_label = gtk_label_new ("b=");
-
-	app->mainwin.log_colors_input = gtk_entry_new ();
-	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.log_colors_input), 1.0);
-	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.log_colors_input), 10);
-	gtk_entry_set_text (GTK_ENTRY (app->mainwin.log_colors_input), "1.01"); /* FIXME get default value in a sensible way */
-	gtk_widget_set_sensitive (app->mainwin.log_colors_input, FALSE);
-
-	app->mainwin.log_colors_hbox = gtk_hbox_new (FALSE, 2);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_label, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (app->mainwin.log_colors_hbox), app->mainwin.log_colors_input, TRUE, TRUE, 0);
-
-	app->mainwin.zpower_label = gtk_label_new ("Power of Z");
-	gtk_misc_set_alignment (GTK_MISC (app->mainwin.zpower_label), 0.0, 0.5);
-
-	app->mainwin.zpower_input = gtk_spin_button_new_with_range (2.0, 1000000.0, 1.0);
-	gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (app->mainwin.zpower_input), TRUE);
-	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.zpower_input), 1.0);
-	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.zpower_input), 5);
-
 	app->mainwin.threads_label = gtk_label_new ("Threads");
 	gtk_misc_set_alignment (GTK_MISC (app->mainwin.threads_label), 0.0, 0.5);
 
@@ -270,19 +238,13 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_entry_set_alignment (GTK_ENTRY (app->mainwin.threads_input), 1.0);
 	gtk_entry_set_width_chars (GTK_ENTRY (app->mainwin.threads_input), 5);
 
-	app->mainwin.controls_table = gtk_table_new (2, 4, FALSE);
+	app->mainwin.controls_table = gtk_table_new (2, 1, FALSE);
 	gtk_table_set_homogeneous (GTK_TABLE (app->mainwin.controls_table), FALSE);
 	gtk_table_set_row_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
 	gtk_table_set_col_spacings (GTK_TABLE (app->mainwin.controls_table), 2);
 
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.maxiter_input, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_checkbox, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.log_colors_hbox, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.zpower_input, 1, 2, 2, 3, GTK_FILL | GTK_EXPAND, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 3, 4, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (app->mainwin.controls_table), app->mainwin.threads_input, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
 
 	app->mainwin.mandel = gtk_mandel_new ();
 	gtk_mandel_set_selection_type (GTK_MANDEL (app->mainwin.mandel), GTK_MANDEL_SELECT_AREA);
@@ -604,8 +566,6 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-progress", (GCallback) rendering_progress, app);
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.maxiter_input), "activate", (GCallback) maxiter_updated, app);
-
 	g_signal_connect_swapped (G_OBJECT (app->menu.fractal_type_item), "activate", (GCallback) fractal_type_selected, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.area_info_item), "activate", (GCallback) area_info_selected, app);
@@ -618,12 +578,6 @@ connect_signals (GtkMandelApplication *app)
 		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.quit_item), "activate", (GCallback) quit_selected, app);
-
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_checkbox), "toggled", (GCallback) log_colors_updated, app);
-
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.log_colors_input), "activate", (GCallback) log_colors_updated, app);
-
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.zpower_input), "value-changed", (GCallback) zpower_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.threads_input), "value-changed", (GCallback) threads_updated, app);
 
@@ -691,21 +645,6 @@ point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point,
 
 
 static void
-maxiter_updated (GtkMandelApplication *app, gpointer data)
-{
-	if (app->updating_gui)
-		return;
-	int i = atoi (gtk_entry_get_text (GTK_ENTRY (app->mainwin.maxiter_input)));
-	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_clone (md, app->md);
-	struct mandel_julia_param *mjparam = (struct mandel_julia_param *) md->type_param;
-	mjparam->maxiter = i; /* XXX this is dirty, will go away when all the "type specific params" dialog stuff is there */
-	gtk_mandel_application_set_mandeldata (app, md);
-	restart_thread (app);
-}
-
-
-static void
 render_method_updated (GtkMandelApplication *app, gpointer data)
 {
 	if (app->updating_gui)
@@ -715,25 +654,6 @@ render_method_updated (GtkMandelApplication *app, gpointer data)
 		return;
 	render_method_t *method = (render_method_t *) g_object_get_data (G_OBJECT (item), "render_method");
 	gtk_mandel_set_render_method (GTK_MANDEL (app->mainwin.mandel), *method);
-	restart_thread (app);
-}
-
-
-static void
-log_colors_updated (GtkMandelApplication *app, gpointer data)
-{
-	if (app->updating_gui)
-		return;
-	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (app->mainwin.log_colors_checkbox));
-	gtk_widget_set_sensitive (app->mainwin.log_colors_input, active);
-	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_clone (md, app->md);
-	if (active) {
-		md->repres.repres = REPRES_ESCAPE_LOG;
-		md->repres.params.log_base = strtod (gtk_entry_get_text (GTK_ENTRY (app->mainwin.log_colors_input)), NULL);
-	} else
-		md->repres.repres = REPRES_ESCAPE;
-	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
 
@@ -909,25 +829,6 @@ static void
 update_gui_from_mandeldata (GtkMandelApplication *app)
 {
 	app->updating_gui = true;
-	const struct mandel_julia_param *mjparam = (const struct mandel_julia_param *) app->md->type_param;
-	set_entry_from_long (GTK_ENTRY (app->mainwin.maxiter_input), mjparam->maxiter);
-	gtk_spin_button_set_value (GTK_SPIN_BUTTON (app->mainwin.zpower_input), mjparam->zpower);
-	bool use_log_factor = false;
-	switch (app->md->repres.repres) {
-		case REPRES_ESCAPE:
-			use_log_factor = false;
-			break;
-		case REPRES_ESCAPE_LOG:
-			use_log_factor = true;
-			set_entry_from_double (GTK_ENTRY (app->mainwin.log_colors_input), app->md->repres.params.log_base, 3);
-			break;
-		default:
-			fprintf (stderr, "* ERROR: Unknown representation type %d in %s line %d\n", (int) app->md->repres.repres, __FILE__, __LINE__);
-			break;
-	}
-	gtk_widget_set_sensitive (app->mainwin.log_colors_input, use_log_factor);
-	if (use_log_factor)
-	gtk_widget_set_sensitive (app->mainwin.to_julia_mode, app->md->type == FRACTAL_MANDELBROT);
 	gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (app->mainwin.zoom_mode), TRUE);
 	update_area_info (app);
 	app->updating_gui = false;
@@ -1059,20 +960,6 @@ static void
 zoomed_out (GtkMandelApplication *app, gpointer data)
 {
 	zoom_2exp (app, -1);
-}
-
-
-static void
-zpower_updated (GtkMandelApplication *app, gpointer data)
-{
-	if (app->updating_gui)
-		return;
-	struct mandeldata *md = malloc (sizeof (*md));
-	mandeldata_clone (md, app->md);
-	struct mandel_julia_param *mjparam = (struct mandel_julia_param *) md->type_param;
-	mjparam->zpower = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (app->mainwin.zpower_input));
-	gtk_mandel_application_set_mandeldata (app, md);
-	restart_thread (app);
 }
 
 
