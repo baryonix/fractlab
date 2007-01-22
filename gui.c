@@ -628,17 +628,12 @@ point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point,
 {
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_init (md, fractal_type_by_id (FRACTAL_JULIA));
+	mandeldata_set_defaults (md);
 	struct mandelbrot_param *oldmparam = (struct mandelbrot_param *) app->md->type_param;
 	struct julia_param *jparam = (struct julia_param *) md->type_param;
 	jparam->mjparam.zpower = oldmparam->mjparam.zpower;
 	mpf_set (jparam->param.real, point->real);
 	mpf_set (jparam->param.imag, point->imag);
-	/* XXX get default params in a sensible way */
-	mpf_set_str (md->area.center.real, "0", 10);
-	mpf_set_str (md->area.center.imag, "0", 10);
-	mpf_set_str (md->area.magf, ".5", 10);
-	jparam->mjparam.maxiter = 1000;
-	md->repres.repres = REPRES_ESCAPE;
 	gtk_mandel_application_set_mandeldata (app, md);
 	restart_thread (app);
 }
