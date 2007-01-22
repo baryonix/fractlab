@@ -406,12 +406,11 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 	dlg->type_label = my_gtk_label_new ("Fractal Type", dlg->label_size_group);
 	dlg->type_list = gtk_list_store_new (2, G_TYPE_INT, G_TYPE_STRING);
 	GtkTreeIter iter[1];
-	gtk_list_store_append (dlg->type_list, iter);
-	gtk_list_store_set (dlg->type_list, iter, 0, 0, -1);
-	gtk_list_store_set (dlg->type_list, iter, 1, "Mandelbrot", -1);
-	gtk_list_store_append (dlg->type_list, iter);
-	gtk_list_store_set (dlg->type_list, iter, 0, 1, -1);
-	gtk_list_store_set (dlg->type_list, iter, 1, "Julia", -1);
+	for (i = 0; i < FRACTAL_MAX; i++) {
+		gtk_list_store_append (dlg->type_list, iter);
+		gtk_list_store_set (dlg->type_list, iter, 0, i, -1);
+		gtk_list_store_set (dlg->type_list, iter, 1, fractal_type_by_id (i)->descr, -1);
+	}
 	dlg->type_renderer = gtk_cell_renderer_text_new ();
 	dlg->type_input = gtk_combo_box_new_with_model (GTK_TREE_MODEL (dlg->type_list));
 	gtk_size_group_add_widget (dlg->input_size_group, dlg->type_input);
