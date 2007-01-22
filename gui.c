@@ -205,6 +205,9 @@ create_mainwin (GtkMandelApplication *app)
 
 	app->mainwin.toolbar1_sep2 = GTK_WIDGET (gtk_separator_tool_item_new ());
 
+	app->mainwin.fractal_type = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_PROPERTIES));
+	gtk_tool_button_set_label (GTK_TOOL_BUTTON (app->mainwin.fractal_type), "Fractal Type and Parameters...");
+
 	app->mainwin.zoom_out = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_ZOOM_OUT));
 
 	app->mainwin.toolbar1 = gtk_toolbar_new ();
@@ -216,6 +219,7 @@ create_mainwin (GtkMandelApplication *app)
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.restart);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.stop);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.toolbar1_sep2);
+	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.fractal_type);
 	gtk_container_add (GTK_CONTAINER (app->mainwin.toolbar1), app->mainwin.zoom_out);
 
 	app->mainwin.zoom_mode = GTK_WIDGET (gtk_radio_tool_button_new_from_stock (NULL, GTK_STOCK_ZOOM_IN));
@@ -587,6 +591,8 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.stop), "clicked", (GCallback) stop_pressed, app);
+
+	g_signal_connect_swapped (G_OBJECT (app->mainwin.fractal_type), "clicked", (GCallback) fractal_type_selected, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app);
 

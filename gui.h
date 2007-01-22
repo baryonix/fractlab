@@ -84,7 +84,7 @@ typedef struct {
 	struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
-		GtkWidget *toolbar1, *undo, *redo, *toolbar1_sep1, *restart, *stop, *toolbar1_sep2, *zoom_out;
+		GtkWidget *toolbar1, *undo, *redo, *toolbar1_sep1, *restart, *stop, *toolbar1_sep2, *fractal_type, *zoom_out;
 		GtkWidget *toolbar2, *zoom_mode, *to_julia_mode;
 		GSList *mode_group;
 		GtkWidget *controls_table;
