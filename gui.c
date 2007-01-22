@@ -967,7 +967,6 @@ zpower_updated (GtkMandelApplication *app, gpointer data)
 {
 	if (app->updating_gui)
 		return;
-	printf ("* zpower updated!\n");
 	struct mandeldata *md = malloc (sizeof (*md));
 	mandeldata_clone (md, app->md);
 	struct mandel_julia_param *mjparam = (struct mandel_julia_param *) md->type_param;
