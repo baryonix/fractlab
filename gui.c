@@ -1056,8 +1056,10 @@ type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	gint gi;
 	gtk_combo_box_get_active_iter (combo, iter);
 	gtk_tree_model_get (GTK_TREE_MODEL (dlg->type_list), iter, 0, &gi, -1);
-	//gtk_tree_iter_free (iter);
+	const bool has_maxiter = (gui_fractal_types[gi].flags & GUI_FTYPE_HAS_MAXITER) != 0;
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), gi);
+	gtk_widget_set_sensitive (dlg->maxiter_label, has_maxiter);
+	gtk_widget_set_sensitive (dlg->maxiter_input, has_maxiter);
 }
 
 
