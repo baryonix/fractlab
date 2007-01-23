@@ -22,3 +22,4 @@ TODO
 - use the asm routine again
 - clean up coord file code
 - reenable solid inside color for distance representation
+- images are weirdly distorted when using distance-est and zpower > 2

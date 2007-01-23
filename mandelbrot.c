@@ -706,7 +706,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_convert_x_f (mandel, x0, x);
 		mandel_convert_y_f (mandel, y0, y);
 
-		i = mandel->md->type->compute (mandel->fractal_state, x0, y0, NULL);
+		i = mandel->md->type->compute (mandel->fractal_state, x0, y0, distance);
 		mpf_clear (x0);
 		mpf_clear (y0);
 
