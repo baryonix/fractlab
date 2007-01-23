@@ -6,12 +6,7 @@ TODO
 - improve statistics about calculated/saved iterations, must become
   thread-safe too
 - fix asm routine to support Julia set
-- build a generic rendering framework to support arbitrary different fractal
-  types
-- fully support Julia set in GUI
 - find a way to parallelize the boundary trace method
-- don't pass so many parameters to mandel_julia() and friends, some of them are
-  in mandeldata
 - implement my_mpn_invert() in IA32 assembler (using SSE2?)
 - fix coord/*.coord, they are still in the old file format
 - put image and controls in separate windows
@@ -24,3 +19,6 @@ TODO
 - support distance estimation in coordinate files
   Before we do this, we want to implement a more general "representation"
   scheme, instead of simply adding distance estimation as a binary flag.
+- use the asm routine again
+- clean up coord file code
+- reenable solid inside color for distance representation

@@ -24,12 +24,13 @@ frame_func (void *data, struct mandeldata *md, unsigned long i)
 {
 	struct lj_state *state = (struct lj_state *) data;
 	mandeldata_clone (md, &state->md);
+	struct julia_param *jparam = (struct julia_param *) md->type_param;
 
 	double preal = state->A * sin (2 * M_PI * state->a * i / frame_count + state->delta);
 	double pimag = state->B * sin (2 * M_PI * state->b * i / frame_count);
 
-	mpf_set_d (md->param.real, preal);
-	mpf_set_d (md->param.imag, pimag);
+	mpf_set_d (jparam->param.real, preal);
+	mpf_set_d (jparam->param.imag, pimag);
 }
 
 
@@ -64,7 +65,6 @@ main (int argc, char *argv[])
 	g_option_context_parse (context, &argc, &argv, NULL);
 
 	state->delta *= M_PI;
-	mandeldata_init (&state->md);
 
 	FILE *f;
 	if (coord_file == NULL || !(f = fopen (coord_file, "r")) || !fread_mandeldata (f, &state->md)) {

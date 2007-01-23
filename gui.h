@@ -13,34 +13,68 @@ typedef enum {
 } GtkMandelAppMode;
 
 
-struct mandelbrot_param {
-	GtkWidget *table;
-	GtkWidget *zpower_label, *zpower_input;
-	GtkWidget *distance_est;
+typedef enum {
+	GUI_FTYPE_HAS_MAXITER = 1 << 0
+} gui_ftype_flags_t;
+
+struct fractal_type_dlg;
+
+/* Static type-specific information. */
+struct gui_fractal_type {
+	gui_ftype_flags_t flags;
+	struct gui_type_param *(*create_gui) (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
+	void (*set_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, const void *param);
+	void (*get_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, void *param);
 };
 
+/* Dynamic type-specific information. */
+struct gui_fractal_type_dynamic {
+	fractal_repres_t repres[REPRES_MAX];
+	int repres_count;
+	struct gui_type_param *gui;
+};
 
-struct julia_param {
-	GtkWidget *table;
+struct gui_type_param {
+	GtkWidget *main_widget;
+};
+
+struct gui_mandelbrot_param {
+	struct gui_type_param ftype;
+	GtkWidget *zpower_label, *zpower_input;
+};
+
+struct gui_julia_param {
+	struct gui_type_param ftype;
 	GtkWidget *zpower_label, *zpower_input;
 	GtkWidget *preal_label, *preal_input;
 	GtkWidget *pimag_label, *pimag_input;
+	struct mandel_point param;
+	char preal_buf[1024], pimag_buf[1024];
 };
 
 
 struct fractal_type_dlg {
+	GtkSizeGroup *label_size_group, *input_size_group;
 	GtkWidget *dialog;
-	GtkListStore *type_list;
-	GtkCellRenderer *type_renderer;
+	GtkListStore *type_list, *repres_list;
+	GtkCellRenderer *type_renderer, *repres_renderer;
 	GtkWidget *type_hbox, *type_label, *type_input;
 	GtkWidget *area_frame, *area_table;
 	GtkWidget *area_creal_label, *area_creal_input;
 	GtkWidget *area_cimag_label, *area_cimag_input;
 	GtkWidget *area_magf_label, *area_magf_input;
+	GtkWidget *general_param_frame;
+	GtkWidget *general_param_table;
+	GtkWidget *maxiter_label, *maxiter_input;
 	GtkWidget *type_param_frame;
 	GtkWidget *type_param_notebook;
-	struct mandelbrot_param mandelbrot_param;
-	struct julia_param julia_param;
+	GtkWidget *repres_frame, *repres_vbox;
+	GtkWidget *repres_hbox, *repres_label, *repres_input;
+	GtkWidget *repres_notebook, *repres_notebook_tabs[REPRES_MAX];
+	GtkWidget *repres_log_base_hbox, *repres_log_base_label, *repres_log_base_input;
+	struct mandel_area area;
+	char creal_buf[1024], cimag_buf[1024], magf_buf[1024];
+	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
 };
 
 
@@ -50,14 +84,10 @@ typedef struct {
 	struct {
 		GtkWidget *win;
 		GtkWidget *main_vbox;
-		GtkWidget *toolbar1, *undo, *redo, *toolbar1_sep1, *restart, *stop, *toolbar1_sep2, *zoom_out;
+		GtkWidget *toolbar1, *undo, *redo, *toolbar1_sep1, *restart, *stop, *toolbar1_sep2, *fractal_type, *zoom_out;
 		GtkWidget *toolbar2, *zoom_mode, *to_julia_mode;
 		GSList *mode_group;
 		GtkWidget *controls_table;
-		GtkWidget *maxiter_label, *maxiter_input;
-		GtkWidget *log_colors_checkbox, *log_colors_input;
-		GtkWidget *distance_est_checkbox;
-		GtkWidget *zpower_label, *zpower_input;
 		GtkWidget *threads_label, *threads_input;
 		GtkWidget *mandel;
 		GtkWidget *status_hbox, *status_info, *math_info, *math_info_frame;
@@ -67,6 +97,7 @@ typedef struct {
 		GtkWidget *file_item, *file_menu;
 		GtkWidget *open_coord_item;
 		GtkWidget *save_coord_item;
+		GtkWidget *fractal_type_item;
 		GtkWidget *area_info_item;
 		GtkWidget *render_item, *render_menu;
 		GtkWidget *render_method_items[RM_MAX];
