@@ -44,8 +44,6 @@ static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void fractal_type_selected (GtkMandelApplication *app, gpointer data);
 static void create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
-static void set_entry_from_long (GtkEntry *entry, long value);
-static void set_entry_from_double (GtkEntry *entry, double value, int prec);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
 static void stop_pressed (GtkMandelApplication *app, gpointer data);
@@ -56,7 +54,6 @@ static void update_mandeldata (GtkMandelApplication *app, struct mandeldata *md)
 static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct mandel_area *area);
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
-static void distance_est_updated (GtkMandelApplication *app, gpointer data);
 static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 static void type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 static bool repres_supported (const struct gui_fractal_type_dynamic *ftype, fractal_repres_t repres);
@@ -882,30 +879,6 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 
 
 static void
-set_entry_from_long (GtkEntry *entry, long value)
-{
-	char buf[64];
-	int r;
-	r = snprintf (buf, sizeof (buf), "%ld", value);
-	if (r < 0 || r >= sizeof (buf))
-		return;
-	gtk_entry_set_text (entry, buf);
-}
-
-
-static void
-set_entry_from_double (GtkEntry *entry, double value, int prec)
-{
-	char buf[64];
-	int r;
-	r = snprintf (buf, sizeof (buf), "%.*f", prec, value);
-	if (r < 0 || r >= sizeof (buf))
-		return;
-	gtk_entry_set_text (entry, buf);
-}
-
-
-static void
 rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data)
 {
 	const char *msg;
@@ -1042,7 +1015,6 @@ static void
 type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 {
 	GtkTreeIter iter[1];
-	int i;
 	fractal_type_t type = type_dlg_get_type (dlg);
 	const bool has_maxiter = (gui_fractal_types[type].flags & GUI_FTYPE_HAS_MAXITER) != 0;
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->type_param_notebook), type);
@@ -1066,7 +1038,6 @@ static void
 type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 {
 	GtkTreeIter iter[1];
-	int i;
 	gint gi;
 	gtk_combo_box_get_active_iter (combo, iter);
 	gtk_tree_model_get (GTK_TREE_MODEL (dlg->repres_list), iter, 0, &gi, -1);
