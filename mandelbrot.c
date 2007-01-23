@@ -65,14 +65,14 @@ static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ys
 static void my_mpn_get_mpf (mpf_ptr rop, mp_srcptr op, bool sign, unsigned frac_limbs);
 static bool my_mpf_get_mpn (mp_ptr rop, mpf_srcptr op, unsigned frac_limbs);
 
-static void mandel_julia_state_init (struct mandel_julia_state *state, const struct mandel_julia_param *param);
+static void mandel_julia_state_init (struct mandel_julia_state *state, const struct mandeldata *md);
 static void mandel_julia_state_clear (struct mandel_julia_state *state);
 
 static void *mandelbrot_param_new (void);
 static void *mandelbrot_param_clone (const void *orig);
 static void mandelbrot_param_free (void *param);
 static void mandelbrot_param_set_defaults (struct mandeldata *md);
-static void *mandelbrot_state_new (const void *param, unsigned frac_limbs);
+static void *mandelbrot_state_new (const struct mandeldata *md, unsigned frac_limbs);
 static void mandelbrot_state_free (void *state);
 static unsigned mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
 static unsigned mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
@@ -81,7 +81,7 @@ static void *julia_param_new (void);
 static void *julia_param_clone (const void *orig);
 static void julia_param_free (void *param);
 static void julia_param_set_defaults (struct mandeldata *md);
-static void *julia_state_new (const void *param, unsigned frac_limbs);
+static void *julia_state_new (const struct mandeldata *md, unsigned frac_limbs);
 static void julia_state_free (void *state);
 static unsigned julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
 static unsigned julia_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
@@ -824,7 +824,7 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	const unsigned frac_limbs = renderer->frac_limbs;
 	const unsigned total_limbs = frac_limbs + INT_LIMBS;
 
-	renderer->fractal_state = renderer->md->type->state_new (renderer->md->type_param, frac_limbs);
+	renderer->fractal_state = renderer->md->type->state_new (renderer->md, frac_limbs);
 
 	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
 
@@ -1582,14 +1582,14 @@ mandelbrot_param_free (void *param)
 
 
 static void *
-mandelbrot_state_new (const void *param_, unsigned frac_limbs)
+mandelbrot_state_new (const struct mandeldata *md, unsigned frac_limbs)
 {
-	const struct mandelbrot_param *param = (struct mandelbrot_param *) param_;
+	const struct mandelbrot_param *param = (struct mandelbrot_param *) md->type_param;
 	struct mandelbrot_state *state = malloc (sizeof (*state));
 	memset (state, 0, sizeof (*state));
 	state->mjstate.frac_limbs = frac_limbs;
 	state->param = param;
-	mandel_julia_state_init (&state->mjstate, &param->mjparam);
+	mandel_julia_state_init (&state->mjstate, md);
 	return (void *) state;
 }
 
@@ -1657,14 +1657,14 @@ julia_param_free (void *param_)
 
 
 static void *
-julia_state_new (const void *param_, unsigned frac_limbs)
+julia_state_new (const struct mandeldata *md, unsigned frac_limbs)
 {
-	const struct julia_param *param = (struct julia_param *) param_;
+	const struct julia_param *param = (struct julia_param *) md->type_param;
 	struct julia_state *state = malloc (sizeof (*state));
 	state->mjstate.frac_limbs = frac_limbs;
 	memset (state, 0, sizeof (*state));
 	state->param = param;
-	mandel_julia_state_init (&state->mjstate, &param->mjparam);
+	mandel_julia_state_init (&state->mjstate, md);
 	if (frac_limbs == 0) {
 		state->mpvars.fp.preal_float = mpf_get_mandel_fp (param->param.real);
 		state->mpvars.fp.pimag_float = mpf_get_mandel_fp (param->param.imag);
@@ -1700,10 +1700,15 @@ julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t 
 
 
 static void
-mandel_julia_state_init (struct mandel_julia_state *state, const struct mandel_julia_param *param)
+mandel_julia_state_init (struct mandel_julia_state *state, const struct mandeldata *md)
 {
-	if (param->zpower > 2)
-		state->ptriangle = pascal_triangle (param->zpower);
+	const struct mandel_julia_param *param = (const struct mandel_julia_param *) md->type_param;
+	if (param->zpower > 2) {
+		unsigned ptri_row = param->zpower;
+		if (md->repres.repres == REPRES_DISTANCE)
+			ptri_row--;
+		state->ptriangle = pascal_triangle (ptri_row);
+	}
 }
 
 

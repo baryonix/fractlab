@@ -22,6 +22,3 @@ TODO
 - use the asm routine again
 - clean up coord file code
 - reenable solid inside color for distance representation
-- images are weirdly distorted when using distance-est and zpower > 2
-  This is because the pascal triangle must be initialized to (zpower - 1)st
-  row when computing the distance estimate.
