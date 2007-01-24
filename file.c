@@ -78,14 +78,16 @@ fread_mandeldata (FILE *f, struct mandeldata *md)
 		return false;
 
 	fgets (buf, sizeof (buf), f);
-	if (strcmp (buf, "escape") == 0)
+	if (strcmp (buf, "escape\n") == 0)
 		md->repres.repres = REPRES_ESCAPE;
-	else if (strcmp (buf, "escape-log") == 0) {
+	else if (strcmp (buf, "escape-log\n") == 0) {
 		md->repres.repres = REPRES_ESCAPE_LOG;
 		r = fscanf (f, "%lf\n", &md->repres.params.log_base);
 		if (r == EOF || r < 1)
 			return false;
-	} else
+	} else if (strcmp (buf, "distance\n") == 0)
+		md->repres.repres = REPRES_DISTANCE;
+	else
 		return false;
 
 	switch (type->type) {
