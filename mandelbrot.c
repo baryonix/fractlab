@@ -74,8 +74,8 @@ static void mandelbrot_param_free (void *param);
 static void mandelbrot_param_set_defaults (struct mandeldata *md);
 static void *mandelbrot_state_new (const struct mandeldata *md, unsigned frac_limbs);
 static void mandelbrot_state_free (void *state);
-static unsigned mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
-static unsigned mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
+static bool mandelbrot_compute (void *state, mpf_srcptr real, mpf_srcptr imag, unsigned *iter, mpfr_ptr distance);
+static bool mandelbrot_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, unsigned *iter, mandel_fp_t *distance);
 
 static void *julia_param_new (void);
 static void *julia_param_clone (const void *orig);
@@ -83,8 +83,8 @@ static void julia_param_free (void *param);
 static void julia_param_set_defaults (struct mandeldata *md);
 static void *julia_state_new (const struct mandeldata *md, unsigned frac_limbs);
 static void julia_state_free (void *state);
-static unsigned julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
-static unsigned julia_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
+static bool julia_compute (void *state, mpf_srcptr real, mpf_srcptr imag, unsigned *iter, mpfr_ptr distance);
+static bool julia_compute_fp (void *state, mandel_fp_t real, mandel_fp_t imag, unsigned *iter, mandel_fp_t *distance);
 
 
 const char *const render_method_names[] = {
@@ -665,7 +665,8 @@ mandel_julia_zpower_fp (struct mandel_julia_state *state, const struct mandel_ju
 int
 mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 {
-	int i = 0; /* initialize to make gcc happy */
+	unsigned i = 0; /* initialize to make gcc happy */
+	bool inside = false;
 	if (mandel->frac_limbs == 0) {
 		mandel_fp_t distance;
 		mandel_fp_t *distance_ptr = NULL;
@@ -679,10 +680,10 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_fp_t ymax = mpf_get_mandel_fp (mandel->ymax_f);
 		mandel_fp_t xf = x * (xmax - xmin) / mandel->w + xmin;
 		mandel_fp_t yf = y * (ymin - ymax) / mandel->h + ymax;
-		i = mandel->md->type->compute_fp (mandel->fractal_state, xf, yf, distance_ptr);
+		inside = mandel->md->type->compute_fp (mandel->fractal_state, xf, yf, &i, distance_ptr);
 		/* XXX solid inside color for distance est -- how to safely determine maxiter? */
 		//if (mandel->md->repres.repres == REPRES_DISTANCE && i < mandel->md->maxiter) {
-		if (mandel->md->repres.repres == REPRES_DISTANCE) {
+		if (!inside && mandel->md->repres.repres == REPRES_DISTANCE) {
 			/* XXX colors and "target" magf shouldn't be hardwired */
 			const mandel_fp_t kk = (mandel_fp_t) COLORS / log (1e9); 
 			int idx = ((int) round (-kk * log (fabs (distance)))) % COLORS;
@@ -706,11 +707,11 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		mandel_convert_x_f (mandel, x0, x);
 		mandel_convert_y_f (mandel, y0, y);
 
-		i = mandel->md->type->compute (mandel->fractal_state, x0, y0, distance);
+		inside = mandel->md->type->compute (mandel->fractal_state, x0, y0, &i, distance);
 		mpf_clear (x0);
 		mpf_clear (y0);
 
-		if (mandel->md->repres.repres == REPRES_DISTANCE) {
+		if (!inside && mandel->md->repres.repres == REPRES_DISTANCE) {
 			/* XXX solid inside color for distance est -- how to safely determine maxiter? */
 			//if (i < mandel->md->maxiter) {
 			if (true) {
@@ -1602,21 +1603,23 @@ mandelbrot_state_free (void *state_)
 }
 
 
-static unsigned
-mandelbrot_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance)
+static bool
+mandelbrot_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, unsigned *iter, mpfr_ptr distance)
 {
 	struct mandelbrot_state *state = (struct mandelbrot_state *) state_;
 	const struct mandelbrot_param *param = state->param;
-	return mandel_julia (&state->mjstate, &param->mjparam, real, imag, real, imag, distance);
+	*iter = mandel_julia (&state->mjstate, &param->mjparam, real, imag, real, imag, distance);
+	return *iter == param->mjparam.maxiter;
 }
 
 
-static unsigned
-mandelbrot_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance)
+static bool
+mandelbrot_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, unsigned *iter, mandel_fp_t *distance)
 {
 	struct mandelbrot_state *state = (struct mandelbrot_state *) state_;
 	const struct mandelbrot_param *param = state->param;
-	return mandel_julia_fp (&state->mjstate, &param->mjparam, real, imag, real, imag, distance);
+	*iter = mandel_julia_fp (&state->mjstate, &param->mjparam, real, imag, real, imag, distance);
+	return *iter == param->mjparam.maxiter;
 }
 
 
@@ -1681,21 +1684,23 @@ julia_state_free (void *state_)
 }
 
 
-static unsigned
-julia_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance)
+static bool
+julia_compute (void *state_, mpf_srcptr real, mpf_srcptr imag, unsigned *iter, mpfr_ptr distance)
 {
 	struct julia_state *state = (struct julia_state *) state_;
 	const struct julia_param *param = state->param;
-	return mandel_julia (&state->mjstate, &param->mjparam, real, imag, param->param.real, param->param.imag, distance);
+	*iter = mandel_julia (&state->mjstate, &param->mjparam, real, imag, param->param.real, param->param.imag, distance);
+	return *iter == param->mjparam.maxiter;
 }
 
 
-static unsigned
-julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance)
+static bool
+julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, unsigned *iter, mandel_fp_t *distance)
 {
 	struct julia_state *state = (struct julia_state *) state_;
 	const struct julia_param *param = state->param;
-	return mandel_julia_fp (&state->mjstate, &param->mjparam, real, imag, state->mpvars.fp.preal_float, state->mpvars.fp.pimag_float, distance);
+	*iter = mandel_julia_fp (&state->mjstate, &param->mjparam, real, imag, state->mpvars.fp.preal_float, state->mpvars.fp.pimag_float, distance);
+	return *iter == param->mjparam.maxiter;
 }
 
 

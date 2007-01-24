@@ -60,8 +60,8 @@ struct fractal_type {
 	void (*param_free) (void *param);
 	void *(*state_new) (const struct mandeldata *md, unsigned frac_limbs);
 	void (*state_free) (void *state);
-	unsigned (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag, mpfr_ptr distance);
-	unsigned (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag, mandel_fp_t *distance);
+	bool (*compute) (void *state, mpf_srcptr real, mpf_srcptr imag, unsigned *iter, mpfr_ptr distance);
+	bool (*compute_fp) (void *state, mandel_fp_t real, mandel_fp_t imag, unsigned *iter, mandel_fp_t *distance);
 	void (*set_defaults) (struct mandeldata *md);
 };
 

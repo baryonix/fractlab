@@ -21,4 +21,3 @@ TODO
   scheme, instead of simply adding distance estimation as a binary flag.
 - use the asm routine again
 - clean up coord file code
-- reenable solid inside color for distance representation
