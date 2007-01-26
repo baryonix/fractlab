@@ -58,7 +58,7 @@ struct fractal_type_dlg {
 	GtkWidget *dialog;
 	GtkListStore *type_list, *repres_list;
 	GtkCellRenderer *type_renderer, *repres_renderer;
-	GtkWidget *type_hbox, *type_label, *type_input;
+	GtkWidget *type_table, *type_label, *type_input, *defaults_button;
 	GtkWidget *area_frame, *area_table;
 	GtkWidget *area_creal_label, *area_creal_input;
 	GtkWidget *area_cimag_label, *area_cimag_input;

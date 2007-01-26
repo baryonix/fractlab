@@ -56,6 +56,7 @@ static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
 static void type_dlg_type_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 static void type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg);
+static void type_dlg_defaults_clicked (GtkComboBox *combo, struct fractal_type_dlg *dlg);
 static bool repres_supported (const struct gui_fractal_type_dynamic *ftype, fractal_repres_t repres);
 static void mandelbrot_set_param (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, const void *param);
 static void mandelbrot_get_param (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, void *param);
@@ -419,9 +420,16 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (dlg->type_input), dlg->type_renderer, FALSE);
 	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (dlg->type_input), dlg->type_renderer, "text", 1);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (dlg->type_input), 0); /* XXX */
-	dlg->type_hbox = gtk_hbox_new (FALSE, 2);
-	gtk_box_pack_start (GTK_BOX (dlg->type_hbox), dlg->type_label, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (dlg->type_hbox), dlg->type_input, TRUE, TRUE, 0);
+
+	dlg->defaults_button = gtk_button_new_with_label ("Default Values");
+	gtk_size_group_add_widget (dlg->input_size_group, dlg->defaults_button);
+
+	dlg->type_table = gtk_table_new (2, 2, FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (dlg->type_table), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (dlg->type_table), 2);
+	gtk_table_attach (GTK_TABLE (dlg->type_table), dlg->type_label, 0, 1, 0, 1, 0, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (dlg->type_table), dlg->type_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (dlg->type_table), dlg->defaults_button, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 
 	dlg->area_creal_label = my_gtk_label_new ("Center Real", dlg->label_size_group);
 	dlg->area_creal_input = gtk_entry_new ();
@@ -520,7 +528,7 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 
 	dlg->dialog = gtk_dialog_new_with_buttons ("Fractal Type", window, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_APPLY, GTK_RESPONSE_APPLY, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
 	GtkBox *dlg_vbox = GTK_BOX (GTK_DIALOG (dlg->dialog)->vbox);
-	gtk_box_pack_start (dlg_vbox, dlg->type_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (dlg_vbox, dlg->type_table, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->area_frame, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->general_param_frame, FALSE, FALSE, 0);
 	gtk_box_pack_start (dlg_vbox, dlg->type_param_frame, FALSE, FALSE, 0);
@@ -528,6 +536,7 @@ create_type_dlg (struct fractal_type_dlg *dlg, GtkWindow *window)
 
 	g_signal_connect (G_OBJECT (dlg->type_input), "changed", (GCallback) type_dlg_type_updated, (gpointer) dlg);
 	g_signal_connect (G_OBJECT (dlg->repres_input), "changed", (GCallback) type_dlg_repres_updated, (gpointer) dlg);
+	g_signal_connect (G_OBJECT (dlg->defaults_button), "clicked", (GCallback) type_dlg_defaults_clicked, (gpointer) dlg);
 
 	mpf_init (dlg->area.center.real);
 	mpf_init (dlg->area.center.imag);
@@ -1042,6 +1051,18 @@ type_dlg_repres_updated (GtkComboBox *combo, struct fractal_type_dlg *dlg)
 	gtk_combo_box_get_active_iter (combo, iter);
 	gtk_tree_model_get (GTK_TREE_MODEL (dlg->repres_list), iter, 0, &gi, -1);
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (dlg->repres_notebook), gi);
+}
+
+
+static void
+type_dlg_defaults_clicked (GtkComboBox *combo, struct fractal_type_dlg *dlg)
+{
+	struct mandeldata md[1];
+	fractal_type_t type = type_dlg_get_type (dlg);
+	mandeldata_init (md, fractal_type_by_id (type));
+	mandeldata_set_defaults (md);
+	type_dlg_set_mandeldata (dlg, md);
+	mandeldata_clear (md);
 }
 
 
