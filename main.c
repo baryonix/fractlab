@@ -17,7 +17,6 @@
 #include <gmp.h>
 
 
-#include "cmdline.h"
 #include "file.h"
 #include "fpdefs.h"
 #include "mandelbrot.h"
@@ -31,8 +30,6 @@ int
 main (int argc, char **argv)
 {
 	g_thread_init (NULL);
-
-	//parse_command_line (&argc, &argv);
 
 	mpf_set_default_prec (1024); /* ? */
 

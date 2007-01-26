@@ -19,7 +19,7 @@ MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(MPFR_LIBS) $(GM
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 
-MANDEL_GTK_OBJECTS = main.o file.o cmdline.o mandelbrot.o gtkmandel.o gui.o util.o
+MANDEL_GTK_OBJECTS = main.o file.o mandelbrot.o gtkmandel.o gui.o util.o
 MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o mandelbrot.o anim.o
 LISSAJOULIA_OBJECTS = lissajoulia.o file.o util.o mandelbrot.o anim.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
