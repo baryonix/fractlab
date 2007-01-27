@@ -171,8 +171,18 @@ mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y)
 bool
 mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d)
 {
-	int px = mandel_get_pixel (mandel, x, y);
-	return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
+	const int px = mandel_get_pixel (mandel, x, y);
+	const int w = mandel->w - d, h = mandel->h - d;
+	return
+		   (x <  d || y <  d || mandel_get_pixel (mandel, x - d, y - d) == px)
+		&& (x <  d           || mandel_get_pixel (mandel, x - d, y    ) == px)
+		&& (x <  d || y >= h || mandel_get_pixel (mandel, x - d, y + d) == px)
+		&& (          y <  d || mandel_get_pixel (mandel, x    , y - d) == px)
+		&& (          y >= h || mandel_get_pixel (mandel, x    , y + d) == px)
+		&& (x >= w || y <  d || mandel_get_pixel (mandel, x + d, y - d) == px)
+		&& (x >= w           || mandel_get_pixel (mandel, x + d, y    ) == px)
+		&& (x >= w || y >= h || mandel_get_pixel (mandel, x + d, y + d) == px);
+	/*return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
 		&& mandel_get_pixel (mandel, x - d, y - d) == px
 		&& mandel_get_pixel (mandel, x - d, y    ) == px
 		&& mandel_get_pixel (mandel, x - d, y + d) == px
@@ -180,7 +190,7 @@ mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, uns
 		&& mandel_get_pixel (mandel, x    , y + d) == px
 		&& mandel_get_pixel (mandel, x + d, y - d) == px
 		&& mandel_get_pixel (mandel, x + d, y    ) == px
-		&& mandel_get_pixel (mandel, x + d, y + d) == px;
+		&& mandel_get_pixel (mandel, x + d, y + d) == px;*/
 }
 
 
