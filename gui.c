@@ -291,6 +291,7 @@ create_dialogs (GtkMandelApplication *app)
 
 	app->save_coord_chooser = gtk_file_chooser_dialog_new ("Save coordinate file", GTK_WINDOW (app->mainwin.win), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
 	gtk_window_set_modal (GTK_WINDOW (app->save_coord_chooser), TRUE);
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (app->save_coord_chooser), TRUE);
 
 	create_area_info (app);
 }
@@ -870,10 +871,10 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 {
 	gtk_widget_hide (app->save_coord_chooser);
 
+	//fprintf (stderr, "* DEBUG: response = %d\n", (int) response);
+
 	if (response != GTK_RESPONSE_ACCEPT)
 		return;
-
-	/* FIXME check for existing file */
 
 	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
 	FILE *f = fopen (filename, "w");
