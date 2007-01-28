@@ -21,7 +21,7 @@ struct coordparam;
 %{
 typedef void (*set_func_t) (struct mandeldata *md, struct mdparam *param);
 
-struct mandeldata parser_mandeldata;
+struct mandeldata *coord_parser_mandeldata;
 
 struct coordparam {
 	fractal_type_t type;
@@ -149,9 +149,9 @@ real				: TOKEN_INT { $$ = $1; }
 					;
 
 coord				: TOKEN_COORD_V1 '{' coord_params '}' ';' {
-						mandeldata_init (&parser_mandeldata, fractal_type_by_id ($3->type));
-						mandeldata_set_defaults (&parser_mandeldata);
-						$3->param->set_func (&parser_mandeldata, $3->param);
+						mandeldata_init (coord_parser_mandeldata, fractal_type_by_id ($3->type));
+						mandeldata_set_defaults (coord_parser_mandeldata);
+						$3->param->set_func (coord_parser_mandeldata, $3->param);
 						free ($3);
 						YYACCEPT;
 					}

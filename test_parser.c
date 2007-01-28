@@ -6,6 +6,7 @@
 #include "coord_parse.tab.h"
 
 int coord_parse (void);
+extern struct mandeldata *coord_parser_mandeldata;
 
 void
 coord_error (const char *s)
@@ -17,7 +18,9 @@ coord_error (const char *s)
 int
 main (int argc, char *argv[])
 {
-	extern struct mandeldata parser_mandeldata;
+	mpf_set_default_prec (1024);
+	struct mandeldata md[1];
+	coord_parser_mandeldata = md;
 	if (argc != 2) {
 		fprintf (stderr, "* USAGE: %s <coord file>\n", argv[0]);
 		return 1;
@@ -30,8 +33,8 @@ main (int argc, char *argv[])
 	coord_restart (f);
 	coord_parse ();
 	fclose (f);
-	fwrite_mandeldata (stdout, &parser_mandeldata);
-	mandeldata_clear (&parser_mandeldata);
+	fwrite_mandeldata (stdout, md);
+	mandeldata_clear (md);
 	/*printf ("%x\n", yylex ());
 	printf ("%x\n", yylex ());
 	printf ("%x\n", yylex ());
