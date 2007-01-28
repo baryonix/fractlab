@@ -29,6 +29,7 @@ typedef struct {
 		GtkWidget *status_hbox, *status_info, *math_info, *math_info_frame;
 	} mainwin;
 	struct {
+		GSList *render_item_group;
 		GtkWidget *bar;
 		GtkWidget *file_item, *file_menu;
 		GtkWidget *open_coord_item;
@@ -40,7 +41,8 @@ typedef struct {
 		GtkWidget *render_method_items[RM_MAX];
 		GtkWidget *sep2;
 		GtkWidget *quit_item;
-		GSList *render_item_group;
+		GtkWidget *help_item, *help_menu;
+		GtkWidget *about_item;
 	} menu;
 	struct {
 		GtkWidget *dialog;
@@ -62,6 +64,7 @@ typedef struct {
 	bool updating_gui;
 	GtkMandelAppMode mode;
 	FractalTypeDialog *fractal_type_dlg;
+	GtkAboutDialog *about_dlg;
 } GtkMandelApplication;
 
 typedef struct {

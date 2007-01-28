@@ -54,6 +54,7 @@ static void gtk_mandel_application_set_area (GtkMandelApplication *app, struct m
 static void zoom_mode_selected (GtkMandelApplication *app, gpointer data);
 static void to_julia_mode_selected (GtkMandelApplication *app, gpointer data);
 static void type_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
+static GtkAboutDialog *create_about_dlg (GtkWindow *parent);
 
 
 GType
@@ -95,7 +96,6 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	create_menus (app);
 	create_mainwin (app);
 	create_dialogs (app);
-	app->fractal_type_dlg = fractal_type_dialog_new (GTK_WINDOW (app->mainwin.win));
 	connect_signals (app);
 	app->undo = NULL;
 	app->redo = NULL;
@@ -154,6 +154,15 @@ create_menus (GtkMandelApplication *app)
 
 	app->menu.quit_item = gtk_image_menu_item_new_from_stock (GTK_STOCK_QUIT, NULL);
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.quit_item);
+
+	app->menu.help_item = gtk_menu_item_new_with_label ("Help");
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.bar), app->menu.help_item);
+
+	app->menu.help_menu = gtk_menu_new ();
+	gtk_menu_item_set_submenu (GTK_MENU_ITEM (app->menu.help_item), app->menu.help_menu);
+
+	app->menu.about_item = gtk_image_menu_item_new_from_stock (GTK_STOCK_ABOUT, NULL);
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.help_menu), app->menu.about_item);
 }
 
 
@@ -267,6 +276,10 @@ create_dialogs (GtkMandelApplication *app)
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (app->save_coord_chooser), TRUE);
 
 	create_area_info (app);
+
+	app->fractal_type_dlg = fractal_type_dialog_new (GTK_WINDOW (app->mainwin.win));
+
+	app->about_dlg = create_about_dlg (GTK_WINDOW (app->mainwin.win));
 }
 
 
@@ -369,6 +382,8 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.quit_item), "activate", (GCallback) quit_selected, app);
 
+	g_signal_connect_object (app->menu.about_item, "activate", (GCallback) gtk_widget_show, app->about_dlg, G_CONNECT_SWAPPED);
+
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.threads_input), "value-changed", (GCallback) threads_updated, app);
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
@@ -404,6 +419,9 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect (app->fractal_type_dlg, "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 	g_signal_connect_swapped (app->fractal_type_dlg, "response", (GCallback) type_dlg_response, app);
+
+	g_signal_connect (GTK_DIALOG (app->about_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_object (app->about_dlg, "response", (GCallback) gtk_widget_hide, app->about_dlg, G_CONNECT_SWAPPED);
 }
 
 
@@ -829,4 +847,22 @@ fractal_type_clicked (GtkMandelApplication *app, gpointer data)
 {
 	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, app->md);
 	gtk_widget_show (GTK_WIDGET (app->fractal_type_dlg));
+}
+
+
+static GtkAboutDialog *
+create_about_dlg (GtkWindow *parent)
+{
+	static const char *authors[] = {"Jan Andres", NULL};
+	static const char *documenters[] = {"nobody", NULL};
+	GtkAboutDialog *dlg = GTK_ABOUT_DIALOG (gtk_about_dialog_new ());
+	gtk_about_dialog_set_name (dlg, "mandel-gtk");
+	gtk_about_dialog_set_comments (dlg, "Waste your time and computing power on fractal graphics \xe2\x80\x94 with high performance!\n\nThanks to Robert Munafo (http://www.mrob.com/) for many inspirations on the algorithms used in this program.");
+	gtk_about_dialog_set_license (dlg, "This program is free software. License terms are decribed in the file LICENSE which is included in the software distribution.\n\nWARNING: Rendering copyrighted areas of the Mandelbrot set or other fractals on a high definition capable display may break your Microsoft\xc2\xae Windows\xc2\xae Vista\xc2\xae End-User License Agreement\xc2\xae!");
+	gtk_about_dialog_set_wrap_license (dlg, TRUE);
+	gtk_about_dialog_set_authors (dlg, authors);
+	gtk_about_dialog_set_documenters (dlg, documenters);
+	if (parent != NULL)
+		gtk_window_set_transient_for (GTK_WINDOW (dlg), parent);
+	return dlg;
 }
