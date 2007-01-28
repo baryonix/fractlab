@@ -9,6 +9,7 @@
 #include "defs.h"
 #include "mandelbrot.h"
 #include "gtkmandel.h"
+#include "gui-util.h"
 #include "gui-typedlg.h"
 #include "gui.h"
 #include "util.h"
@@ -116,16 +117,16 @@ create_menus (GtkMandelApplication *app)
 	app->menu.file_menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu (GTK_MENU_ITEM (app->menu.file_item), app->menu.file_menu);
 
-	app->menu.open_coord_item = gtk_menu_item_new_with_label ("Open coordinate file...");
+	app->menu.open_coord_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_OPEN, "Open coordinate file...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.open_coord_item);
 
-	app->menu.save_coord_item = gtk_menu_item_new_with_label ("Save coordinate file...");
+	app->menu.save_coord_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_SAVE_AS, "Save coordinate file...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.save_coord_item);
 
-	app->menu.fractal_type_item = gtk_menu_item_new_with_label ("Fractal Type and Parameters...");
+	app->menu.fractal_type_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_PROPERTIES, "Fractal Type and Parameters...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.fractal_type_item);
 
-	app->menu.area_info_item = gtk_menu_item_new_with_label ("Area Info");
+	app->menu.area_info_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_INFO, "Area Info");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.area_info_item);
 
 	app->menu.render_item = gtk_menu_item_new_with_label ("Rendering Method");
@@ -145,7 +146,7 @@ create_menus (GtkMandelApplication *app)
 			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
 	}
 
-	app->menu.quit_item = gtk_menu_item_new_with_label ("Quit");
+	app->menu.quit_item = gtk_image_menu_item_new_from_stock (GTK_STOCK_QUIT, NULL);
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.quit_item);
 }
 

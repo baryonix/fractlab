@@ -27,3 +27,13 @@ mpf_from_entry (GtkEntry *entry, mpf_ptr val, mpf_srcptr orig_val, const char *o
 	else
 		mpf_set_str (val, text, 10);
 }
+
+
+GtkWidget *
+my_gtk_stock_menu_item_with_label (const gchar *stock_id, const gchar *label)
+{
+	/* Dirty... */
+	GtkWidget *widget = gtk_image_menu_item_new_from_stock (stock_id, NULL);
+	gtk_label_set_text (GTK_LABEL (gtk_bin_get_child (GTK_BIN (widget))), label);
+	return widget;
+}
