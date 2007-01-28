@@ -33,10 +33,12 @@ typedef struct {
 		GtkWidget *file_item, *file_menu;
 		GtkWidget *open_coord_item;
 		GtkWidget *save_coord_item;
+		GtkWidget *sep1;
 		GtkWidget *fractal_type_item;
 		GtkWidget *area_info_item;
 		GtkWidget *render_item, *render_menu;
 		GtkWidget *render_method_items[RM_MAX];
+		GtkWidget *sep2;
 		GtkWidget *quit_item;
 		GSList *render_item_group;
 	} menu;

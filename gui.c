@@ -123,6 +123,9 @@ create_menus (GtkMandelApplication *app)
 	app->menu.save_coord_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_SAVE_AS, "Save coordinate file...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.save_coord_item);
 
+	app->menu.sep1 = gtk_separator_menu_item_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.sep1);
+
 	app->menu.fractal_type_item = my_gtk_stock_menu_item_with_label (GTK_STOCK_PROPERTIES, "Fractal Type and Parameters...");
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.fractal_type_item);
 
@@ -145,6 +148,9 @@ create_menus (GtkMandelApplication *app)
 		if (i == DEFAULT_RENDER_METHOD)
 			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
 	}
+
+	app->menu.sep2 = gtk_separator_menu_item_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.sep2);
 
 	app->menu.quit_item = gtk_image_menu_item_new_from_stock (GTK_STOCK_QUIT, NULL);
 	gtk_menu_shell_append (GTK_MENU_SHELL (app->menu.file_menu), app->menu.quit_item);
