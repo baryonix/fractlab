@@ -57,7 +57,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .asm.o:
 	$(NASM) -f elf -o $@ $<
 
-.PHONY: clean newdeps
+.PHONY: clean distclean newdeps
 
 .SUFFIXES: .asm
 
