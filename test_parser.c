@@ -5,10 +5,10 @@
 #include "file.h"
 #include "coord_parse.tab.h"
 
-int yyparse (void);
+int coord_parse (void);
 
 void
-yyerror (const char *s)
+coord_error (const char *s)
 {
 	fprintf (stderr, "* ERROR: %s\n", s);
 	exit (2);
@@ -27,8 +27,8 @@ main (int argc, char *argv[])
 		perror ("fopen");
 		return 1;
 	}
-	yyrestart (f);
-	yyparse ();
+	coord_restart (f);
+	coord_parse ();
 	fclose (f);
 	fwrite_mandeldata (stdout, &parser_mandeldata);
 	mandeldata_clear (&parser_mandeldata);

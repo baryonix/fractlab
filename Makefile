@@ -19,7 +19,7 @@ MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
-TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -ly -ll -lpthread -lm
+TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o mandelbrot.o gtkmandel.o gui.o util.o
 MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o mandelbrot.o anim.o
@@ -57,12 +57,6 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .asm.o:
 	$(NASM) -f elf -o $@ $<
 
-%.tab.c %.tab.h: %.y
-	$(YACC) -d -b $* $<
-
-%.yy.c: %.l
-	$(LEX) -o$@ $<
-
 .PHONY: clean newdeps
 
 .SUFFIXES: .asm
@@ -72,6 +66,12 @@ clean:
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
+
+coord_parse.tab.c coord_parse.tab.h: coord_parse.y
+	$(YACC) -p coord_ -d -b coord_parse $<
+
+coord_lex.yy.c: coord_lex.l
+	$(LEX) -Pcoord_ -o$@ $<
 
 coord_lex.yy.o: coord_lex.yy.c coord_parse.tab.h
 

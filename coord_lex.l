@@ -2,6 +2,8 @@
 #include <string.h>
 #include "mandelbrot.h"
 #include "coord_parse.tab.h"
+
+#define coord_wrap() 1
 %}
 
 DIGIT		[0-9]
@@ -13,12 +15,12 @@ COMMENT		\/\/[^\n]*\n
 %%
 
 {INT} {
-	yylval.string = strdup (yytext);
+	coord_lval.string = strdup (yytext);
 	return TOKEN_INT;
 }
 
 {REAL} {
-	yylval.string = strdup (yytext);
+	coord_lval.string = strdup (yytext);
 	return TOKEN_REAL;
 }
 
