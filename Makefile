@@ -64,7 +64,10 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .SECONDARY:
 
 clean:
-	-rm -f *.o ia32/*.o *.yy.c *.tab.[ch] mandel-gtk mandel-zoom lissajoulia stupidmng
+	-rm -f *.o ia32/*.o mandel-gtk mandel-zoom lissajoulia stupidmng test_parser
+
+distclean: clean
+	-rm -f *.yy.c *.tab.[ch]
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
