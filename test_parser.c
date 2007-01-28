@@ -7,13 +7,7 @@
 
 int coord_parse (void);
 extern struct mandeldata *coord_parser_mandeldata;
-
-void
-coord_error (const char *s)
-{
-	fprintf (stderr, "* ERROR: %s\n", s);
-	exit (2);
-}
+extern const char *coord_errstr;
 
 int
 main (int argc, char *argv[])
@@ -31,7 +25,8 @@ main (int argc, char *argv[])
 		return 1;
 	}
 	coord_restart (f);
-	coord_parse ();
+	if (coord_parse () != 0)
+		fprintf (stderr, "* ERROR: %s\n", coord_errstr);
 	fclose (f);
 	fwrite_mandeldata (stdout, md);
 	mandeldata_clear (md);

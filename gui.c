@@ -782,7 +782,6 @@ open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 	fclose (f);
 	if (!ok) {
 		fprintf (stderr, "%s: Something went wrong reading the file.\n", filename);
-		mandeldata_clear (md);
 		free (md);
 		return;
 	}

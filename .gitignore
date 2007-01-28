@@ -3,5 +3,3 @@ mandel-zoom
 stupidmng
 test_parser
 lissajoulia
-*.tab.[ch]
-*.yy.c
