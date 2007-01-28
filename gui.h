@@ -1,6 +1,8 @@
 #ifndef _GTKMANDEL_GUI_H
 #define _GTKMANDEL_GUI_H
 
+#include "gui-typedlg.h"
+
 struct area_info_item {
 	GtkWidget *label, *view;
 	GtkTextBuffer *buffer;
@@ -11,72 +13,6 @@ typedef enum {
 	GTK_MANDEL_APP_MODE_TO_JULIA = 1,
 	GTK_MANDEL_APP_MODE_MAX = 2
 } GtkMandelAppMode;
-
-
-typedef enum {
-	GUI_FTYPE_HAS_MAXITER = 1 << 0
-} gui_ftype_flags_t;
-
-struct fractal_type_dlg;
-
-/* Static type-specific information. */
-struct gui_fractal_type {
-	gui_ftype_flags_t flags;
-	struct gui_type_param *(*create_gui) (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
-	void (*set_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, const void *param);
-	void (*get_param) (struct fractal_type_dlg *dlg, struct gui_type_param *gui_param, void *param);
-};
-
-/* Dynamic type-specific information. */
-struct gui_fractal_type_dynamic {
-	fractal_repres_t repres[REPRES_MAX];
-	int repres_count;
-	struct gui_type_param *gui;
-};
-
-struct gui_type_param {
-	GtkWidget *main_widget;
-};
-
-struct gui_mandelbrot_param {
-	struct gui_type_param ftype;
-	GtkWidget *zpower_label, *zpower_input;
-};
-
-struct gui_julia_param {
-	struct gui_type_param ftype;
-	GtkWidget *zpower_label, *zpower_input;
-	GtkWidget *preal_label, *preal_input;
-	GtkWidget *pimag_label, *pimag_input;
-	struct mandel_point param;
-	char preal_buf[1024], pimag_buf[1024];
-};
-
-
-struct fractal_type_dlg {
-	GtkSizeGroup *label_size_group, *input_size_group;
-	GtkWidget *dialog;
-	GtkListStore *type_list, *repres_list;
-	GtkCellRenderer *type_renderer, *repres_renderer;
-	GtkWidget *type_table, *type_label, *type_input, *defaults_button;
-	GtkWidget *area_frame, *area_table;
-	GtkWidget *area_creal_label, *area_creal_input;
-	GtkWidget *area_cimag_label, *area_cimag_input;
-	GtkWidget *area_magf_label, *area_magf_input;
-	GtkWidget *general_param_frame;
-	GtkWidget *general_param_table;
-	GtkWidget *maxiter_label, *maxiter_input;
-	GtkWidget *type_param_frame;
-	GtkWidget *type_param_notebook;
-	GtkWidget *repres_frame, *repres_vbox;
-	GtkWidget *repres_hbox, *repres_label, *repres_input;
-	GtkWidget *repres_notebook, *repres_notebook_tabs[REPRES_MAX];
-	GtkWidget *repres_log_base_hbox, *repres_log_base_label, *repres_log_base_input;
-	struct mandel_area area;
-	char creal_buf[1024], cimag_buf[1024], magf_buf[1024];
-	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
-};
-
 
 
 typedef struct {
@@ -123,7 +59,7 @@ typedef struct {
 	struct mandeldata *md;
 	bool updating_gui;
 	GtkMandelAppMode mode;
-	struct fractal_type_dlg fractal_type_dlg;
+	FractalTypeDialog *fractal_type_dlg;
 } GtkMandelApplication;
 
 typedef struct {
