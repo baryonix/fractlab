@@ -1,4 +1,6 @@
 anim.o: anim.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h
+coord_lex.yy.o: coord_lex.yy.c mandelbrot.h fpdefs.h coord_parse.tab.h
+coord_parse.tab.o: coord_parse.tab.c mandelbrot.h fpdefs.h
 crc.o: crc.c crc.h
 file.o: file.c file.h mandelbrot.h fpdefs.h util.h
 gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h file.h \
@@ -9,6 +11,7 @@ main.o: main.c file.h mandelbrot.h fpdefs.h gtkmandel.h defs.h gui.h \
   util.h
 mandelbrot.o: mandelbrot.c defs.h mandelbrot.h fpdefs.h util.h
 stupidmng.o: stupidmng.c crc.h
-test_parser.o: test_parser.c
+test_parser.o: test_parser.c mandelbrot.h fpdefs.h file.h \
+  coord_parse.tab.h
 util.o: util.c util.h fpdefs.h
 zoom.o: zoom.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h

@@ -1,39 +1,41 @@
 %{
-	#include "coord_parse.tab.h"
+#include <string.h>
+#include "mandelbrot.h"
+#include "coord_parse.tab.h"
 %}
 
 DIGIT		[0-9]
 INT			[-+]?{DIGIT}+
-FLOAT		[-+]?{DIGIT}*\.{DIGIT}+([eE][-+]?{DIGIT}+)?
+REAL		[-+]?{DIGIT}+(\.{DIGIT}+)?([eE]{INT})?
+IDENTIFIER	[A-Za-z_][-A-Za-z_0-9]*
+COMMENT		\/\/[^\n]*\n
 
 %%
 
 {INT} {
-	yylval.integer = atoi (yytext);
+	yylval.string = strdup (yytext);
 	return TOKEN_INT;
 }
 
-{FLOAT} {
-	yylval.floating_point = atof (yytext);
-	return TOKEN_FLOAT;
+{REAL} {
+	yylval.string = strdup (yytext);
+	return TOKEN_REAL;
 }
 
-maxiter {
-	return TOKEN_MAXITER;
-}
-
-corners {
-	return TOKEN_CORNERS;
-}
-
-center_mag {
-	return TOKEN_CENTER_MAG;
-}
-
-\n {
-	return *yytext;
-}
-
-[[:space:]]+ {
-	return TOKEN_SPACE;
-}
+coord-v1				return TOKEN_COORD_V1;
+type					return TOKEN_TYPE;
+mandelbrot				return TOKEN_MANDELBROT;
+julia					return TOKEN_JULIA;
+zpower					return TOKEN_ZPOWER;
+maxiter					return TOKEN_MAXITER;
+area					return TOKEN_AREA;
+parameter				return TOKEN_PARAMETER;
+representation			return TOKEN_REPRESENTATION;
+escape					return TOKEN_ESCAPE;
+escape-log				return TOKEN_ESCAPE_LOG;
+distance				return TOKEN_DISTANCE;
+base					return TOKEN_BASE;
+{IDENTIFIER}			return TOKEN_IDENTIFIER;
+[;\{\}/]				return *yytext;
+[[:space:]]+			/* do nothing */
+{COMMENT}				/* do nothing */

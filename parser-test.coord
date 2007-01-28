@@ -1,0 +1,12 @@
+// foo
+coord-v1 {
+	representation escape-log { base 1.01; };
+	type julia { // bar
+		parameter 3.14/9.9; // baz
+		zpower 3;
+
+		// bleh
+		maxiter 37373;
+	};
+	area 0.5/-0.5/1.33e9;
+};

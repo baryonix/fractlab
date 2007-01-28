@@ -1,5 +1,6 @@
 MANDEL_GTK_PKG = gtk+-2.0 gthread-2.0
 MANDEL_ZOOM_PKG = glib-2.0 gthread-2.0 libpng
+TEST_PARSER_PKG = glib-2.0 gthread-2.0
 CC = gcc
 LEX = lex
 YACC = yacc
@@ -18,12 +19,13 @@ MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
+TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -ly -ll -lpthread -lm
 
 MANDEL_GTK_OBJECTS = main.o file.o mandelbrot.o gtkmandel.o gui.o util.o
 MANDEL_ZOOM_OBJECTS = zoom.o file.o util.o mandelbrot.o anim.o
 LISSAJOULIA_OBJECTS = lissajoulia.o file.o util.o mandelbrot.o anim.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
-TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o
+TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o mandelbrot.o util.o file.o
 
 ifeq ($(USE_IA32_ASM),i387)
 CFLAGS += -DMANDELBROT_FP_ASM
@@ -47,7 +49,7 @@ stupidmng: $(STUPIDMNG_OBJECTS)
 	$(CC) -o $@ $^
 
 test_parser: $(TEST_PARSER_OBJECTS)
-	$(CC) -o $@ $^ -ly -ll
+	$(CC) -o $@ $^ $(TEST_PARSER_LIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -70,5 +72,7 @@ clean:
 
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
+
+coord_lex.yy.o: coord_lex.yy.c coord_parse.tab.h
 
 include Makefile.deps
