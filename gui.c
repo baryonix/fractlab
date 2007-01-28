@@ -820,5 +820,6 @@ type_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 static void
 fractal_type_clicked (GtkMandelApplication *app, gpointer data)
 {
+	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, app->md);
 	gtk_widget_show (GTK_WIDGET (app->fractal_type_dlg));
 }
