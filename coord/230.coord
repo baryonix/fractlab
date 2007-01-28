@@ -1,0 +1,8 @@
+coord-v1 {
+	type mandelbrot {
+		zpower 2;
+		maxiter 100000;
+	};
+	area -0.1289041118818186338253594537382375946 / 0.9878911075562264274207175294324581466 / 4.701989875e+32;
+	representation escape;
+};
