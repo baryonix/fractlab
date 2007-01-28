@@ -1,4 +1,6 @@
+
 // foo
+
 coord-v1 {
 	representation escape-log { base 1.01; };
 	type julia { // bar
@@ -10,3 +12,13 @@ coord-v1 {
 	};
 	area 0.5/-0.5/1.33e9;
 };
+
+// foo
+coord-v1 {
+	representation escape-log { base 1.02; };
+	type mandelbrot {// bar
+		zpower 3;maxiter 37373;};
+	area 0.5/-0.5/1E10;
+};
+
+// argl

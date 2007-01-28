@@ -2,8 +2,8 @@ MANDEL_GTK_PKG = gtk+-2.0 gthread-2.0
 MANDEL_ZOOM_PKG = glib-2.0 gthread-2.0 libpng
 TEST_PARSER_PKG = glib-2.0 gthread-2.0
 CC = gcc
-LEX = lex
-YACC = yacc
+FLEX = flex
+BISON = bison
 NASM = nasm
 # Define MY_MPN_SUB_SLOW if it's faster on your machine (yes, despite the
 # name, it might actually be!), or if your machine doesn't use two's complement,
@@ -70,10 +70,10 @@ newdeps:
 	$(CC) -MM *.c >Makefile.deps
 
 coord_parse.tab.c coord_parse.tab.h: coord_parse.y
-	$(YACC) -p coord_ -d -b coord_parse $<
+	$(BISON) -p coord_ -d -b coord_parse $<
 
 coord_lex.yy.c: coord_lex.l
-	$(LEX) -Pcoord_ -o$@ $<
+	$(FLEX) -Pcoord_ -o$@ $<
 
 coord_lex.yy.o: coord_lex.yy.c coord_parse.tab.h
 

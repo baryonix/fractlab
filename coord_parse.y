@@ -1,5 +1,6 @@
 %{
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "mandelbrot.h"
 
@@ -139,6 +140,7 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 %token TOKEN_DISTANCE
 %token TOKEN_BASE
 %token TOKEN_IDENTIFIER
+%error-verbose
 
 %start coord
 

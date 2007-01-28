@@ -25,15 +25,20 @@ main (int argc, char *argv[])
 		return 1;
 	}
 	coord_restart (f);
-	if (coord_parse () != 0)
+	if (coord_parse () != 0) {
 		fprintf (stderr, "* ERROR: %s\n", coord_errstr);
-	fclose (f);
+		return 1;
+	}
 	fwrite_mandeldata (stdout, md);
+#if 1
 	mandeldata_clear (md);
-	/*printf ("%x\n", yylex ());
-	printf ("%x\n", yylex ());
-	printf ("%x\n", yylex ());
-	printf ("%x\n", yylex ());
-	printf ("%x\n", yylex ());*/
+	if (coord_parse () != 0) {
+		fprintf (stderr, "* ERROR: %s\n", coord_errstr);
+		return 1;
+	}
+	fwrite_mandeldata (stdout, md);
+#endif
+	mandeldata_clear (md);
+	fclose (f);
 	return 0;
 }
