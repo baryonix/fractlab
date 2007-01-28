@@ -1470,6 +1470,7 @@ void
 mandeldata_clear (struct mandeldata *md)
 {
 	mandel_area_clear (&md->area);
+	md->type->param_free (md->type_param);
 }
 
 
