@@ -858,7 +858,7 @@ create_about_dlg (GtkWindow *parent)
 	GtkAboutDialog *dlg = GTK_ABOUT_DIALOG (gtk_about_dialog_new ());
 	gtk_about_dialog_set_name (dlg, "mandel-gtk");
 	gtk_about_dialog_set_comments (dlg, "Waste your time and computing power on fractal graphics \xe2\x80\x94 with high performance!\n\nThanks to Robert Munafo (http://www.mrob.com/) for many inspirations on the algorithms used in this program.");
-	gtk_about_dialog_set_license (dlg, "This program is free software. License terms are decribed in the file LICENSE which is included in the software distribution.\n\nWARNING: Rendering copyrighted areas of the Mandelbrot set or other fractals on a high definition capable display may break your Microsoft\xc2\xae Windows\xc2\xae Vista\xc2\xae End-User License Agreement\xc2\xae!");
+	gtk_about_dialog_set_license (dlg, "This program is free software. License terms are described in the file LICENSE which is included in the software distribution.\n\nWARNING: Rendering copyrighted areas of the Mandelbrot\xe2\x84\xa2 set or other fractals on a high definition capable display may break your Microsoft\xc2\xae Windows\xc2\xae Vista\xc2\xae End-User License Agreement\xc2\xae!");
 	gtk_about_dialog_set_wrap_license (dlg, TRUE);
 	gtk_about_dialog_set_authors (dlg, authors);
 	gtk_about_dialog_set_documenters (dlg, documenters);
