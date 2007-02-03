@@ -254,7 +254,7 @@ fractal_type_dialog_init (GTypeInstance *instance, gpointer g_class)
 	gtk_box_pack_start (GTK_BOX (priv->repres_hbox), priv->repres_input, TRUE, TRUE, 0);
 
 	priv->repres_log_base_label = my_gtk_label_new ("Base of Logarithm", priv->label_size_group);
-	priv->repres_log_base_input = gtk_spin_button_new_with_range (1.0, 100000.0, 0.01);
+	priv->repres_log_base_input = gtk_spin_button_new_with_range (1.0, 100000.0, 0.001);
 	gtk_size_group_add_widget (priv->input_size_group, priv->repres_log_base_input);
 
 	priv->repres_log_base_hbox = gtk_hbox_new (FALSE, 2);
