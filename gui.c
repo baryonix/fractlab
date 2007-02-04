@@ -359,11 +359,11 @@ connect_signals (GtkMandelApplication *app)
 	g_signal_connect (G_OBJECT (app->fractal_info_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 	g_signal_connect_swapped (G_OBJECT (app->fractal_info_dlg), "response", (GCallback) area_info_dlg_response, app);
 
-	g_signal_connect (app->fractal_type_dlg, "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (app->fractal_type_dlg, "response", (GCallback) type_dlg_response, app);
+	g_signal_connect (G_OBJECT (app->fractal_type_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_swapped (G_OBJECT (app->fractal_type_dlg), "response", (GCallback) type_dlg_response, app);
 
-	g_signal_connect (GTK_DIALOG (app->about_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_object (app->about_dlg, "response", (GCallback) gtk_widget_hide, app->about_dlg, G_CONNECT_SWAPPED);
+	g_signal_connect (G_OBJECT (app->about_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_object (G_OBJECT (app->about_dlg), "response", (GCallback) gtk_widget_hide, app->about_dlg, G_CONNECT_SWAPPED);
 }
 
 
