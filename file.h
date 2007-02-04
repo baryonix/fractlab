@@ -6,7 +6,6 @@
 
 bool read_mandeldata (const char *filename, struct mandeldata *md, char *errbuf, size_t errbsize);
 bool fread_mandeldata (FILE *f, struct mandeldata *md, char *errbuf, size_t errbsize);
-bool fread_mandeldata_legacy (FILE *f, struct mandeldata *md);
 bool write_mandeldata (const char *filename, const struct mandeldata *md, char *errbuf, size_t errbsize);
 bool fwrite_mandeldata (FILE *f, const struct mandeldata *md, char *errbuf, size_t errbsize);
 
