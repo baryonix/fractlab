@@ -305,62 +305,62 @@ connect_signals (GtkMandelApplication *app)
 {
 	int i;
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "area-selected", (GCallback) area_selected, app);
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "point-selected", (GCallback) point_for_julia_selected, app); /* XXX */
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app);
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-progress", (GCallback) rendering_progress, app);
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.mandel), "area-selected", (GCallback) area_selected, app, G_CONNECT_SWAPPED);
+	g_signal_connect_object (G_OBJECT (app->mainwin.mandel), "point-selected", (GCallback) point_for_julia_selected, app, G_CONNECT_SWAPPED); /* XXX */
+	g_signal_connect_object (G_OBJECT (app->mainwin.mandel), "rendering-started", (GCallback) rendering_started, app, G_CONNECT_SWAPPED);
+	g_signal_connect_object (G_OBJECT (app->mainwin.mandel), "rendering-progress", (GCallback) rendering_progress, app, G_CONNECT_SWAPPED);
+	g_signal_connect_object (G_OBJECT (app->mainwin.mandel), "rendering-stopped", (GCallback) rendering_stopped, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->menu.fractal_type_item), "activate", (GCallback) fractal_type_clicked, app);
+	g_signal_connect_object (G_OBJECT (app->menu.fractal_type_item), "activate", (GCallback) fractal_type_clicked, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect_object (G_OBJECT (app->menu.area_info_item), "activate", (GCallback) gtk_widget_show, app->fractal_info_dlg, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app);
+	g_signal_connect_object (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->menu.save_coord_item), "activate", (GCallback) save_coord_file, app);
+	g_signal_connect_object (G_OBJECT (app->menu.save_coord_item), "activate", (GCallback) save_coord_file, app, G_CONNECT_SWAPPED);
 
 	for (i = 0; i < RM_MAX; i++)
-		g_signal_connect_swapped (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app);
+		g_signal_connect_object (G_OBJECT (app->menu.render_method_items[i]), "toggled", (GCallback) render_method_updated, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->menu.quit_item), "activate", (GCallback) quit_selected, app);
+	g_signal_connect_object (G_OBJECT (app->menu.quit_item), "activate", (GCallback) quit_selected, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect_object (app->menu.about_item, "activate", (GCallback) gtk_widget_show, app->about_dlg, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.threads_input), "value-changed", (GCallback) threads_updated, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.threads_input), "value-changed", (GCallback) threads_updated, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.undo), "clicked", (GCallback) undo_pressed, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.redo), "clicked", (GCallback) redo_pressed, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.restart), "clicked", (GCallback) restart_pressed, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.stop), "clicked", (GCallback) stop_pressed, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.stop), "clicked", (GCallback) stop_pressed, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.fractal_type), "clicked", (GCallback) fractal_type_clicked, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.fractal_type), "clicked", (GCallback) fractal_type_clicked, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.zoom_out), "clicked", (GCallback) zoomed_out, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.zoom_mode), "toggled", (GCallback) zoom_mode_selected, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.zoom_mode), "toggled", (GCallback) zoom_mode_selected, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.to_julia_mode), "toggled", (GCallback) to_julia_mode_selected, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.to_julia_mode), "toggled", (GCallback) to_julia_mode_selected, app, G_CONNECT_SWAPPED);
 
 	/*
 	 * This prevents the window from being destroyed
 	 * when the close button is clicked.
 	 */
 	g_signal_connect (G_OBJECT (app->open_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app);
+	g_signal_connect_object (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect (G_OBJECT (app->save_coord_chooser), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (G_OBJECT (app->save_coord_chooser), "response", (GCallback) save_coord_dlg_response, app);
+	g_signal_connect_object (G_OBJECT (app->save_coord_chooser), "response", (GCallback) save_coord_dlg_response, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_swapped (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app);
+	g_signal_connect_object (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect (G_OBJECT (app->fractal_info_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (G_OBJECT (app->fractal_info_dlg), "response", (GCallback) area_info_dlg_response, app);
+	g_signal_connect_object (G_OBJECT (app->fractal_info_dlg), "response", (GCallback) area_info_dlg_response, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect (G_OBJECT (app->fractal_type_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (G_OBJECT (app->fractal_type_dlg), "response", (GCallback) type_dlg_response, app);
+	g_signal_connect_object (G_OBJECT (app->fractal_type_dlg), "response", (GCallback) type_dlg_response, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect (G_OBJECT (app->about_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 	g_signal_connect_object (G_OBJECT (app->about_dlg), "response", (GCallback) gtk_widget_hide, app->about_dlg, G_CONNECT_SWAPPED);
