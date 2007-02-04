@@ -38,7 +38,6 @@ static void save_coord_file (GtkMandelApplication *app, gpointer data);
 static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void quit_selected (GtkMandelApplication *app, gpointer data);
 static void update_gui_from_mandeldata (GtkMandelApplication *app);
-static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void fractal_type_clicked (GtkMandelApplication *app, gpointer data);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
@@ -314,7 +313,7 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.fractal_type_item), "activate", (GCallback) fractal_type_clicked, app);
 
-	g_signal_connect_swapped (G_OBJECT (app->menu.area_info_item), "activate", (GCallback) area_info_selected, app);
+	g_signal_connect_object (G_OBJECT (app->menu.area_info_item), "activate", (GCallback) gtk_widget_show, app->fractal_info_dlg, G_CONNECT_SWAPPED);
 
 	g_signal_connect_swapped (G_OBJECT (app->menu.open_coord_item), "activate", (GCallback) open_coord_file, app);
 
@@ -548,13 +547,6 @@ static void
 area_info_dlg_response (GtkMandelApplication *app, gpointer data)
 {
 	gtk_widget_hide (GTK_WIDGET (app->fractal_info_dlg));
-}
-
-
-static void
-area_info_selected (GtkMandelApplication *app, gpointer data)
-{
-	gtk_widget_show (GTK_WIDGET (app->fractal_info_dlg));
 }
 
 
