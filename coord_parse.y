@@ -4,7 +4,7 @@
 %parse-param {yyscan_t scanner}
 %parse-param {struct mandeldata *md}
 %parse-param {char *errbuf}
-%parse-param {int errbsize}
+%parse-param {size_t errbsize}
 
 %lex-param {yyscan_t scanner}
 
@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mandelbrot.h"
+#include "util.h"
 
 struct mdparam;
 struct coordparam;
@@ -33,10 +34,9 @@ struct coordparam;
 #include "coord_lex.yy.h"
 
 static void
-coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize, char const *msg)
+coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
 {
-	strncpy (errbuf, msg, errbsize - 1);
-	errbuf[errbsize - 1] = 0;
+	my_safe_strcpy (errbuf, msg, errbsize);
 }
 
 

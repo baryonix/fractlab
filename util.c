@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdarg.h>
+#include <errno.h>
 
 #include <gmp.h>
 
@@ -129,4 +131,48 @@ free_not_null (void *ptr)
 {
 	if (ptr != NULL)
 		free (ptr);
+}
+
+
+int
+my_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...)
+{
+	int res;
+	va_list ap;
+	va_start (ap, format);
+	res = my_vfprintf (stream, errbuf, errbsize, format, ap);
+	va_end (ap);
+	return res;
+}
+
+
+int
+my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	int res = vfprintf (stream, format, ap);
+	if (res < 0 && errbuf != NULL && errbsize > 0)
+		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	return res;
+}
+
+
+int
+my_gmp_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...)
+{
+	int res;
+	va_list ap;
+	va_start (ap, format);
+	res = my_gmp_vfprintf (stream, errbuf, errbsize, format, ap);
+	va_end (ap);
+	return res;
+}
+
+
+int
+my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	int res = gmp_vfprintf (stream, format, ap);
+	if (res < 0 && errbuf != NULL && errbsize > 0)
+		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	return res;
 }

@@ -1,6 +1,9 @@
 #ifndef _GTKMANDEL_UTIL_H
 #define _GTKMANDEL_UTIL_H
 
+#include <stdio.h>
+#include <string.h>
+
 #include "fpdefs.h"
 
 static inline double
@@ -11,6 +14,15 @@ my_fmax (double a, double b)
 	else
 		return b;
 }
+
+
+static inline char *
+my_safe_strcpy (char *dest, const char *src, size_t n)
+{
+	dest[n - 1] = 0;
+	return strncpy (dest, src, n - 1);
+}
+
 
 #define MY_MIN(a, b) ((a)<(b)?(a):(b))
 #define MY_MAX(a, b) ((a)>(b)?(a):(b))
@@ -23,5 +35,9 @@ int corner_coords_to_string (mpf_srcptr xmin, mpf_srcptr xmax, mpf_srcptr ymin, 
 int center_coords_to_string (mpf_srcptr cx, mpf_srcptr cy, mpf_srcptr magf, char *cx_buf, char *cy_buf, char *magf_buf, int buf_size);
 
 void free_not_null (void *ptr);
+int my_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...);
+int my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
+int my_gmp_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...);
+int my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
 
 #endif /* _GTKMANDEL_UTIL_H */

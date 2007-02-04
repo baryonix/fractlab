@@ -148,6 +148,7 @@ render_frame (void *data, struct mandeldata *md, unsigned long i)
 int
 main (int argc, char **argv)
 {
+	char errbuf[1024];
 	mpf_set_default_prec (1024); /* ! */
 	mpfr_set_default_prec (1024); /* ! */
 	struct thread_state state[1];
@@ -155,22 +156,26 @@ main (int argc, char **argv)
 	mpf_init (mpaspect);
 	parse_command_line (&argc, &argv);
 	struct mandeldata md0[1], *const mdn = &state->md;
-	FILE *f = NULL;
-	if (start_coords == NULL || !(f = fopen (start_coords, "r")) || !fread_mandeldata (f, md0)) {
-		if (f != NULL)
-			fclose (f);
+
+	if (start_coords == NULL) {
 		fprintf (stderr, "* Error: No start coordinates specified.\n");
 		return 1;
 	}
-	fclose (f);
-	f = NULL;
-	if (target_coords == NULL || !(f = fopen (target_coords, "r")) || !fread_mandeldata (f, &state->md)) {
-		if (f != NULL)
-			fclose (f);
+	
+	if (!read_mandeldata (start_coords, md0, errbuf, sizeof (errbuf))) {
+		fprintf (stderr, "%s: cannot read: %s\n", start_coords, errbuf);
+		return 1;
+	}
+	
+	if (target_coords == NULL) {
 		fprintf (stderr, "* Error: No target coordinates specified.\n");
 		return 1;
 	}
-	fclose (f);
+
+	if (!read_mandeldata (target_coords, mdn, errbuf, sizeof (errbuf))) {
+		fprintf (stderr, "%s: cannot read: %s\n", target_coords, errbuf);
+		return 1;
+	}
 
 	aspect = (double) img_width / img_height;
 	mpf_set_d (mpaspect, aspect);

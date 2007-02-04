@@ -562,23 +562,17 @@ open_coord_file (GtkMandelApplication *app, gpointer data)
 static void
 open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 {
+	char errbuf[1024];
 	gtk_widget_hide (app->open_coord_chooser);
 
 	if (response != GTK_RESPONSE_ACCEPT)
 		return;
 
 	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->open_coord_chooser));
-	FILE *f = fopen (filename, "r");
-	if (f == NULL) {
-		/* XXX show dialog box */
-		fprintf (stderr, "%s: fopen: %s\n", filename, strerror (errno));
-		return;
-	}
 	struct mandeldata *md = malloc (sizeof (*md));
-	bool ok = fread_mandeldata (f, md);
-	fclose (f);
+	bool ok = read_mandeldata (filename, md, errbuf, sizeof (errbuf));
 	if (!ok) {
-		fprintf (stderr, "%s: Something went wrong reading the file.\n", filename);
+		fprintf (stderr, "%s: cannot read: %s\n", filename, errbuf);
 		free (md);
 		return;
 	}
@@ -665,22 +659,15 @@ save_coord_file (GtkMandelApplication *app, gpointer data)
 static void
 save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 {
+	char errbuf[1024];
+
 	gtk_widget_hide (app->save_coord_chooser);
-
-	//fprintf (stderr, "* DEBUG: response = %d\n", (int) response);
-
 	if (response != GTK_RESPONSE_ACCEPT)
 		return;
 
 	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
-	FILE *f = fopen (filename, "w");
-	if (f == NULL) {
-		fprintf (stderr, "%s: %s\n", filename, strerror (errno));
-		return;
-	}
-
-	fwrite_mandeldata (f, app->md);
-	fclose (f);
+	if (!write_mandeldata (filename, app->md, errbuf, sizeof (errbuf)))
+		fprintf (stderr, "%s: cannot write: %s\n", filename, errbuf);
 }
 
 

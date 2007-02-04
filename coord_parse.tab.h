@@ -80,7 +80,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 22 "coord_parse.y"
+#line 23 "coord_parse.y"
 {
 	char *string;
 	struct mandel_point mandel_point;

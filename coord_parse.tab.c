@@ -120,6 +120,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mandelbrot.h"
+#include "util.h"
 
 struct mdparam;
 struct coordparam;
@@ -146,7 +147,7 @@ struct coordparam;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 22 "coord_parse.y"
+#line 23 "coord_parse.y"
 {
 	char *string;
 	struct mandel_point mandel_point;
@@ -157,7 +158,7 @@ typedef union YYSTYPE
 	struct mandel_repres *repres;
 }
 /* Line 187 of yacc.c.  */
-#line 161 "coord_parse.tab.c"
+#line 162 "coord_parse.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -167,15 +168,14 @@ typedef union YYSTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 32 "coord_parse.y"
+#line 33 "coord_parse.y"
 
 #include "coord_lex.yy.h"
 
 static void
-coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize, char const *msg)
+coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
 {
-	strncpy (errbuf, msg, errbsize - 1);
-	errbuf[errbsize - 1] = 0;
+	my_safe_strcpy (errbuf, msg, errbsize);
 }
 
 
@@ -814,7 +814,7 @@ do {									  \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize)
 #else
 static void
 yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize)
@@ -824,7 +824,7 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize
     yyscan_t scanner;
     struct mandeldata *md;
     char *errbuf;
-    int errbsize;
+    size_t errbsize;
 #endif
 {
   if (!yyvaluep)
@@ -854,7 +854,7 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize)
 #else
 static void
 yy_symbol_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize)
@@ -864,7 +864,7 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize)
     yyscan_t scanner;
     struct mandeldata *md;
     char *errbuf;
-    int errbsize;
+    size_t errbsize;
 #endif
 {
   if (yytype < YYNTOKENS)
@@ -912,7 +912,7 @@ do {								\
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_reduce_print (YYSTYPE *yyvsp, int yyrule, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
+yy_reduce_print (YYSTYPE *yyvsp, int yyrule, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize)
 #else
 static void
 yy_reduce_print (yyvsp, yyrule, scanner, md, errbuf, errbsize)
@@ -921,7 +921,7 @@ yy_reduce_print (yyvsp, yyrule, scanner, md, errbuf, errbsize)
     yyscan_t scanner;
     struct mandeldata *md;
     char *errbuf;
-    int errbsize;
+    size_t errbsize;
 #endif
 {
   int yynrhs = yyr2[yyrule];
@@ -1194,7 +1194,7 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize)
 #else
 static void
 yydestruct (yymsg, yytype, yyvaluep, scanner, md, errbuf, errbsize)
@@ -1204,7 +1204,7 @@ yydestruct (yymsg, yytype, yyvaluep, scanner, md, errbuf, errbsize)
     yyscan_t scanner;
     struct mandeldata *md;
     char *errbuf;
-    int errbsize;
+    size_t errbsize;
 #endif
 {
   YYUSE (yyvaluep);
@@ -1236,7 +1236,7 @@ int yyparse ();
 #endif
 #else /* ! YYPARSE_PARAM */
 #if defined __STDC__ || defined __cplusplus
-int yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize);
+int yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize);
 #else
 int yyparse ();
 #endif
@@ -1265,14 +1265,14 @@ yyparse (YYPARSE_PARAM)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 int
-yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
+yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize)
 #else
 int
 yyparse (scanner, md, errbuf, errbsize)
     yyscan_t scanner;
     struct mandeldata *md;
     char *errbuf;
-    int errbsize;
+    size_t errbsize;
 #endif
 #endif
 {

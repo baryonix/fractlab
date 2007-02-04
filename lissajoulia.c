@@ -40,6 +40,7 @@ main (int argc, char *argv[])
 	mpf_set_default_prec (1024); /* ! */
 
 	struct lj_state state[1];
+	char errbuf[1024];
 
 	state->A = 1.0;
 	state->B = 1.0;
@@ -66,12 +67,15 @@ main (int argc, char *argv[])
 
 	state->delta *= M_PI;
 
-	FILE *f;
-	if (coord_file == NULL || !(f = fopen (coord_file, "r")) || !fread_mandeldata (f, &state->md)) {
-		fprintf (stderr, "* Error: No coordinates specified, or error reading the file.\n");
+	if (coord_file == NULL) {
+		fprintf (stderr, "* Error: No coordinates specified.\n");
 		return 1;
 	}
-	fclose (f);
+
+	if (!read_mandeldata (coord_file, &state->md, errbuf, sizeof (errbuf))) {
+		fprintf (stderr, "%s: cannot read: %s\n", coord_file, errbuf);
+		return 1;
+	}
 
 	anim_render (frame_func, state);
 
