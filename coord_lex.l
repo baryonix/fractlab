@@ -1,4 +1,6 @@
 %option noyywrap
+%option reentrant
+%option bison-bridge
 
 %{
 #include <string.h>
@@ -15,12 +17,12 @@ COMMENT		\/\/[^\n]*\n
 %%
 
 {INT} {
-	coord_lval.string = strdup (yytext);
+	yylval->string = strdup (yytext);
 	return TOKEN_INT;
 }
 
 {REAL} {
-	coord_lval.string = strdup (yytext);
+	yylval->string = strdup (yytext);
 	return TOKEN_REAL;
 }
 

@@ -61,6 +61,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 
 .SUFFIXES: .asm
 
+# This prevents make from removing intermediate files.
 .SECONDARY:
 
 clean:
@@ -72,12 +73,10 @@ distclean: clean
 newdeps:
 	$(CC) -MM *.c >Makefile.deps
 
-coord_parse.tab.c coord_parse.tab.h: coord_parse.y
-	$(BISON) -p coord_ -d -b coord_parse $<
+%_parse.tab.c %_parse.tab.h: %_parse.y
+	$(BISON) -p $*_ -d -b $*_parse $<
 
-coord_lex.yy.c: coord_lex.l
-	$(FLEX) -Pcoord_ -o$@ $<
-
-coord_lex.yy.o: coord_lex.yy.c coord_parse.tab.h
+%_lex.yy.c %_lex.yy.h: %_lex.l
+	$(FLEX) -P$*_ -o$*_lex.yy.c --header-file=$*_lex.yy.h $<
 
 include Makefile.deps

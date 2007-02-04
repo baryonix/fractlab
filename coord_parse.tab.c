@@ -53,7 +53,7 @@
 #define YYSKELETON_NAME "yacc.c"
 
 /* Pure parsers.  */
-#define YYPURE 0
+#define YYPURE 1
 
 /* Using locations.  */
 #define YYLSP_NEEDED 0
@@ -114,7 +114,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 1 "coord_parse.y"
+#line 11 "coord_parse.y"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -146,7 +146,7 @@ struct coordparam;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 12 "coord_parse.y"
+#line 22 "coord_parse.y"
 {
 	char *string;
 	struct mandel_point mandel_point;
@@ -167,11 +167,19 @@ typedef union YYSTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 22 "coord_parse.y"
+#line 32 "coord_parse.y"
+
+#include "coord_lex.yy.h"
+
+static void
+coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize, char const *msg)
+{
+	strncpy (errbuf, msg, errbsize - 1);
+	errbuf[errbsize - 1] = 0;
+}
+
 
 typedef void (*set_func_t) (struct mandeldata *md, struct mdparam *param);
-
-struct mandeldata *coord_parser_mandeldata;
 
 struct coordparam {
 	fractal_type_t type;
@@ -262,7 +270,7 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 
 
 /* Line 216 of yacc.c.  */
-#line 266 "coord_parse.tab.c"
+#line 274 "coord_parse.tab.c"
 
 #ifdef short
 # undef short
@@ -555,9 +563,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   149,   149,   150,   153,   162,   166,   171,   176,   182,
-     186,   192,   195,   201,   206,   209,   215,   218,   224,   228,
-     234,   243,   253,   257,   261,   267,   270
+       0,   166,   166,   167,   170,   179,   183,   188,   193,   199,
+     203,   209,   212,   218,   223,   226,   232,   235,   241,   245,
+     251,   260,   270,   274,   278,   284,   287
 };
 #endif
 
@@ -712,7 +720,7 @@ do								\
     }								\
   else								\
     {								\
-      yyerror (YY_("syntax error: cannot back up")); \
+      yyerror (scanner, md, errbuf, errbsize, YY_("syntax error: cannot back up")); \
       YYERROR;							\
     }								\
 while (YYID (0))
@@ -767,9 +775,9 @@ while (YYID (0))
 /* YYLEX -- calling `yylex' with the right arguments.  */
 
 #ifdef YYLEX_PARAM
-# define YYLEX yylex (YYLEX_PARAM)
+# define YYLEX yylex (&yylval, YYLEX_PARAM)
 #else
-# define YYLEX yylex ()
+# define YYLEX yylex (&yylval, scanner)
 #endif
 
 /* Enable debugging if requested.  */
@@ -792,7 +800,7 @@ do {									  \
     {									  \
       YYFPRINTF (stderr, "%s ", Title);					  \
       yy_symbol_print (stderr,						  \
-		  Type, Value); \
+		  Type, Value, scanner, md, errbuf, errbsize); \
       YYFPRINTF (stderr, "\n");						  \
     }									  \
 } while (YYID (0))
@@ -806,17 +814,25 @@ do {									  \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
 #else
 static void
-yy_symbol_value_print (yyoutput, yytype, yyvaluep)
+yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
+    yyscan_t scanner;
+    struct mandeldata *md;
+    char *errbuf;
+    int errbsize;
 #endif
 {
   if (!yyvaluep)
     return;
+  YYUSE (scanner);
+  YYUSE (md);
+  YYUSE (errbuf);
+  YYUSE (errbsize);
 # ifdef YYPRINT
   if (yytype < YYNTOKENS)
     YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
@@ -838,13 +854,17 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
 #else
 static void
-yy_symbol_print (yyoutput, yytype, yyvaluep)
+yy_symbol_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
+    yyscan_t scanner;
+    struct mandeldata *md;
+    char *errbuf;
+    int errbsize;
 #endif
 {
   if (yytype < YYNTOKENS)
@@ -852,7 +872,7 @@ yy_symbol_print (yyoutput, yytype, yyvaluep)
   else
     YYFPRINTF (yyoutput, "nterm %s (", yytname[yytype]);
 
-  yy_symbol_value_print (yyoutput, yytype, yyvaluep);
+  yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner, md, errbuf, errbsize);
   YYFPRINTF (yyoutput, ")");
 }
 
@@ -892,12 +912,16 @@ do {								\
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_reduce_print (YYSTYPE *yyvsp, int yyrule)
+yy_reduce_print (YYSTYPE *yyvsp, int yyrule, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
 #else
 static void
-yy_reduce_print (yyvsp, yyrule)
+yy_reduce_print (yyvsp, yyrule, scanner, md, errbuf, errbsize)
     YYSTYPE *yyvsp;
     int yyrule;
+    yyscan_t scanner;
+    struct mandeldata *md;
+    char *errbuf;
+    int errbsize;
 #endif
 {
   int yynrhs = yyr2[yyrule];
@@ -911,7 +935,7 @@ yy_reduce_print (yyvsp, yyrule)
       fprintf (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
-		       		       );
+		       		       , scanner, md, errbuf, errbsize);
       fprintf (stderr, "\n");
     }
 }
@@ -919,7 +943,7 @@ yy_reduce_print (yyvsp, yyrule)
 # define YY_REDUCE_PRINT(Rule)		\
 do {					\
   if (yydebug)				\
-    yy_reduce_print (yyvsp, Rule); \
+    yy_reduce_print (yyvsp, Rule, scanner, md, errbuf, errbsize); \
 } while (YYID (0))
 
 /* Nonzero means print parse trace.  It is left uninitialized so that
@@ -1170,16 +1194,24 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
 #else
 static void
-yydestruct (yymsg, yytype, yyvaluep)
+yydestruct (yymsg, yytype, yyvaluep, scanner, md, errbuf, errbsize)
     const char *yymsg;
     int yytype;
     YYSTYPE *yyvaluep;
+    yyscan_t scanner;
+    struct mandeldata *md;
+    char *errbuf;
+    int errbsize;
 #endif
 {
   YYUSE (yyvaluep);
+  YYUSE (scanner);
+  YYUSE (md);
+  YYUSE (errbuf);
+  YYUSE (errbsize);
 
   if (!yymsg)
     yymsg = "Deleting";
@@ -1204,7 +1236,7 @@ int yyparse ();
 #endif
 #else /* ! YYPARSE_PARAM */
 #if defined __STDC__ || defined __cplusplus
-int yyparse (void);
+int yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize);
 #else
 int yyparse ();
 #endif
@@ -1212,14 +1244,6 @@ int yyparse ();
 
 
 
-/* The look-ahead symbol.  */
-int yychar;
-
-/* The semantic value of the look-ahead symbol.  */
-YYSTYPE yylval;
-
-/* Number of syntax errors so far.  */
-int yynerrs;
 
 
 
@@ -1241,15 +1265,26 @@ yyparse (YYPARSE_PARAM)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 int
-yyparse (void)
+yyparse (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize)
 #else
 int
-yyparse ()
-
+yyparse (scanner, md, errbuf, errbsize)
+    yyscan_t scanner;
+    struct mandeldata *md;
+    char *errbuf;
+    int errbsize;
 #endif
 #endif
 {
-  
+  /* The look-ahead symbol.  */
+int yychar;
+
+/* The semantic value of the look-ahead symbol.  */
+YYSTYPE yylval;
+
+/* Number of syntax errors so far.  */
+int yynerrs;
+
   int yystate;
   int yyn;
   int yyresult;
@@ -1494,28 +1529,28 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 149 "coord_parse.y"
+#line 166 "coord_parse.y"
     { (yyval.string) = (yyvsp[(1) - (1)].string); ;}
     break;
 
   case 3:
-#line 150 "coord_parse.y"
+#line 167 "coord_parse.y"
     { (yyval.string) = (yyvsp[(1) - (1)].string); ;}
     break;
 
   case 4:
-#line 153 "coord_parse.y"
+#line 170 "coord_parse.y"
     {
-						mandeldata_init (coord_parser_mandeldata, fractal_type_by_id ((yyvsp[(3) - (5)].coordparam)->type));
-						mandeldata_set_defaults (coord_parser_mandeldata);
-						(yyvsp[(3) - (5)].coordparam)->param->set_func (coord_parser_mandeldata, (yyvsp[(3) - (5)].coordparam)->param);
+						mandeldata_init (md, fractal_type_by_id ((yyvsp[(3) - (5)].coordparam)->type));
+						mandeldata_set_defaults (md);
+						(yyvsp[(3) - (5)].coordparam)->param->set_func (md, (yyvsp[(3) - (5)].coordparam)->param);
 						free ((yyvsp[(3) - (5)].coordparam));
 						YYACCEPT;
 					;}
     break;
 
   case 5:
-#line 162 "coord_parse.y"
+#line 179 "coord_parse.y"
     {
 						(yyval.coordparam) = malloc (sizeof (*(yyval.coordparam)));
 						(yyval.coordparam)->param = mdparam_new (set_compound);
@@ -1523,7 +1558,7 @@ yyreduce:
     break;
 
   case 6:
-#line 166 "coord_parse.y"
+#line 183 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (7)].coordparam);
 						(yyval.coordparam)->type = FRACTAL_MANDELBROT;
@@ -1532,7 +1567,7 @@ yyreduce:
     break;
 
   case 7:
-#line 171 "coord_parse.y"
+#line 188 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (7)].coordparam);
 						(yyval.coordparam)->type = FRACTAL_JULIA;
@@ -1541,7 +1576,7 @@ yyreduce:
     break;
 
   case 8:
-#line 176 "coord_parse.y"
+#line 193 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (3)].coordparam);
 						add_to_compound ((yyval.coordparam)->param, (yyvsp[(2) - (3)].mdparam));
@@ -1549,7 +1584,7 @@ yyreduce:
     break;
 
   case 9:
-#line 182 "coord_parse.y"
+#line 199 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_area);
 						memcpy (&(yyval.mdparam)->data.mandel_area, &(yyvsp[(2) - (2)].mandel_area), sizeof ((yyval.mdparam)->data.mandel_area));
@@ -1557,7 +1592,7 @@ yyreduce:
     break;
 
   case 10:
-#line 186 "coord_parse.y"
+#line 203 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_repres);
 						(yyval.mdparam)->data.repres = (yyvsp[(2) - (2)].repres);
@@ -1565,14 +1600,14 @@ yyreduce:
     break;
 
   case 11:
-#line 192 "coord_parse.y"
+#line 209 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_compound);
 					;}
     break;
 
   case 12:
-#line 195 "coord_parse.y"
+#line 212 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (3)].mdparam);
 						add_to_compound ((yyval.mdparam), (yyvsp[(2) - (3)].mdparam));
@@ -1580,21 +1615,21 @@ yyreduce:
     break;
 
   case 13:
-#line 201 "coord_parse.y"
+#line 218 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (1)].mdparam);
 					;}
     break;
 
   case 14:
-#line 206 "coord_parse.y"
+#line 223 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_compound);
 					;}
     break;
 
   case 15:
-#line 209 "coord_parse.y"
+#line 226 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (3)].mdparam);
 						add_to_compound ((yyval.mdparam), (yyvsp[(2) - (3)].mdparam));
@@ -1602,14 +1637,14 @@ yyreduce:
     break;
 
   case 16:
-#line 215 "coord_parse.y"
+#line 232 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (1)].mdparam);
 					;}
     break;
 
   case 17:
-#line 218 "coord_parse.y"
+#line 235 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_julia_parameter);
 						memcpy (&(yyval.mdparam)->data.mandel_point, &(yyvsp[(2) - (2)].mandel_point), sizeof ((yyval.mdparam)->data.mandel_point));
@@ -1617,7 +1652,7 @@ yyreduce:
     break;
 
   case 18:
-#line 224 "coord_parse.y"
+#line 241 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_zpower);
 						(yyval.mdparam)->data.string = (yyvsp[(2) - (2)].string);
@@ -1625,7 +1660,7 @@ yyreduce:
     break;
 
   case 19:
-#line 228 "coord_parse.y"
+#line 245 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_maxiter);
 						(yyval.mdparam)->data.string = (yyvsp[(2) - (2)].string);
@@ -1633,7 +1668,7 @@ yyreduce:
     break;
 
   case 20:
-#line 234 "coord_parse.y"
+#line 251 "coord_parse.y"
     {
 						mandel_point_init (&(yyval.mandel_point));
 						mpf_set_str ((yyval.mandel_point).real, (yyvsp[(1) - (3)].string), 10);
@@ -1644,7 +1679,7 @@ yyreduce:
     break;
 
   case 21:
-#line 243 "coord_parse.y"
+#line 260 "coord_parse.y"
     {
 						mandel_area_init (&(yyval.mandel_area));
 						mpf_set ((yyval.mandel_area).center.real, (yyvsp[(1) - (3)].mandel_point).real);
@@ -1656,7 +1691,7 @@ yyreduce:
     break;
 
   case 22:
-#line 253 "coord_parse.y"
+#line 270 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 						(yyval.repres)->repres = REPRES_ESCAPE;
@@ -1664,7 +1699,7 @@ yyreduce:
     break;
 
   case 23:
-#line 257 "coord_parse.y"
+#line 274 "coord_parse.y"
     {
 						(yyval.repres) = (yyvsp[(3) - (4)].repres);
 						(yyval.repres)->repres = REPRES_ESCAPE_LOG;
@@ -1672,7 +1707,7 @@ yyreduce:
     break;
 
   case 24:
-#line 261 "coord_parse.y"
+#line 278 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 						(yyval.repres)->repres = REPRES_DISTANCE;
@@ -1680,14 +1715,14 @@ yyreduce:
     break;
 
   case 25:
-#line 267 "coord_parse.y"
+#line 284 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 					;}
     break;
 
   case 26:
-#line 270 "coord_parse.y"
+#line 287 "coord_parse.y"
     {
 						(yyval.repres) = (yyvsp[(1) - (4)].repres);
 						(yyvsp[(1) - (4)].repres)->params.log_base = strtod ((yyvsp[(3) - (4)].string), NULL);
@@ -1697,7 +1732,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1701 "coord_parse.tab.c"
+#line 1736 "coord_parse.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1733,7 +1768,7 @@ yyerrlab:
     {
       ++yynerrs;
 #if ! YYERROR_VERBOSE
-      yyerror (YY_("syntax error"));
+      yyerror (scanner, md, errbuf, errbsize, YY_("syntax error"));
 #else
       {
 	YYSIZE_T yysize = yysyntax_error (0, yystate, yychar);
@@ -1757,11 +1792,11 @@ yyerrlab:
 	if (0 < yysize && yysize <= yymsg_alloc)
 	  {
 	    (void) yysyntax_error (yymsg, yystate, yychar);
-	    yyerror (yymsg);
+	    yyerror (scanner, md, errbuf, errbsize, yymsg);
 	  }
 	else
 	  {
-	    yyerror (YY_("syntax error"));
+	    yyerror (scanner, md, errbuf, errbsize, YY_("syntax error"));
 	    if (yysize != 0)
 	      goto yyexhaustedlab;
 	  }
@@ -1785,7 +1820,7 @@ yyerrlab:
       else
 	{
 	  yydestruct ("Error: discarding",
-		      yytoken, &yylval);
+		      yytoken, &yylval, scanner, md, errbuf, errbsize);
 	  yychar = YYEMPTY;
 	}
     }
@@ -1841,7 +1876,7 @@ yyerrlab1:
 
 
       yydestruct ("Error: popping",
-		  yystos[yystate], yyvsp);
+		  yystos[yystate], yyvsp, scanner, md, errbuf, errbsize);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -1879,7 +1914,7 @@ yyabortlab:
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
 yyexhaustedlab:
-  yyerror (YY_("memory exhausted"));
+  yyerror (scanner, md, errbuf, errbsize, YY_("memory exhausted"));
   yyresult = 2;
   /* Fall through.  */
 #endif
@@ -1887,7 +1922,7 @@ yyexhaustedlab:
 yyreturn:
   if (yychar != YYEOF && yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
-		 yytoken, &yylval);
+		 yytoken, &yylval, scanner, md, errbuf, errbsize);
   /* Do not reclaim the symbols of the rule which action triggered
      this YYABORT or YYACCEPT.  */
   YYPOPSTACK (yylen);
@@ -1895,7 +1930,7 @@ yyreturn:
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-		  yystos[*yyssp], yyvsp);
+		  yystos[*yyssp], yyvsp, scanner, md, errbuf, errbsize);
       YYPOPSTACK (1);
     }
 #ifndef yyoverflow

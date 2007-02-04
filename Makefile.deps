@@ -1,6 +1,6 @@
 anim.o: anim.c anim.h mandelbrot.h fpdefs.h util.h file.h defs.h
 coord_lex.yy.o: coord_lex.yy.c mandelbrot.h fpdefs.h coord_parse.tab.h
-coord_parse.tab.o: coord_parse.tab.c mandelbrot.h fpdefs.h
+coord_parse.tab.o: coord_parse.tab.c mandelbrot.h fpdefs.h coord_lex.yy.h
 crc.o: crc.c crc.h
 file.o: file.c file.h mandelbrot.h fpdefs.h util.h
 gtkmandel.o: gtkmandel.c gtkmandel.h mandelbrot.h fpdefs.h defs.h file.h \

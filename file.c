@@ -6,21 +6,17 @@
 #include "file.h"
 #include "util.h"
 
+typedef void *yyscan_t;
+int coord_lex_init (yyscan_t *scanner);
+void coord_restart (FILE *input_file, yyscan_t yyscanner);
+void coord_lex_destroy (yyscan_t yyscanner);
+int coord_parse (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize);
 
 static bool fread_mpf (FILE *f, mpf_ptr val);
 static bool fread_mandel_point (FILE *f, struct mandel_point *point);
 static bool fread_mandel_area (FILE *f, struct mandel_area *area);
 static bool fread_mandel_julia (FILE *f, struct mandel_julia_param *param);
 static bool fwrite_mandel_julia (FILE *f, const struct mandel_julia_param *param);
-
-extern struct mandeldata *coord_parser_mandeldata;
-const char *coord_errstr;
-
-void
-coord_error (const char *err)
-{
-	coord_errstr = err;
-}
 
 
 /* XXX some error checking must be performed here */
@@ -127,9 +123,16 @@ fread_mandeldata_legacy (FILE *f, struct mandeldata *md)
 bool
 fread_mandeldata (FILE *f, struct mandeldata *md)
 {
-	coord_restart (f);
-	coord_parser_mandeldata = md;
-	return coord_parse () == 0;
+	bool res;
+	yyscan_t scanner;
+	char errbuf[1024];
+	coord_lex_init (&scanner);
+	coord_restart (f, scanner);
+	res = coord_parse (scanner, md, errbuf, sizeof (errbuf)) == 0;
+	coord_lex_destroy (scanner);
+	if (!res)
+		fprintf (stderr, "* Error parsing coords: %s\n", errbuf);
+	return res;
 }
 
 

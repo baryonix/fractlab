@@ -1,3 +1,13 @@
+%error-verbose
+%pure-parser
+
+%parse-param {yyscan_t scanner}
+%parse-param {struct mandeldata *md}
+%parse-param {char *errbuf}
+%parse-param {int errbsize}
+
+%lex-param {yyscan_t scanner}
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,9 +30,17 @@ struct coordparam;
 }
 
 %{
-typedef void (*set_func_t) (struct mandeldata *md, struct mdparam *param);
+#include "coord_lex.yy.h"
 
-struct mandeldata *coord_parser_mandeldata;
+static void
+coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, int errbsize, char const *msg)
+{
+	strncpy (errbuf, msg, errbsize - 1);
+	errbuf[errbsize - 1] = 0;
+}
+
+
+typedef void (*set_func_t) (struct mandeldata *md, struct mdparam *param);
 
 struct coordparam {
 	fractal_type_t type;
@@ -140,7 +158,6 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 %token TOKEN_DISTANCE
 %token TOKEN_BASE
 %token TOKEN_IDENTIFIER
-%error-verbose
 
 %start coord
 
@@ -151,9 +168,9 @@ real				: TOKEN_INT { $$ = $1; }
 					;
 
 coord				: TOKEN_COORD_V1 '{' coord_params '}' ';' {
-						mandeldata_init (coord_parser_mandeldata, fractal_type_by_id ($3->type));
-						mandeldata_set_defaults (coord_parser_mandeldata);
-						$3->param->set_func (coord_parser_mandeldata, $3->param);
+						mandeldata_init (md, fractal_type_by_id ($3->type));
+						mandeldata_set_defaults (md);
+						$3->param->set_func (md, $3->param);
 						free ($3);
 						YYACCEPT;
 					}
