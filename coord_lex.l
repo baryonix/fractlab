@@ -1,9 +1,9 @@
+%option noyywrap
+
 %{
 #include <string.h>
 #include "mandelbrot.h"
 #include "coord_parse.tab.h"
-
-#define coord_wrap() 1
 %}
 
 DIGIT		[0-9]
