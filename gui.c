@@ -11,6 +11,7 @@
 #include "gtkmandel.h"
 #include "gui-util.h"
 #include "gui-typedlg.h"
+#include "gui-infodlg.h"
 #include "gui.h"
 #include "util.h"
 #include "file.h"
@@ -22,7 +23,6 @@ static void gtk_mandel_application_init (GtkMandelApplication *app);
 static void create_menus (GtkMandelApplication *app);
 static void create_mainwin (GtkMandelApplication *app);
 static void create_dialogs (GtkMandelApplication *app);
-static void create_area_info (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
 static void area_selected (GtkMandelApplication *app, struct mandel_area *area, gpointer data);
 static void point_for_julia_selected (GtkMandelApplication *app, struct mandel_point *point, gpointer data);
@@ -37,11 +37,9 @@ static void open_coord_dlg_response (GtkMandelApplication *app, gint response, g
 static void save_coord_file (GtkMandelApplication *app, gpointer data);
 static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void quit_selected (GtkMandelApplication *app, gpointer data);
-static void update_area_info (GtkMandelApplication *app);
 static void update_gui_from_mandeldata (GtkMandelApplication *app);
 static void area_info_selected (GtkMandelApplication *app, gpointer data);
 static void fractal_type_clicked (GtkMandelApplication *app, gpointer data);
-static void create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void rendering_stopped (GtkMandelApplication *app, gboolean completed, gpointer data);
 static void restart_pressed (GtkMandelApplication *app, gpointer data);
@@ -275,65 +273,10 @@ create_dialogs (GtkMandelApplication *app)
 	gtk_window_set_modal (GTK_WINDOW (app->save_coord_chooser), TRUE);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (app->save_coord_chooser), TRUE);
 
-	create_area_info (app);
-
+	app->fractal_info_dlg = fractal_info_dialog_new (GTK_WINDOW (app->mainwin.win));
 	app->fractal_type_dlg = fractal_type_dialog_new (GTK_WINDOW (app->mainwin.win));
 
 	app->about_dlg = create_about_dlg (GTK_WINDOW (app->mainwin.win));
-}
-
-
-static void
-create_area_info (GtkMandelApplication *app)
-{
-	app->area_info.center.table = gtk_table_new (2, 4, false);
-	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.center.table), FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (app->area_info.center.table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (app->area_info.center.table), 2);
-	gtk_container_set_border_width (GTK_CONTAINER (app->area_info.center.table), 2);
-	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 0, 0, "cx");
-	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 1, 1, "cy");
-	create_area_info_item (app, app->area_info.center.table, app->area_info.center.items + 2, 2, "magf");
-
-	app->area_info.corners.table = gtk_table_new (2, 4, false);
-	gtk_table_set_homogeneous (GTK_TABLE (app->area_info.corners.table), FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (app->area_info.corners.table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (app->area_info.corners.table), 2);
-	gtk_container_set_border_width (GTK_CONTAINER (app->area_info.corners.table), 2);
-	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 0, 0, "xmin");
-	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 1, 1, "xmax");
-	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 2, 2, "ymin");
-	create_area_info_item (app, app->area_info.corners.table, app->area_info.corners.items + 3, 3, "ymax");
-
-	app->area_info.center_label = gtk_label_new ("Center");
-	app->area_info.corners_label = gtk_label_new ("Corners");
-
-	app->area_info.notebook = gtk_notebook_new ();
-	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.center.table, app->area_info.center_label);
-	gtk_notebook_append_page (GTK_NOTEBOOK (app->area_info.notebook), app->area_info.corners.table, app->area_info.corners_label);
-
-	app->area_info.dialog = gtk_dialog_new_with_buttons ("Area Info", GTK_WINDOW (app->mainwin.win), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
-	gtk_dialog_set_has_separator (GTK_DIALOG (app->area_info.dialog), FALSE);
-	gtk_box_pack_start (GTK_BOX (GTK_DIALOG (app->area_info.dialog)->vbox), app->area_info.notebook, FALSE, FALSE, 0);
-
-	GdkGeometry geom;
-	geom.max_width = 1000000; /* FIXME how to set max_width = unlimited? */
-	geom.max_height = -1;
-	gtk_window_set_geometry_hints (GTK_WINDOW (app->area_info.dialog), NULL, &geom, GDK_HINT_MAX_SIZE);
-}
-
-
-static void
-create_area_info_item (GtkMandelApplication *app, GtkWidget *table, struct area_info_item *item, int i, const char *label)
-{
-	item->label = gtk_label_new (label);
-	gtk_misc_set_alignment (GTK_MISC (item->label), 0.0, 0.5);
-	item->buffer = gtk_text_buffer_new (NULL);
-	item->view = gtk_text_view_new_with_buffer (item->buffer);
-	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (item->view), GTK_WRAP_CHAR);
-	gtk_text_view_set_editable (GTK_TEXT_VIEW (item->view), FALSE);
-	gtk_table_attach (GTK_TABLE (table), item->label, 0, 1, i, i + 1, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (table), item->view, 1, 2, i, i + 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 }
 
 
@@ -414,8 +357,8 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_swapped (G_OBJECT (app->mainwin.win), "delete-event", (GCallback) quit_selected, app);
 
-	g_signal_connect (G_OBJECT (app->area_info.dialog), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_swapped (G_OBJECT (app->area_info.dialog), "response", (GCallback) area_info_dlg_response, app);
+	g_signal_connect (G_OBJECT (app->fractal_info_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
+	g_signal_connect_swapped (G_OBJECT (app->fractal_info_dlg), "response", (GCallback) area_info_dlg_response, app);
 
 	g_signal_connect (app->fractal_type_dlg, "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
 	g_signal_connect_swapped (app->fractal_type_dlg, "response", (GCallback) type_dlg_response, app);
@@ -588,40 +531,6 @@ quit_selected (GtkMandelApplication *app, gpointer data)
 }
 
 
-static void
-update_area_info (GtkMandelApplication *app)
-{
-	char b0[1024], b1[1024], b2[1024];
-	mpf_t xmin, xmax, ymin, ymax;
-
-	if (center_coords_to_string (app->md->area.center.real, app->md->area.center.imag, app->md->area.magf, b0, b1, b2, 1024) >= 0) {
-		gtk_text_buffer_set_text (app->area_info.center.items[0].buffer, b0, strlen (b0));
-		gtk_text_buffer_set_text (app->area_info.center.items[1].buffer, b1, strlen (b1));
-		gtk_text_buffer_set_text (app->area_info.center.items[2].buffer, b2, strlen (b2));
-	}
-
-	mpf_init (xmin);
-	mpf_init (xmax);
-	mpf_init (ymin);
-	mpf_init (ymax);
-
-	center_to_corners (xmin, xmax, ymin, ymax, app->md->area.center.real, app->md->area.center.imag, app->md->area.magf, GTK_MANDEL (app->mainwin.mandel)->aspect);
-
-	if (coord_pair_to_string (xmin, xmax, b0, b1, 1024) >= 0) {
-		gtk_text_buffer_set_text (app->area_info.corners.items[0].buffer, b0, strlen (b0));
-		gtk_text_buffer_set_text (app->area_info.corners.items[1].buffer, b1, strlen (b1));
-	}
-	if (coord_pair_to_string (ymin, ymax, b0, b1, 1024) >= 0) {
-		gtk_text_buffer_set_text (app->area_info.corners.items[2].buffer, b0, strlen (b0));
-		gtk_text_buffer_set_text (app->area_info.corners.items[3].buffer, b1, strlen (b1));
-	}
-
-	mpf_clear (xmin);
-	mpf_clear (xmax);
-	mpf_clear (ymin);
-	mpf_clear (ymax);
-}
-
 
 static void
 update_gui_from_mandeldata (GtkMandelApplication *app)
@@ -629,8 +538,8 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 	app->updating_gui = true;
 	gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (app->mainwin.zoom_mode), TRUE);
 
-	update_area_info (app);
 	app->updating_gui = false;
+	fractal_info_dialog_set_mandeldata (app->fractal_info_dlg, app->md, GTK_MANDEL (app->mainwin.mandel)->aspect);
 	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, app->md);
 }
 
@@ -638,14 +547,14 @@ update_gui_from_mandeldata (GtkMandelApplication *app)
 static void
 area_info_dlg_response (GtkMandelApplication *app, gpointer data)
 {
-	gtk_widget_hide (app->area_info.dialog);
+	gtk_widget_hide (GTK_WIDGET (app->fractal_info_dlg));
 }
 
 
 static void
 area_info_selected (GtkMandelApplication *app, gpointer data)
 {
-	gtk_widget_show_all (app->area_info.dialog);
+	gtk_widget_show (GTK_WIDGET (app->fractal_info_dlg));
 }
 
 

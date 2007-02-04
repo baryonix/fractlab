@@ -1,12 +1,8 @@
 #ifndef _GTKMANDEL_GUI_H
 #define _GTKMANDEL_GUI_H
 
+#include "gui-infodlg.h"
 #include "gui-typedlg.h"
-
-struct area_info_item {
-	GtkWidget *label, *view;
-	GtkTextBuffer *buffer;
-};
 
 typedef enum {
 	GTK_MANDEL_APP_MODE_ZOOM = 0,
@@ -44,25 +40,13 @@ typedef struct {
 		GtkWidget *help_item, *help_menu;
 		GtkWidget *about_item;
 	} menu;
-	struct {
-		GtkWidget *dialog;
-		GtkWidget *notebook;
-		GtkWidget *corners_label, *center_label;
-		struct {
-			GtkWidget *table;
-			struct area_info_item items[3];
-		} center;
-		struct {
-			GtkWidget *table;
-			struct area_info_item items[4];
-		} corners;
-	} area_info;
 	GtkWidget *open_coord_chooser;
 	GtkWidget *save_coord_chooser;
 	GSList *undo, *redo;
 	struct mandeldata *md;
 	bool updating_gui;
 	GtkMandelAppMode mode;
+	FractalInfoDialog *fractal_info_dlg;
 	FractalTypeDialog *fractal_type_dlg;
 	GtkAboutDialog *about_dlg;
 } GtkMandelApplication;
