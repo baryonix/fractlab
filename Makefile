@@ -21,7 +21,7 @@ MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 
-MANDEL_GTK_OBJECTS = main.o coord_lex.yy.o coord_parse.tab.o file.o mandelbrot.o gtkmandel.o util.o gui.o gui-typedlg.o gui-infodlg.o gui-util.o
+MANDEL_GTK_OBJECTS = main.o coord_lex.yy.o coord_parse.tab.o file.o mandelbrot.o gtkmandel.o util.o gui.o gui-mainwin.o gui-typedlg.o gui-infodlg.o gui-util.o
 MANDEL_ZOOM_OBJECTS = zoom.o coord_lex.yy.o coord_parse.tab.o file.o util.o mandelbrot.o anim.o
 LISSAJOULIA_OBJECTS = lissajoulia.o coord_lex.yy.o coord_parse.tab.o file.o util.o mandelbrot.o anim.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
