@@ -39,13 +39,18 @@ static GOptionEntry option_entries [] = {
 };
 
 
-static void
+static bool
 parse_command_line (int *argc, char ***argv)
 {
+	GError *err = NULL;
 	GOptionContext *context = g_option_context_new (NULL);
 	g_option_context_add_main_entries (context, option_entries, "mandel-zoom");
 	g_option_context_add_group (context, anim_get_option_group ());
-	g_option_context_parse (context, argc, argv, NULL);
+	if (!g_option_context_parse (context, argc, argv, &err)) {
+		fprintf (stderr, "* ERROR: %s\n", err->message);
+		return false;
+	}
+	return true;
 }
 
 
@@ -154,7 +159,8 @@ main (int argc, char **argv)
 	struct thread_state state[1];
 	mpf_t mpaspect;
 	mpf_init (mpaspect);
-	parse_command_line (&argc, &argv);
+	if (!parse_command_line (&argc, &argv))
+		return 2;
 	struct mandeldata md0[1], *const mdn = &state->md;
 
 	if (start_coords == NULL) {
