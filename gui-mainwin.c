@@ -192,14 +192,14 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_widget_set_sensitive (widget, FALSE);
 	g_signal_connect_object (G_OBJECT (widget), "clicked", (GCallback) undo_pressed, win, G_CONNECT_SWAPPED);
 	priv->undo_button = widget;
-	g_object_ref_sink (priv->undo_button);
+	g_object_ref (priv->undo_button);
 
 	widget = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
 	gtk_container_add (GTK_CONTAINER (container), widget);
 	gtk_widget_set_sensitive (widget, FALSE);
 	g_signal_connect_object (G_OBJECT (widget), "clicked", (GCallback) redo_pressed, win, G_CONNECT_SWAPPED);
 	priv->redo_button = widget;
-	g_object_ref_sink (priv->redo_button);
+	g_object_ref (priv->redo_button);
 
 	gtk_container_add (GTK_CONTAINER (container), GTK_WIDGET (gtk_separator_tool_item_new ()));
 
@@ -212,7 +212,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_widget_set_sensitive (widget, FALSE);
 	g_signal_connect_object (G_OBJECT (widget), "clicked", (GCallback) stop_pressed, win, G_CONNECT_SWAPPED);
 	priv->stop = widget;
-	g_object_ref_sink (priv->stop);
+	g_object_ref (priv->stop);
 
 	gtk_container_add (GTK_CONTAINER (container), GTK_WIDGET (gtk_separator_tool_item_new ()));
 
@@ -238,7 +238,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_container_add (GTK_CONTAINER (container), widget);
 	g_signal_connect_object (G_OBJECT (widget), "toggled", (GCallback) zoom_mode_selected, win, G_CONNECT_SWAPPED);
 	priv->zoom_mode = widget;
-	g_object_ref_sink (priv->zoom_mode);
+	g_object_ref (priv->zoom_mode);
 	GSList *group = gtk_radio_tool_button_get_group (GTK_RADIO_TOOL_BUTTON (priv->zoom_mode));
 
 	widget = GTK_WIDGET (gtk_radio_tool_button_new (group));
@@ -247,7 +247,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_tool_item_set_homogeneous (GTK_TOOL_ITEM (widget), FALSE);
 	g_signal_connect_object (G_OBJECT (widget), "toggled", (GCallback) to_julia_mode_selected, win, G_CONNECT_SWAPPED);
 	priv->to_julia_mode = widget;
-	g_object_ref_sink (priv->to_julia_mode);
+	g_object_ref (priv->to_julia_mode);
 
 	/*
 	 * Controls Table
@@ -269,7 +269,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
 	g_signal_connect_object (widget, "value-changed", (GCallback) threads_updated, win, G_CONNECT_SWAPPED);
 	priv->threads_input = widget;
-	g_object_ref_sink (priv->threads_input);
+	g_object_ref (priv->threads_input);
 
 	/*
 	 * GtkMandel
@@ -284,7 +284,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	g_signal_connect_object (widget, "rendering-progress", (GCallback) rendering_progress, win, G_CONNECT_SWAPPED);
 	g_signal_connect_object (widget, "rendering-stopped", (GCallback) rendering_stopped, win, G_CONNECT_SWAPPED);
 	priv->mandel = widget;
-	g_object_ref_sink (priv->mandel);
+	g_object_ref (priv->mandel);
 	/* FIXME how to set initial widget size? */
 
 	/*
@@ -300,7 +300,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_widget_get_size_request (widget, &ww, &wh);
 	gtk_widget_set_size_request (widget, 10, wh);
 	priv->status_info = widget;
-	g_object_ref_sink (priv->status_info);
+	g_object_ref (priv->status_info);
 
 	container2 = gtk_frame_new (NULL);
 	gtk_box_pack_start (GTK_BOX (container), container2, FALSE, FALSE, 0);
@@ -310,7 +310,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	gtk_container_add (GTK_CONTAINER (container2), widget);
 	gtk_misc_set_alignment (GTK_MISC (widget), 0.0, 0.5);
 	priv->math_info = widget;
-	g_object_ref_sink (priv->math_info);
+	g_object_ref (priv->math_info);
 
 	gtk_widget_show_all (main_vbox);
 }
