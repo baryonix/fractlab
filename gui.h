@@ -24,7 +24,7 @@ typedef struct {
 #define GTK_MANDEL_APPLICATION_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_mandel_application_get_type (), GtkMandelApplication)
 #define GTK_IS_MANDEL_APPLICATION(obj) GET_CHECK_TYPE (obj, gtk_mandel_application_get_type ())
 
-GType gtk_mandel_application_get_type ();
+GType gtk_mandel_application_get_type (void);
 GtkMandelApplication *gtk_mandel_application_new (const struct mandeldata *md);
 void gtk_mandel_application_start (GtkMandelApplication *app);
 

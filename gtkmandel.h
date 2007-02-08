@@ -58,7 +58,7 @@ typedef struct
 
 extern GdkColor mandelcolors[];
 
-GType gtk_mandel_get_type ();
+GType gtk_mandel_get_type (void);
 GtkWidget *gtk_mandel_new (void);
 void gtk_mandel_set_mandeldata (GtkMandel *mandel, const struct mandeldata *md);
 void gtk_mandel_set_render_method (GtkMandel *mandel, render_method_t render_method);
