@@ -12,12 +12,15 @@
 
 struct _FractalInfoDialogPrivate {
 	GtkTextBuffer *center_buffers[3], *corner_buffers[4];
+	bool disposed;
 };
 
 
 static GtkTextBuffer *create_area_info_item (GtkWidget *table, int i, const char *label);
 static void fractal_info_dialog_class_init (gpointer g_class, gpointer data);
 static void fractal_info_dialog_init (GTypeInstance *instance, gpointer g_class);
+static void fractal_info_dialog_dispose (GObject *object);
+static void fractal_info_dialog_finalize (GObject *object);
 
 
 GType
@@ -42,6 +45,8 @@ fractal_info_dialog_get_type (void)
 static void
 fractal_info_dialog_class_init (gpointer g_class, gpointer data)
 {
+	G_OBJECT_CLASS (g_class)->dispose = fractal_info_dialog_dispose;
+	G_OBJECT_CLASS (g_class)->finalize = fractal_info_dialog_finalize;
 }
 
 
@@ -53,6 +58,7 @@ fractal_info_dialog_init (GTypeInstance *instance, gpointer g_class)
 
 	dlg->priv = malloc (sizeof (*dlg->priv));
 	FractalInfoDialogPrivate *const priv = dlg->priv;
+	priv->disposed = false;
 
 	gtk_window_set_title (GTK_WINDOW (dlg), "Fractal Info");
 	gtk_dialog_add_buttons (GTK_DIALOG (dlg), GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
@@ -110,6 +116,8 @@ void
 fractal_info_dialog_set_mandeldata (FractalInfoDialog *dlg, const struct mandeldata *md, double aspect)
 {
 	FractalInfoDialogPrivate *priv = dlg->priv;
+	if (priv->disposed)
+		return;
 
 	char b0[1024], b1[1024], b2[1024];
 	mpf_t xmin, xmax, ymin, ymax;
@@ -150,4 +158,38 @@ fractal_info_dialog_new (GtkWindow *parent)
 	if (parent != NULL)
 		gtk_window_set_transient_for (GTK_WINDOW (dlg), parent);
 	return dlg;
+}
+
+
+static void
+fractal_info_dialog_dispose (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: disposing info dialog\n");
+	FractalInfoDialog *const dlg = FRACTAL_INFO_DIALOG (object);
+	FractalInfoDialogPrivate *const priv = dlg->priv;
+	if (priv->disposed)
+		return;
+	GObjectClass *const parent_class = g_type_class_peek_parent (G_OBJECT_GET_CLASS (object));
+	int i;
+	for (i = 0; i < 3; i++) {
+		g_object_unref (priv->center_buffers[i]);
+		priv->center_buffers[i] = NULL;
+	}
+	for (i = 0; i < 4; i++) {
+		g_object_unref (priv->corner_buffers[i]);
+		priv->corner_buffers[i] = NULL;
+	}
+	priv->disposed = true;
+	parent_class->dispose (object);
+}
+
+
+static void
+fractal_info_dialog_finalize (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: finalizing info dialog\n");
+	FractalInfoDialog *const dlg = FRACTAL_INFO_DIALOG (object);
+	GObjectClass *const parent_class = g_type_class_peek_parent (G_OBJECT_GET_CLASS (object));
+	free (dlg->priv);
+	parent_class->finalize (object);
 }
