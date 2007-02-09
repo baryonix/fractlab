@@ -13,6 +13,7 @@ typedef struct {
 	FractalInfoDialog *fractal_info_dlg;
 	FractalTypeDialog *fractal_type_dlg;
 	GtkAboutDialog *about_dlg;
+	bool disposed;
 } GtkMandelApplication;
 
 typedef struct {

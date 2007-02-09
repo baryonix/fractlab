@@ -62,6 +62,7 @@ main (int argc, char **argv)
 	mandeldata_clear (md);
 	gtk_mandel_application_start (app);
 	gtk_main ();
+	g_object_unref (app);
 
 	return 0;
 }

@@ -44,3 +44,21 @@ my_gtk_stock_menu_item_with_label (const gchar *stock_id, const gchar *label)
 	gtk_label_set_text (GTK_LABEL (gtk_bin_get_child (GTK_BIN (widget))), label);
 	return widget;
 }
+
+
+void
+my_g_object_unref_not_null (gpointer object)
+{
+	if (object != NULL)
+		g_object_unref (object);
+}
+
+
+void
+my_gtk_widget_destroy_unref (GtkWidget *widget)
+{
+	if (widget == NULL)
+		return;
+	gtk_widget_destroy (widget);
+	g_object_unref (widget);
+}

@@ -30,6 +30,7 @@ struct _FractalMainWindowPrivate {
 	struct mainwin_menu menu;
 	GSList *undo, *redo;
 	FractalMainWindowMode mode;
+	bool disposed;
 };
 
 
@@ -61,6 +62,9 @@ static void save_coords_requested (FractalMainWindow *win, gpointer data);
 static void info_dlg_requested (FractalMainWindow *win, gpointer data);
 static void type_dlg_requested (FractalMainWindow *win, gpointer data);
 static void about_dlg_requested (FractalMainWindow *win, gpointer data);
+static void fractal_main_window_dispose (GObject *object);
+static void fractal_main_window_finalize (GObject *object);
+static void free_mandeldata_gslist (GSList *l);
 
 
 GType
@@ -86,6 +90,9 @@ static void
 fractal_main_window_class_init (gpointer g_class_, gpointer data)
 {
 	FractalMainWindowClass *const g_class = FRACTAL_MAIN_WINDOW_CLASS (g_class_);
+
+	G_OBJECT_CLASS (g_class)->dispose = fractal_main_window_dispose;
+	G_OBJECT_CLASS (g_class)->finalize = fractal_main_window_finalize;
 
 	render_method_t i;
 	for (i = 0; i < RM_MAX; i++)
@@ -161,6 +168,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	win->priv = malloc (sizeof (*win->priv));
 	FractalMainWindowPrivate *const priv = win->priv;
 
+	priv->disposed = false;
 	priv->undo = NULL;
 	priv->redo = NULL;
 	win->md = NULL;
@@ -359,6 +367,7 @@ create_menus (FractalMainWindow *win)
 	for (i = 0; i < RM_MAX; i++) {
 		item = gtk_radio_menu_item_new_with_label (group, render_method_names[i]);
 		menu->render_method_items[i] = item;
+		g_object_ref_sink (menu->render_method_items[i]);
 		group = gtk_radio_menu_item_get_group (GTK_RADIO_MENU_ITEM (item));
 		gtk_menu_shell_append (subshell, item);
 		g_object_set_data (G_OBJECT (item), "render_method", FRACTAL_MAIN_WINDOW_GET_CLASS (win)->render_methods + i);
@@ -437,20 +446,12 @@ fractal_main_window_set_mandeldata (FractalMainWindow *win, const struct mandeld
 {
 	FractalMainWindowPrivate *const priv = win->priv;
 
-	GSList *l;
 	if (win->md != NULL) {
 		priv->undo = g_slist_prepend (priv->undo, (gpointer) win->md);
 		gtk_widget_set_sensitive (priv->undo_button, TRUE);
 	}
 	update_mandeldata (win, md);
-	l = priv->redo;
-	while (l != NULL) {
-		GSList *next_l = g_slist_next (l);
-		mandeldata_clear (l->data);
-		free (l->data);
-		g_slist_free_1 (l);
-		l = next_l;
-	}
+	free_mandeldata_gslist (priv->redo);
 	priv->redo = NULL;
 	gtk_widget_set_sensitive (priv->redo_button, FALSE);
 }
@@ -727,4 +728,54 @@ static void
 about_dlg_requested (FractalMainWindow *win, gpointer data)
 {
 	g_signal_emit (win, FRACTAL_MAIN_WINDOW_GET_CLASS (win)->about_dlg_signal, 0);
+}
+
+
+static void
+fractal_main_window_dispose (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: disposing main window\n");
+	FractalMainWindow *const win = FRACTAL_MAIN_WINDOW (object);
+	FractalMainWindowPrivate *const priv = win->priv;
+	if (!priv->disposed) {
+		int i;
+		g_object_unref (priv->undo_button);
+		g_object_unref (priv->redo_button);
+		g_object_unref (priv->stop);
+		g_object_unref (priv->threads_input);
+		g_object_unref (priv->mandel);
+		g_object_unref (priv->status_info);
+		g_object_unref (priv->math_info);
+		for (i = 0; i < RM_MAX; i++)
+			g_object_unref (priv->menu.render_method_items[i]);
+		priv->disposed = true;
+	}
+	fprintf (stderr, "* DEBUG: calling parent dispose handler for main window\n");
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->dispose (object);
+	fprintf (stderr, "* DEBUG: finished disposing main window\n");
+}
+
+
+static void
+fractal_main_window_finalize (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: finalizing main window\n");
+	FractalMainWindow *const win = FRACTAL_MAIN_WINDOW (object);
+	FractalMainWindowPrivate *const priv = win->priv;
+	free_mandeldata_gslist (priv->undo);
+	free_mandeldata_gslist (priv->redo);
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->finalize (object);
+}
+
+
+static void
+free_mandeldata_gslist (GSList *l)
+{
+	while (l != NULL) {
+		GSList *next_l = g_slist_next (l);
+		mandeldata_clear (l->data);
+		free (l->data);
+		g_slist_free_1 (l);
+		l = next_l;
+	}
 }

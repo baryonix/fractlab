@@ -55,6 +55,8 @@ static gboolean redraw_source_func_once (gpointer data);
 static void redraw_area (GtkMandel *mandel, int x, int y, int w, int h);
 static void init_renderer (GtkMandel *mandel);
 static void update_selection_cursor (GtkMandel *mandel);
+static void gtk_mandel_dispose (GObject *object);
+static void gtk_mandel_finalize (GObject *object);
 
 
 mouse_handler_t *mouse_handlers[] = {
@@ -81,13 +83,10 @@ gtk_mandel_get_type ()
 
 	if (!mandel_type) {
 		static const GTypeInfo mandel_info = {
-			sizeof (GtkMandelClass),
-			NULL, NULL,
-			(GClassInitFunc) gtk_mandel_class_init,
-			NULL, NULL,
-			sizeof (GtkMandel),
-			0,
-			(GInstanceInitFunc) gtk_mandel_init
+			.class_size		= sizeof (GtkMandelClass),
+			.class_init		= (GClassInitFunc) gtk_mandel_class_init,
+			.instance_size	= sizeof (GtkMandel),
+			.instance_init	= (GInstanceInitFunc) gtk_mandel_init
 		};
 		mandel_type = g_type_register_static (GTK_TYPE_DRAWING_AREA, "GtkMandel", &mandel_info, 0);
 	}
@@ -97,11 +96,14 @@ gtk_mandel_get_type ()
 
 
 static void
-gtk_mandel_class_init (GtkMandelClass *class)
+gtk_mandel_class_init (GtkMandelClass *g_class)
 {
-	class->area_selected_signal = g_signal_new (
+	G_OBJECT_CLASS (g_class)->dispose = gtk_mandel_dispose;
+	G_OBJECT_CLASS (g_class)->finalize = gtk_mandel_finalize;
+
+	g_class->area_selected_signal = g_signal_new (
 		"area-selected",
-		G_TYPE_FROM_CLASS (class),
+		G_TYPE_FROM_CLASS (g_class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__POINTER,
@@ -109,9 +111,9 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_POINTER
 	);
-	class->point_selected_signal = g_signal_new (
+	g_class->point_selected_signal = g_signal_new (
 		"point-selected",
-		G_TYPE_FROM_CLASS (class),
+		G_TYPE_FROM_CLASS (g_class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__POINTER,
@@ -119,9 +121,9 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_POINTER
 	);
-	class->rendering_started_signal = g_signal_new (
+	g_class->rendering_started_signal = g_signal_new (
 		"rendering-started",
-		G_TYPE_FROM_CLASS (class),
+		G_TYPE_FROM_CLASS (g_class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__ULONG,
@@ -129,9 +131,9 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_ULONG
 	);
-	class->rendering_progress_signal = g_signal_new (
+	g_class->rendering_progress_signal = g_signal_new (
 		"rendering-progress",
-		G_TYPE_FROM_CLASS (class),
+		G_TYPE_FROM_CLASS (g_class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__DOUBLE,
@@ -139,9 +141,9 @@ gtk_mandel_class_init (GtkMandelClass *class)
 		1,
 		G_TYPE_DOUBLE
 	);
-	class->rendering_stopped_signal = g_signal_new (
+	g_class->rendering_stopped_signal = g_signal_new (
 		"rendering-stopped",
-		G_TYPE_FROM_CLASS (class),
+		G_TYPE_FROM_CLASS (g_class),
 		G_SIGNAL_RUN_LAST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__BOOLEAN,
@@ -155,6 +157,8 @@ static void
 gtk_mandel_init (GtkMandel *mandel)
 {
 	GtkWidget *widget = GTK_WIDGET (mandel);
+
+	mandel->disposed = false;
 
 	mandel->render_method = RM_SUCCESSIVE_REFINE;
 	mandel->thread_count = 1;
@@ -668,4 +672,39 @@ gtk_mandel_get_progress (GtkMandel *mandel)
 		return mandel_renderer_progress (mandel->renderer);
 	else
 		return 0.0;
+}
+
+
+static void
+gtk_mandel_dispose (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: disposing GtkMandel\n");
+	GtkMandel *mandel = GTK_MANDEL (object);
+	if (!mandel->disposed) {
+		gtk_mandel_stop (mandel);
+		my_g_object_unref_not_null (mandel->pixbuf);
+		my_g_object_unref_not_null (mandel->gc);
+		my_g_object_unref_not_null (mandel->frame_gc);
+		gdk_cursor_unref (mandel->crosshair);
+		gdk_cursor_unref (mandel->left_cursor);
+		gdk_cursor_unref (mandel->right_cursor);
+		gdk_cursor_unref (mandel->top_cursor);
+		gdk_cursor_unref (mandel->bottom_cursor);
+		mandel->disposed = true;
+	}
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->dispose (object);
+}
+
+
+static void
+gtk_mandel_finalize (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: finalizing GtkMandel\n");
+	GtkMandel *mandel = GTK_MANDEL (object);
+	g_mutex_free (mandel->pb_mutex);
+	if (mandel->renderer != NULL) {
+		mandel_renderer_clear (mandel->renderer);
+		free (mandel->renderer);
+	}
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->finalize (object);
 }

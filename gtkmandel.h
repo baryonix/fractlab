@@ -3,6 +3,7 @@
 
 
 #include "mandelbrot.h"
+#include "gui-util.h"
 
 
 typedef enum {
@@ -34,7 +35,7 @@ typedef struct
 	int cur_w, cur_h;
 	double aspect;
 	bool selection_active;
-	bool realized;
+	bool realized, disposed;
 	GdkCursor *crosshair, *left_cursor, *right_cursor, *top_cursor, *bottom_cursor;
 	GtkMandelSelectionType selection_type;
 } GtkMandel;

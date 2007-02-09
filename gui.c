@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 
+#include <glib.h>
 #include <gtk/gtk.h>
 
 #include "defs.h"
@@ -34,6 +35,8 @@ static void about_dlg_requested (GtkMandelApplication *app, gpointer data);
 static void load_coords_requested (GtkMandelApplication *app, gpointer data);
 static void save_coords_requested (GtkMandelApplication *app, gpointer data);
 static void about_dlg_weak_notify (gpointer data, GObject *object);
+static void gtk_mandel_app_dispose (GObject *object);
+static void gtk_mandel_app_finalize (GObject *object);
 
 
 GType
@@ -56,9 +59,10 @@ gtk_mandel_application_get_type ()
 
 
 static void
-gtk_mandel_application_class_init (GtkMandelApplicationClass *class)
+gtk_mandel_application_class_init (GtkMandelApplicationClass *g_class)
 {
-	//class->icon_factory = gtk_icon_factory_new ();
+	G_OBJECT_CLASS (g_class)->dispose = gtk_mandel_app_dispose;
+	G_OBJECT_CLASS (g_class)->finalize = gtk_mandel_app_finalize;
 }
 
 
@@ -67,6 +71,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 {
 	app->main_window = fractal_main_window_new ();
 	g_object_ref_sink (app->main_window);
+	app->disposed = false;
 	app->open_coord_chooser = NULL;
 	app->save_coord_chooser = NULL;
 	app->fractal_info_dlg = NULL;
@@ -298,4 +303,30 @@ about_dlg_requested (GtkMandelApplication *app, gpointer data)
 		g_signal_connect (G_OBJECT (app->about_dlg), "response", (GCallback) gtk_widget_destroy, NULL);
 	}
 	gtk_widget_show (GTK_WIDGET (app->about_dlg));
+}
+
+
+static void
+gtk_mandel_app_dispose (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: disposing application\n");
+	GtkMandelApplication *app = GTK_MANDEL_APPLICATION (object);
+	if (!app->disposed) {
+		my_gtk_widget_destroy_unref (app->open_coord_chooser);
+		my_gtk_widget_destroy_unref (app->save_coord_chooser);
+		my_gtk_widget_destroy_unref (GTK_WIDGET (app->fractal_info_dlg));
+		my_gtk_widget_destroy_unref (GTK_WIDGET (app->fractal_type_dlg));
+		my_gtk_widget_destroy_unref (GTK_WIDGET (app->about_dlg));
+		my_gtk_widget_destroy_unref (GTK_WIDGET (app->main_window));
+		app->disposed = true;
+	}
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->dispose (object);
+}
+
+
+static void
+gtk_mandel_app_finalize (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: finalizing application\n");
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->finalize (object);
 }

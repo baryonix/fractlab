@@ -1611,6 +1611,7 @@ mandelbrot_state_free (void *state_)
 {
 	struct mandelbrot_state *state = (struct mandelbrot_state *) state_;
 	mandel_julia_state_clear (&state->mjstate);
+	free (state);
 }
 
 
@@ -1692,6 +1693,7 @@ julia_state_free (void *state_)
 {
 	struct julia_state *state = (struct julia_state *) state_;
 	mandel_julia_state_clear (&state->mjstate);
+	free (state);
 }
 
 
