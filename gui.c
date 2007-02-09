@@ -123,24 +123,24 @@ static void
 open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 {
 	char errbuf[1024];
-	gtk_widget_hide (app->open_coord_chooser);
 
 	if (response == GTK_RESPONSE_ACCEPT) {
 		const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->open_coord_chooser));
 		struct mandeldata *md = malloc (sizeof (*md));
 		bool ok = read_mandeldata (filename, md, errbuf, sizeof (errbuf));
 		if (ok) {
+			my_gtk_widget_destroy_unref (app->open_coord_chooser);
+			app->open_coord_chooser = NULL;
 			fractal_main_window_set_mandeldata (app->main_window, md);
 			restart_thread (app);
 		} else {
-			fprintf (stderr, "%s: cannot read: %s\n", filename, errbuf);
 			free (md);
+			gtk_widget_show (my_gtk_error_dialog_new (GTK_WINDOW (app->open_coord_chooser), "Error opening file", errbuf));
 		}
+	} else {
+		my_gtk_widget_destroy_unref (app->open_coord_chooser);
+		app->open_coord_chooser = NULL;
 	}
-
-	gtk_widget_destroy (app->open_coord_chooser);
-	g_object_unref (app->open_coord_chooser);
-	app->open_coord_chooser = NULL;
 }
 
 
@@ -170,17 +170,17 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 {
 	char errbuf[1024];
 
-	gtk_widget_hide (app->save_coord_chooser);
-
 	if (response == GTK_RESPONSE_ACCEPT) {
-	const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
-	if (!write_mandeldata (filename, fractal_main_window_get_mandeldata (app->main_window), errbuf, sizeof (errbuf)))
-		fprintf (stderr, "%s: cannot write: %s\n", filename, errbuf);
+		const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
+		if (write_mandeldata (filename, fractal_main_window_get_mandeldata (app->main_window), errbuf, sizeof (errbuf))) {
+			my_gtk_widget_destroy_unref (app->save_coord_chooser);
+			app->save_coord_chooser = NULL;
+		} else
+			gtk_widget_show (my_gtk_error_dialog_new (GTK_WINDOW (app->save_coord_chooser), "Error saving file", errbuf));
+	} else {
+		my_gtk_widget_destroy_unref (app->save_coord_chooser);
+		app->save_coord_chooser = NULL;
 	}
-
-	gtk_widget_destroy (app->save_coord_chooser);
-	g_object_unref (app->save_coord_chooser);
-	app->save_coord_chooser = NULL;
 }
 
 
@@ -258,7 +258,7 @@ load_coords_requested (GtkMandelApplication *app, gpointer data)
 {
 	if (app->open_coord_chooser == NULL) {
 		fprintf (stderr, "* DEBUG: creating new open dialog\n");
-		app->open_coord_chooser = gtk_file_chooser_dialog_new ("Save coordinate file", GTK_WINDOW (app->main_window), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+		app->open_coord_chooser = gtk_file_chooser_dialog_new ("Open coordinate file", GTK_WINDOW (app->main_window), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
 		g_object_ref_sink (G_OBJECT (app->open_coord_chooser));
 		gtk_window_set_modal (GTK_WINDOW (app->open_coord_chooser), FALSE);
 		g_signal_connect_object (G_OBJECT (app->open_coord_chooser), "response", (GCallback) open_coord_dlg_response, app, G_CONNECT_SWAPPED);

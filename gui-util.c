@@ -62,3 +62,15 @@ my_gtk_widget_destroy_unref (GtkWidget *widget)
 	gtk_widget_destroy (widget);
 	g_object_unref (widget);
 }
+
+
+GtkWidget *
+my_gtk_error_dialog_new (GtkWindow *parent, const char *title, const char *msg)
+{
+	GtkWidget *dlg = gtk_message_dialog_new (parent, GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_NONE, "%s", msg);
+	gtk_window_set_title (GTK_WINDOW (dlg), title);
+	GtkWidget *widget = gtk_dialog_add_button (GTK_DIALOG (dlg), GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE);
+	//gtk_button_set_label (GTK_BUTTON (widget), "Shit");
+	g_signal_connect (dlg, "response", (GCallback) gtk_widget_destroy, NULL);
+	return dlg;
+}
