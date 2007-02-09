@@ -20,7 +20,6 @@
 
 static void gtk_mandel_application_class_init (GtkMandelApplicationClass *class);
 static void gtk_mandel_application_init (GtkMandelApplication *app);
-static void create_dialogs (GtkMandelApplication *app);
 static void connect_signals (GtkMandelApplication *app);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
@@ -30,6 +29,7 @@ static void type_dlg_response (GtkMandelApplication *app, gint response, gpointe
 static GtkAboutDialog *create_about_dlg (GtkWindow *parent);
 static void restart_thread (GtkMandelApplication *app);
 static void info_dlg_requested (GtkMandelApplication *app, gpointer data);
+static void type_dlg_requested (GtkMandelApplication *app, gpointer data);
 static void about_dlg_requested (GtkMandelApplication *app, gpointer data);
 static void load_coords_requested (GtkMandelApplication *app, gpointer data);
 static void save_coords_requested (GtkMandelApplication *app, gpointer data);
@@ -72,16 +72,7 @@ gtk_mandel_application_init (GtkMandelApplication *app)
 	app->fractal_info_dlg = NULL;
 	app->fractal_type_dlg = NULL;
 	app->about_dlg = NULL;
-	create_dialogs (app);
 	connect_signals (app);
-}
-
-
-static void
-create_dialogs (GtkMandelApplication *app)
-{
-	app->fractal_type_dlg = fractal_type_dialog_new (GTK_WINDOW (app->main_window));
-	g_object_ref_sink (G_OBJECT (app->fractal_type_dlg));
 }
 
 
@@ -115,14 +106,11 @@ connect_signals (GtkMandelApplication *app)
 
 	g_signal_connect_object (G_OBJECT (app->main_window), "info-dialog-requested", (GCallback) info_dlg_requested, app, G_CONNECT_SWAPPED);
 
-	g_signal_connect_object (G_OBJECT (app->main_window), "type-dialog-requested", (GCallback) gtk_widget_show, app->fractal_type_dlg, G_CONNECT_SWAPPED);
+	g_signal_connect_object (G_OBJECT (app->main_window), "type-dialog-requested", (GCallback) type_dlg_requested, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect_object (G_OBJECT (app->main_window), "about-dialog-requested", (GCallback) about_dlg_requested, app, G_CONNECT_SWAPPED);
 
 	g_signal_connect_object (G_OBJECT (app->main_window), "mandeldata-updated", (GCallback) mandeldata_updated, app, G_CONNECT_SWAPPED);
-
-	g_signal_connect (G_OBJECT (app->fractal_type_dlg), "delete-event", (GCallback) gtk_widget_hide_on_delete, NULL);
-	g_signal_connect_object (G_OBJECT (app->fractal_type_dlg), "response", (GCallback) type_dlg_response, app, G_CONNECT_SWAPPED);
 }
 
 
@@ -158,7 +146,8 @@ mandeldata_updated (GtkMandelApplication *app, gpointer data)
 	// XXX fractal_info_dialog_set_mandeldata (app->fractal_info_dlg, md, GTK_MANDEL (app->mainwin.mandel)->aspect);
 	if (app->fractal_info_dlg != NULL)
 		fractal_info_dialog_set_mandeldata (app->fractal_info_dlg, md, 1.0 /* aspect */);
-	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, md);
+	if (app->fractal_type_dlg != NULL)
+		fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, md);
 }
 
 
@@ -199,8 +188,11 @@ type_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 		fractal_main_window_set_mandeldata (app->main_window, md);
 		restart_thread (app);
 	}
-	if (response == GTK_RESPONSE_ACCEPT || response == GTK_RESPONSE_CANCEL)
-		gtk_widget_hide (GTK_WIDGET (app->fractal_type_dlg));
+	if (response == GTK_RESPONSE_ACCEPT || response == GTK_RESPONSE_CANCEL || response == GTK_RESPONSE_NONE) {
+		gtk_widget_destroy (GTK_WIDGET (app->fractal_type_dlg));
+		g_object_unref (app->fractal_type_dlg);
+		app->fractal_type_dlg = NULL;
+	}
 }
 
 
@@ -238,8 +230,21 @@ info_dlg_requested (GtkMandelApplication *app, gpointer data)
 		g_signal_connect_object (G_OBJECT (app->fractal_info_dlg), "response", (GCallback) area_info_dlg_response, app, G_CONNECT_SWAPPED);
 
 	}
-	// XXX fractal_info_dialog_set_mandeldata (app->fractal_info_dlg, app->md, 1.0 /* aspect */);
+	fractal_info_dialog_set_mandeldata (app->fractal_info_dlg, fractal_main_window_get_mandeldata (app->main_window), 1.0 /* XXX aspect */);
 	gtk_widget_show (GTK_WIDGET (app->fractal_info_dlg));
+}
+
+
+static void
+type_dlg_requested (GtkMandelApplication *app, gpointer data)
+{
+	if (app->fractal_type_dlg == NULL) {
+		app->fractal_type_dlg = fractal_type_dialog_new (GTK_WINDOW (app->main_window));
+		g_object_ref_sink (G_OBJECT (app->fractal_type_dlg));
+		g_signal_connect_object (G_OBJECT (app->fractal_type_dlg), "response", (GCallback) type_dlg_response, app, G_CONNECT_SWAPPED);
+	}
+	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, fractal_main_window_get_mandeldata (app->main_window));
+	gtk_widget_show (GTK_WIDGET (app->fractal_type_dlg));
 }
 
 

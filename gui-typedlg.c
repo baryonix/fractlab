@@ -20,6 +20,8 @@ struct fractal_type_dlg;
 struct gui_fractal_type {
 	gui_ftype_flags_t flags;
 	struct gui_type_param *(*create_gui) (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
+	void (*dispose) (struct gui_type_param *gui_param);
+	void (*finalize) (struct gui_type_param *gui_param);
 	void (*set_param) (FractalTypeDialog *dlg, struct gui_type_param *gui_param, const void *param);
 	void (*get_param) (FractalTypeDialog *dlg, struct gui_type_param *gui_param, void *param);
 };
@@ -62,6 +64,7 @@ struct _FractalTypeDialogPrivate {
 	struct mandel_area area;
 	char creal_buf[1024], cimag_buf[1024], magf_buf[1024];
 	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
+	bool disposed;
 };
 
 
@@ -72,10 +75,13 @@ static void type_dlg_defaults_clicked (FractalTypeDialog *dlg, gpointer data);
 static bool repres_supported (const struct gui_fractal_type_dynamic *ftype, fractal_repres_t repres);
 
 static struct gui_type_param *create_mandelbrot_param (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
+static void mandelbrot_dispose (struct gui_type_param *param);
 static void mandelbrot_set_param (FractalTypeDialog *dlg, struct gui_type_param *gui_param, const void *param);
 static void mandelbrot_get_param (FractalTypeDialog *dlg, struct gui_type_param *gui_param, void *param);
 
 static struct gui_type_param *create_julia_param (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group);
+static void julia_dispose (struct gui_type_param *param);
+static void julia_finalize (struct gui_type_param *param);
 static void julia_set_param (FractalTypeDialog *dlg, struct gui_type_param *gui_param, const void *param);
 static void julia_get_param (FractalTypeDialog *dlg, struct gui_type_param *gui_param, void *param);
 
@@ -85,22 +91,28 @@ static unsigned type_dlg_get_maxiter (FractalTypeDialog *dlg);
 static void fractal_type_dialog_class_init (gpointer g_class, gpointer data);
 static void fractal_type_dialog_init (GTypeInstance *dlg, gpointer g_class);
 
+static void fractal_type_dialog_dispose (GObject *object);
+static void fractal_type_dialog_finalize (GObject *object);
+
 static fractal_type_t type_dlg_get_type (FractalTypeDialog *dlg);
 static fractal_repres_t type_dlg_get_repres (FractalTypeDialog *dlg);
 
 
 static struct gui_fractal_type gui_fractal_types[] = {
 	{
-		GUI_FTYPE_HAS_MAXITER,
-		create_mandelbrot_param,
-		mandelbrot_set_param,
-		mandelbrot_get_param
+		.flags		= GUI_FTYPE_HAS_MAXITER,
+		.create_gui	= create_mandelbrot_param,
+		.dispose	= mandelbrot_dispose,
+		.set_param	= mandelbrot_set_param,
+		.get_param	= mandelbrot_get_param
 	},
 	{
-		GUI_FTYPE_HAS_MAXITER,
-		create_julia_param,
-		julia_set_param,
-		julia_get_param
+		.flags		= GUI_FTYPE_HAS_MAXITER,
+		.create_gui	= create_julia_param,
+		.dispose	= julia_dispose,
+		.finalize	= julia_finalize,
+		.set_param	= julia_set_param,
+		.get_param	= julia_get_param
 	}
 };
 
@@ -127,6 +139,8 @@ fractal_type_dialog_get_type (void)
 static void
 fractal_type_dialog_class_init (gpointer g_class, gpointer data)
 {
+	G_OBJECT_CLASS (g_class)->dispose = fractal_type_dialog_dispose;
+	G_OBJECT_CLASS (g_class)->finalize = fractal_type_dialog_finalize;
 }
 
 
@@ -139,6 +153,7 @@ fractal_type_dialog_init (GTypeInstance *instance, gpointer g_class)
 
 	dlg->priv = malloc (sizeof (*dlg->priv));
 	FractalTypeDialogPrivate *const priv = dlg->priv;
+	priv->disposed = false;
 	GtkBox *const dlg_vbox = GTK_BOX (GTK_DIALOG (dlg)->vbox), *vbox;
 	GtkWidget *container, *widget, *frame, *notebook;
 	GtkCellRenderer *renderer;
@@ -590,4 +605,78 @@ type_dlg_get_repres (FractalTypeDialog *dlg)
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX (priv->repres_input), iter);
 	gtk_tree_model_get (GTK_TREE_MODEL (priv->repres_list), iter, 0, &gi, -1);
 	return (fractal_repres_t) gi;
+}
+
+
+static void
+fractal_type_dialog_dispose (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: disposing type dialog\n");
+	int i;
+	FractalTypeDialog *const dlg = FRACTAL_TYPE_DIALOG (object);
+	FractalTypeDialogPrivate *const priv = dlg->priv;
+	if (!priv->disposed) {
+		g_object_unref (priv->type_list);
+		g_object_unref (priv->repres_list);
+		g_object_unref (priv->type_input);
+		g_object_unref (priv->area_creal_input);
+		g_object_unref (priv->area_cimag_input);
+		g_object_unref (priv->area_magf_input);
+		g_object_unref (priv->maxiter_input);
+		g_object_unref (priv->type_param_notebook);
+		g_object_unref (priv->repres_input);
+		g_object_unref (priv->repres_notebook);
+		g_object_unref (priv->repres_log_base_input);
+		for (i = 0; i < FRACTAL_MAX; i++)
+			if (gui_fractal_types[i].dispose != NULL)
+				gui_fractal_types[i].dispose (priv->frac_types[i].gui);
+		priv->disposed = true;
+	}
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->dispose (object);
+}
+
+
+static void
+fractal_type_dialog_finalize (GObject *object)
+{
+	fprintf (stderr, "* DEBUG: finalizing type dialog\n");
+	int i;
+	FractalTypeDialog *const dlg = FRACTAL_TYPE_DIALOG (object);
+	FractalTypeDialogPrivate *const priv = dlg->priv;
+	mandel_area_clear (&priv->area);
+	for (i = 0; i < FRACTAL_MAX; i++) {
+		if (gui_fractal_types[i].finalize != NULL)
+			gui_fractal_types[i].finalize (priv->frac_types[i].gui);
+		free (priv->frac_types[i].gui);
+	}
+	free (priv);
+	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->finalize (object);
+}
+
+
+static void
+mandelbrot_dispose (struct gui_type_param *param)
+{
+	struct gui_mandelbrot_param *mparam = (struct gui_mandelbrot_param *) param;
+	g_object_unref (param->main_widget);
+	g_object_unref (mparam->zpower_input);
+}
+
+
+static void
+julia_dispose (struct gui_type_param *param)
+{
+	struct gui_julia_param *jparam = (struct gui_julia_param *) param;
+	g_object_unref (param->main_widget);
+	g_object_unref (jparam->zpower_input);
+	g_object_unref (jparam->preal_input);
+	g_object_unref (jparam->pimag_input);
+}
+
+
+static void
+julia_finalize (struct gui_type_param *param)
+{
+	struct gui_julia_param *jparam = (struct gui_julia_param *) param;
+	mandel_point_clear (&jparam->param);
 }

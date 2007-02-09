@@ -167,19 +167,19 @@ fractal_info_dialog_dispose (GObject *object)
 	fprintf (stderr, "* DEBUG: disposing info dialog\n");
 	FractalInfoDialog *const dlg = FRACTAL_INFO_DIALOG (object);
 	FractalInfoDialogPrivate *const priv = dlg->priv;
-	if (priv->disposed)
-		return;
 	GObjectClass *const parent_class = g_type_class_peek_parent (G_OBJECT_GET_CLASS (object));
-	int i;
-	for (i = 0; i < 3; i++) {
-		g_object_unref (priv->center_buffers[i]);
-		priv->center_buffers[i] = NULL;
+	if (!priv->disposed) {
+		int i;
+		for (i = 0; i < 3; i++) {
+			g_object_unref (priv->center_buffers[i]);
+			priv->center_buffers[i] = NULL;
+		}
+		for (i = 0; i < 4; i++) {
+			g_object_unref (priv->corner_buffers[i]);
+			priv->corner_buffers[i] = NULL;
+		}
+		priv->disposed = true;
 	}
-	for (i = 0; i < 4; i++) {
-		g_object_unref (priv->corner_buffers[i]);
-		priv->corner_buffers[i] = NULL;
-	}
-	priv->disposed = true;
 	parent_class->dispose (object);
 }
 
