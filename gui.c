@@ -38,13 +38,10 @@ gtk_mandel_application_get_type ()
 
 	if (!type) {
 		static const GTypeInfo info = {
-			sizeof (GtkMandelApplicationClass),
-			NULL, NULL,
-			(GClassInitFunc) gtk_mandel_application_class_init,
-			NULL, NULL,
-			sizeof (GtkMandelApplication),
-			0,
-			(GInstanceInitFunc) gtk_mandel_application_init
+			.class_size		= sizeof (GtkMandelApplicationClass),
+			.class_init		= (GClassInitFunc) gtk_mandel_application_class_init,
+			.instance_size	= sizeof (GtkMandelApplication),
+			.instance_init	= (GInstanceInitFunc) gtk_mandel_application_init
 		};
 		type = g_type_register_static (G_TYPE_OBJECT, "GtkMandelApplication", &info, 0);
 	}

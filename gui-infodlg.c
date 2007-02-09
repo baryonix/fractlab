@@ -27,13 +27,10 @@ fractal_info_dialog_get_type (void)
 
 	if (type == 0) {
 		static const GTypeInfo info = {
-			sizeof (FractalInfoDialogClass),
-			NULL, NULL,
-			fractal_info_dialog_class_init,
-			NULL, NULL,
-			sizeof (FractalInfoDialog),
-			0,
-			fractal_info_dialog_init
+			.class_size		= sizeof (FractalInfoDialogClass),
+			.class_init		= fractal_info_dialog_class_init,
+			.instance_size	= sizeof (FractalInfoDialog),
+			.instance_init	= fractal_info_dialog_init
 		};
 		type = g_type_register_static (GTK_TYPE_DIALOG, "FractalInfoDialog", &info, 0);
 	}

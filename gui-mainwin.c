@@ -70,13 +70,10 @@ fractal_main_window_get_type (void)
 
 	if (type == 0) {
 		static const GTypeInfo info = {
-			sizeof (FractalMainWindowClass),
-			NULL, NULL,
-			fractal_main_window_class_init,
-			NULL, NULL,
-			sizeof (FractalMainWindow),
-			0,
-			fractal_main_window_init
+			.class_size		= sizeof (FractalMainWindowClass),
+			.class_init		= fractal_main_window_class_init,
+			.instance_size	= sizeof (FractalMainWindow),
+			.instance_init	= fractal_main_window_init
 		};
 		type = g_type_register_static (GTK_TYPE_WINDOW, "FractalMainWindow", &info, 0);
 	}
