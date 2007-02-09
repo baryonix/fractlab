@@ -25,7 +25,6 @@ static void connect_signals (GtkMandelApplication *app);
 static void open_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static void mandeldata_updated (GtkMandelApplication *app, gpointer data);
-static void fractal_type_clicked (GtkMandelApplication *app, gpointer data);
 static void area_info_dlg_response (GtkMandelApplication *app, gpointer data);
 static void type_dlg_response (GtkMandelApplication *app, gint response, gpointer data);
 static GtkAboutDialog *create_about_dlg (GtkWindow *parent);
@@ -65,6 +64,7 @@ static void
 gtk_mandel_application_init (GtkMandelApplication *app)
 {
 	app->main_window = fractal_main_window_new ();
+	g_object_ref_sink (app->main_window);
 	create_dialogs (app);
 	connect_signals (app);
 }
@@ -214,14 +214,6 @@ type_dlg_response (GtkMandelApplication *app, gint response, gpointer data)
 	}
 	if (response == GTK_RESPONSE_ACCEPT || response == GTK_RESPONSE_CANCEL)
 		gtk_widget_hide (GTK_WIDGET (app->fractal_type_dlg));
-}
-
-
-static void
-fractal_type_clicked (GtkMandelApplication *app, gpointer data)
-{
-	fractal_type_dialog_set_mandeldata (app->fractal_type_dlg, fractal_main_window_get_mandeldata (app->main_window));
-	gtk_widget_show (GTK_WIDGET (app->fractal_type_dlg));
 }
 
 

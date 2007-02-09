@@ -10,8 +10,15 @@
 GtkWidget *
 my_gtk_label_new (const gchar *text, GtkSizeGroup *size_group)
 {
+	return my_gtk_label_new_with_align (text, size_group, 0.0, 0.5);
+}
+
+
+GtkWidget *
+my_gtk_label_new_with_align (const gchar *text, GtkSizeGroup *size_group, double xalign, double yalign)
+{
 	GtkWidget *label = gtk_label_new (text);
-	gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
+	gtk_misc_set_alignment (GTK_MISC (label), xalign, yalign);
 	if (size_group != NULL)
 		gtk_size_group_add_widget (size_group, label);
 	return label;

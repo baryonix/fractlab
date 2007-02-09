@@ -37,37 +37,28 @@ struct gui_type_param {
 
 struct gui_mandelbrot_param {
 	struct gui_type_param ftype;
-	GtkWidget *zpower_label, *zpower_input;
+	GtkWidget *zpower_input;
 };
 
 struct gui_julia_param {
 	struct gui_type_param ftype;
-	GtkWidget *zpower_label, *zpower_input;
-	GtkWidget *preal_label, *preal_input;
-	GtkWidget *pimag_label, *pimag_input;
+	GtkWidget *zpower_input, *preal_input, *pimag_input;
 	struct mandel_point param;
 	char preal_buf[1024], pimag_buf[1024];
 };
 
 
 struct _FractalTypeDialogPrivate {
-	GtkSizeGroup *label_size_group, *input_size_group;
 	GtkListStore *type_list, *repres_list;
-	GtkCellRenderer *type_renderer, *repres_renderer;
-	GtkWidget *type_table, *type_label, *type_input, *defaults_button;
-	GtkWidget *area_frame, *area_table;
-	GtkWidget *area_creal_label, *area_creal_input;
-	GtkWidget *area_cimag_label, *area_cimag_input;
-	GtkWidget *area_magf_label, *area_magf_input;
-	GtkWidget *general_param_frame;
-	GtkWidget *general_param_table;
-	GtkWidget *maxiter_label, *maxiter_input;
-	GtkWidget *type_param_frame;
+	GtkWidget *type_input;
+	GtkWidget *area_creal_input;
+	GtkWidget *area_cimag_input;
+	GtkWidget *area_magf_input;
+	GtkWidget *maxiter_input;
 	GtkWidget *type_param_notebook;
-	GtkWidget *repres_frame, *repres_vbox;
-	GtkWidget *repres_hbox, *repres_label, *repres_input;
-	GtkWidget *repres_notebook, *repres_notebook_tabs[REPRES_MAX];
-	GtkWidget *repres_log_base_hbox, *repres_log_base_label, *repres_log_base_input;
+	GtkWidget *repres_input;
+	GtkWidget *repres_notebook;
+	GtkWidget *repres_log_base_input;
 	struct mandel_area area;
 	char creal_buf[1024], cimag_buf[1024], magf_buf[1024];
 	struct gui_fractal_type_dynamic frac_types[FRACTAL_MAX];
@@ -150,15 +141,25 @@ fractal_type_dialog_init (GTypeInstance *instance, gpointer g_class)
 	FractalTypeDialog *dlg = FRACTAL_TYPE_DIALOG (instance);
 
 	dlg->priv = malloc (sizeof (*dlg->priv));
-	FractalTypeDialogPrivate *priv = dlg->priv;
+	FractalTypeDialogPrivate *const priv = dlg->priv;
+	GtkBox *const dlg_vbox = GTK_BOX (GTK_DIALOG (dlg)->vbox), *vbox;
+	GtkWidget *container, *widget, *frame, *notebook;
+	GtkCellRenderer *renderer;
+
+	GtkSizeGroup *label_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+	GtkSizeGroup *input_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
 
 	gtk_window_set_title (GTK_WINDOW (dlg), "Fractal Type and Parameters");
 	gtk_dialog_add_buttons (GTK_DIALOG (dlg), GTK_STOCK_APPLY, GTK_RESPONSE_APPLY, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
 
-	priv->label_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
-	priv->input_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+	/* --- Fractal Type --- */
+	container = gtk_table_new (2, 2, FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (container), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (container), 2);
+	gtk_box_pack_start (dlg_vbox, container, FALSE, FALSE, 0);
 
-	priv->type_label = my_gtk_label_new ("Fractal Type", priv->label_size_group);
+	gtk_table_attach (GTK_TABLE (container), my_gtk_label_new ("Fractal Type", label_size_group), 0, 1, 0, 1, 0, 0, 0, 0);
+
 	priv->type_list = gtk_list_store_new (2, G_TYPE_INT, G_TYPE_STRING);
 	GtkTreeIter iter[1];
 	for (i = 0; i < FRACTAL_MAX; i++) {
@@ -166,73 +167,100 @@ fractal_type_dialog_init (GTypeInstance *instance, gpointer g_class)
 		gtk_list_store_set (priv->type_list, iter, 0, i, -1);
 		gtk_list_store_set (priv->type_list, iter, 1, fractal_type_by_id (i)->descr, -1);
 	}
-	priv->type_renderer = gtk_cell_renderer_text_new ();
-	priv->type_input = gtk_combo_box_new_with_model (GTK_TREE_MODEL (priv->type_list));
-	gtk_size_group_add_widget (priv->input_size_group, priv->type_input);
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (priv->type_input), priv->type_renderer, FALSE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (priv->type_input), priv->type_renderer, "text", 1);
-	gtk_combo_box_set_active (GTK_COMBO_BOX (priv->type_input), 0); /* XXX */
+	widget = gtk_combo_box_new_with_model (GTK_TREE_MODEL (priv->type_list));
+	gtk_size_group_add_widget (input_size_group, widget);
+	renderer = gtk_cell_renderer_text_new ();
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (widget), renderer, FALSE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (widget), renderer, "text", 1);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (widget), 0); /* XXX */
+	g_signal_connect_object (widget, "changed", (GCallback) type_dlg_type_updated, dlg, G_CONNECT_SWAPPED);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	priv->type_input = widget;
+	g_object_ref (priv->type_input);
 
-	priv->defaults_button = gtk_button_new_with_label ("Default Values");
-	gtk_size_group_add_widget (priv->input_size_group, priv->defaults_button);
+	widget = gtk_button_new_with_label ("Default Values");
+	gtk_size_group_add_widget (input_size_group, widget);
+	g_signal_connect_object (widget, "clicked", (GCallback) type_dlg_defaults_clicked, dlg, G_CONNECT_SWAPPED);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
 
-	priv->type_table = gtk_table_new (2, 2, FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (priv->type_table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (priv->type_table), 2);
-	gtk_table_attach (GTK_TABLE (priv->type_table), priv->type_label, 0, 1, 0, 1, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->type_table), priv->type_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->type_table), priv->defaults_button, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	/* --- Area --- */
+	frame = gtk_frame_new ("Area");
+	gtk_box_pack_start (dlg_vbox, frame, FALSE, FALSE, 0);
 
-	priv->area_creal_label = my_gtk_label_new ("Center Real", priv->label_size_group);
-	priv->area_creal_input = gtk_entry_new ();
-	gtk_size_group_add_widget (priv->input_size_group, priv->area_creal_input);
-	priv->area_cimag_label = my_gtk_label_new ("Center Imag", priv->label_size_group);
-	priv->area_cimag_input = gtk_entry_new ();
-	gtk_size_group_add_widget (priv->input_size_group, priv->area_cimag_input);
-	priv->area_magf_label = my_gtk_label_new ("Magnification", priv->label_size_group);
-	priv->area_magf_input = gtk_entry_new ();
-	gtk_size_group_add_widget (priv->input_size_group, priv->area_magf_input);
+	container = gtk_table_new (2, 3, FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (container), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (container), 2);
+	gtk_container_add (GTK_CONTAINER (frame), container);
 
-	priv->area_table = gtk_table_new (2, 3, FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (priv->area_table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (priv->area_table), 2);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_creal_label, 0, 1, 0, 1, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_creal_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_cimag_label, 0, 1, 1, 2, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_cimag_input, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_magf_label, 0, 1, 2, 3, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->area_table), priv->area_magf_input, 1, 2, 2, 3, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	gtk_table_attach (GTK_TABLE (container), my_gtk_label_new ("Center Real", label_size_group), 0, 1, 0, 1, 0, 0, 0, 0);
 
-	priv->area_frame = gtk_frame_new ("Area");
-	gtk_container_add (GTK_CONTAINER (priv->area_frame), priv->area_table);
+	widget = gtk_entry_new ();
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	priv->area_creal_input = widget;
+	g_object_ref (priv->area_creal_input);
 
-	priv->maxiter_label = my_gtk_label_new ("Max Iterations", priv->label_size_group);
-	priv->maxiter_input = gtk_spin_button_new_with_range (1.0, 1000000000000.0, 100.0);
-	gtk_size_group_add_widget (priv->input_size_group, priv->maxiter_input);
+	gtk_table_attach (GTK_TABLE (container), my_gtk_label_new ("Center Imag", label_size_group), 0, 1, 1, 2, 0, 0, 0, 0);
 
-	priv->general_param_table = gtk_table_new (2, 1, FALSE);
-	gtk_table_set_row_spacings (GTK_TABLE (priv->general_param_table), 2);
-	gtk_table_set_col_spacings (GTK_TABLE (priv->general_param_table), 2);
-	gtk_table_attach (GTK_TABLE (priv->general_param_table), priv->maxiter_label, 0, 1, 0, 1, 0, 0, 0, 0);
-	gtk_table_attach (GTK_TABLE (priv->general_param_table), priv->maxiter_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	widget = gtk_entry_new ();
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	priv->area_cimag_input = widget;
+	g_object_ref (priv->area_cimag_input);
 
-	priv->general_param_frame = gtk_frame_new ("General Parameters");
-	gtk_container_add (GTK_CONTAINER (priv->general_param_frame), priv->general_param_table);
+	gtk_table_attach (GTK_TABLE (container), my_gtk_label_new ("Magnification", label_size_group), 0, 1, 2, 3, 0, 0, 0, 0);
 
-	priv->type_param_notebook = gtk_notebook_new ();
-	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (priv->type_param_notebook), FALSE);
-	gtk_notebook_set_show_border (GTK_NOTEBOOK (priv->type_param_notebook), FALSE);
+	widget = gtk_entry_new ();
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 2, 3, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	priv->area_magf_input = widget;
+	g_object_ref (priv->area_magf_input);
+
+	/* --- General Parameters --- */
+	frame = gtk_frame_new ("General Parameters");
+	gtk_box_pack_start (dlg_vbox, frame, FALSE, FALSE, 0);
+
+	container = gtk_table_new (2, 1, FALSE);
+	gtk_table_set_row_spacings (GTK_TABLE (container), 2);
+	gtk_table_set_col_spacings (GTK_TABLE (container), 2);
+	gtk_container_add (GTK_CONTAINER (frame), container);
+
+	gtk_table_attach (GTK_TABLE (container), my_gtk_label_new ("Max Iterations", label_size_group), 0, 1, 0, 1, 0, 0, 0, 0);
+
+	widget = gtk_spin_button_new_with_range (1.0, 1000000000000.0, 100.0);
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (GTK_TABLE (container), widget, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	priv->maxiter_input = widget;
+	g_object_ref (priv->maxiter_input);
+
+	/* --- Type-Specific Parameters --- */
+	frame = gtk_frame_new ("Type-Specific Parameters");
+	gtk_box_pack_start (dlg_vbox, frame, FALSE, FALSE, 0);
+
+	container = gtk_notebook_new ();
+	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (container), FALSE);
+	gtk_notebook_set_show_border (GTK_NOTEBOOK (container), FALSE);
+	gtk_container_add (GTK_CONTAINER (frame), container);
+	priv->type_param_notebook = container;
+	g_object_ref (priv->type_param_notebook);
 
 	for (i = 0; i < FRACTAL_MAX; i++) {
 		priv->frac_types[i].repres_count = fractal_supported_representations (fractal_type_by_id (i), priv->frac_types[i].repres);
-		priv->frac_types[i].gui = gui_fractal_types[i].create_gui (priv->label_size_group, priv->input_size_group);
-		gtk_notebook_append_page (GTK_NOTEBOOK (priv->type_param_notebook), priv->frac_types[i].gui->main_widget, NULL);
+		priv->frac_types[i].gui = gui_fractal_types[i].create_gui (label_size_group, input_size_group);
+		gtk_notebook_append_page (GTK_NOTEBOOK (container), priv->frac_types[i].gui->main_widget, NULL);
 	}
 
-	priv->type_param_frame = gtk_frame_new ("Type-Specific Parameters");
-	gtk_container_add (GTK_CONTAINER (priv->type_param_frame), priv->type_param_notebook);
+	/* --- Representation --- */
+	frame = gtk_frame_new ("Representation Settings");
+	gtk_box_pack_start (dlg_vbox, frame, FALSE, FALSE, 0);
 
-	priv->repres_label = my_gtk_label_new ("Representation Method", priv->label_size_group);
+	vbox = GTK_BOX (gtk_vbox_new (FALSE, 2));
+	gtk_container_add (GTK_CONTAINER (frame), GTK_WIDGET (vbox));
+
+	container = gtk_hbox_new (FALSE, 2);
+	gtk_box_pack_start (vbox, container, FALSE, FALSE, 0);
+
+	gtk_box_pack_start (GTK_BOX (container), my_gtk_label_new ("Representation Method", label_size_group), FALSE, FALSE, 0);
 
 	priv->repres_list = gtk_list_store_new (3, G_TYPE_INT, G_TYPE_STRING, G_TYPE_BOOLEAN);
 	gtk_list_store_append (priv->repres_list, iter);
@@ -241,58 +269,49 @@ fractal_type_dialog_init (GTypeInstance *instance, gpointer g_class)
 	gtk_list_store_set (priv->repres_list, iter, 0, REPRES_ESCAPE_LOG, 1, "Escape-Iterations (Logarithmic)", 2, (gboolean) TRUE, -1);
 	gtk_list_store_append (priv->repres_list, iter);
 	gtk_list_store_set (priv->repres_list, iter, 0, REPRES_DISTANCE, 1, "Distance", 2, (gboolean) TRUE, -1);
-	priv->repres_renderer = gtk_cell_renderer_text_new ();
-	priv->repres_input = gtk_combo_box_new_with_model (GTK_TREE_MODEL (priv->repres_list));
-	gtk_size_group_add_widget (priv->input_size_group, priv->repres_input);
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (priv->repres_input), priv->repres_renderer, FALSE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (priv->repres_input), priv->repres_renderer, "text", 1);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (priv->repres_input), priv->repres_renderer, "sensitive", 2);
-	gtk_combo_box_set_active (GTK_COMBO_BOX (priv->repres_input), REPRES_ESCAPE); /* XXX */
 
-	priv->repres_hbox = gtk_hbox_new (FALSE, 2);
-	gtk_box_pack_start (GTK_BOX (priv->repres_hbox), priv->repres_label, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (priv->repres_hbox), priv->repres_input, TRUE, TRUE, 0);
+	renderer = gtk_cell_renderer_text_new ();
+	widget = gtk_combo_box_new_with_model (GTK_TREE_MODEL (priv->repres_list));
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (widget), renderer, FALSE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (widget), renderer, "text", 1);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (widget), renderer, "sensitive", 2);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (widget), REPRES_ESCAPE); /* XXX */
+	g_signal_connect_object (widget, "changed", (GCallback) type_dlg_repres_updated, dlg, G_CONNECT_SWAPPED);
+	gtk_box_pack_start (GTK_BOX (container), widget, TRUE, TRUE, 0);
+	priv->repres_input = widget;
+	g_object_ref (priv->repres_input);
 
-	priv->repres_log_base_label = my_gtk_label_new ("Base of Logarithm", priv->label_size_group);
-	priv->repres_log_base_input = gtk_spin_button_new_with_range (1.0, 100000.0, 0.001);
-	gtk_size_group_add_widget (priv->input_size_group, priv->repres_log_base_input);
+	notebook = gtk_notebook_new ();
+	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (notebook), FALSE);
+	gtk_notebook_set_show_border (GTK_NOTEBOOK (notebook), FALSE);
+	gtk_box_pack_start (GTK_BOX (vbox), notebook, FALSE, FALSE, 0);
+	priv->repres_notebook = notebook;
+	g_object_ref (priv->repres_notebook);
 
-	priv->repres_log_base_hbox = gtk_hbox_new (FALSE, 2);
-	gtk_box_pack_start (GTK_BOX (priv->repres_log_base_hbox), priv->repres_log_base_label, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (priv->repres_log_base_hbox), priv->repres_log_base_input, TRUE, TRUE, 0);
+	gtk_notebook_append_page (GTK_NOTEBOOK (notebook), gtk_label_new (NULL), NULL);
 
-	priv->repres_notebook_tabs[REPRES_ESCAPE] = gtk_label_new (NULL);
-	priv->repres_notebook_tabs[REPRES_ESCAPE_LOG] = priv->repres_log_base_hbox;
-	priv->repres_notebook_tabs[REPRES_DISTANCE] = gtk_label_new (NULL);
+	container = gtk_hbox_new (FALSE, 2);
+	gtk_notebook_append_page (GTK_NOTEBOOK (notebook), container, NULL);
 
-	priv->repres_notebook = gtk_notebook_new ();
-	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (priv->repres_notebook), FALSE);
-	gtk_notebook_set_show_border (GTK_NOTEBOOK (priv->repres_notebook), FALSE);
-	for (i = 0; i < REPRES_MAX; i++)
-		gtk_notebook_append_page (GTK_NOTEBOOK (priv->repres_notebook), priv->repres_notebook_tabs[i], NULL);
+	gtk_box_pack_start (GTK_BOX (container), my_gtk_label_new ("Base of Logarithm", label_size_group), FALSE, FALSE, 0);
 
-	priv->repres_vbox = gtk_vbox_new (FALSE, 2);
-	gtk_box_pack_start (GTK_BOX (priv->repres_vbox), priv->repres_hbox, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (priv->repres_vbox), priv->repres_notebook, FALSE, FALSE, 0);
+	widget = gtk_spin_button_new_with_range (1.0, 100000.0, 0.001);
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_box_pack_start (GTK_BOX (container), widget, TRUE, TRUE, 0);
+	priv->repres_log_base_input = widget;
+	g_object_ref (priv->repres_log_base_input);
 
-	priv->repres_frame = gtk_frame_new ("Representation Settings");
-	gtk_container_add (GTK_CONTAINER (priv->repres_frame), priv->repres_vbox);
+	gtk_notebook_append_page (GTK_NOTEBOOK (notebook), gtk_label_new (NULL), NULL);
 
-	GtkBox *dlg_vbox = GTK_BOX (GTK_DIALOG (dlg)->vbox);
-	gtk_box_pack_start (dlg_vbox, priv->type_table, FALSE, FALSE, 0);
-	gtk_box_pack_start (dlg_vbox, priv->area_frame, FALSE, FALSE, 0);
-	gtk_box_pack_start (dlg_vbox, priv->general_param_frame, FALSE, FALSE, 0);
-	gtk_box_pack_start (dlg_vbox, priv->type_param_frame, FALSE, FALSE, 0);
-	gtk_box_pack_start (dlg_vbox, priv->repres_frame, FALSE, FALSE, 0);
 	gtk_widget_show_all (GTK_WIDGET (dlg_vbox));
-
-	g_signal_connect_object (priv->type_input, "changed", (GCallback) type_dlg_type_updated, dlg, G_CONNECT_SWAPPED);
-	g_signal_connect_object (priv->repres_input, "changed", (GCallback) type_dlg_repres_updated, dlg, G_CONNECT_SWAPPED);
-	g_signal_connect_object (priv->defaults_button, "clicked", (GCallback) type_dlg_defaults_clicked, dlg, G_CONNECT_SWAPPED);
 
 	mpf_init (priv->area.center.real);
 	mpf_init (priv->area.center.imag);
 	mpf_init (priv->area.magf);
+
+	g_object_unref (label_size_group);
+	g_object_unref (input_size_group);
 }
 
 
@@ -314,7 +333,6 @@ type_dlg_type_updated (FractalTypeDialog *dlg, gpointer data)
 	fractal_type_t type = type_dlg_get_type (dlg);
 	const bool has_maxiter = (gui_fractal_types[type].flags & GUI_FTYPE_HAS_MAXITER) != 0;
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (priv->type_param_notebook), type);
-	gtk_widget_set_sensitive (priv->maxiter_label, has_maxiter);
 	gtk_widget_set_sensitive (priv->maxiter_input, has_maxiter);
 	gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->repres_list), iter);
 	do {
@@ -495,16 +513,19 @@ static struct gui_type_param *
 create_mandelbrot_param (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_group)
 {
 	struct gui_mandelbrot_param *par = malloc (sizeof (*par));
+	GtkTable *table;
 	memset (par, 0, sizeof (*par));
-	par->zpower_label = my_gtk_label_new ("Power of Z", label_size_group);
-	par->zpower_input = gtk_spin_button_new_with_range (2.0, 100000.0, 1.0);
-	gtk_size_group_add_widget (input_size_group, par->zpower_input);
-	par->ftype.main_widget = gtk_table_new (2, 1, FALSE);
-	GtkTable *table = GTK_TABLE (par->ftype.main_widget);
+	table = GTK_TABLE (gtk_table_new (2, 1, FALSE));
 	gtk_table_set_row_spacings (table, 2);
 	gtk_table_set_col_spacings (table, 2);
-	gtk_table_attach (table, par->zpower_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	par->ftype.main_widget = GTK_WIDGET (table);
+	g_object_ref (par->ftype.main_widget);
+
+	gtk_table_attach (table, my_gtk_label_new ("Power of Z", label_size_group), 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+	par->zpower_input = gtk_spin_button_new_with_range (2.0, 100000.0, 1.0);
+	gtk_size_group_add_widget (input_size_group, par->zpower_input);
 	gtk_table_attach (table, par->zpower_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	g_object_ref (par->zpower_input);
 	return &par->ftype;
 }
 
@@ -514,25 +535,37 @@ create_julia_param (GtkSizeGroup *label_size_group, GtkSizeGroup *input_size_gro
 {
 	struct gui_julia_param *par = malloc (sizeof (*par));
 	memset (par, 0, sizeof (*par));
-	par->zpower_label = my_gtk_label_new ("Power of Z", label_size_group);
-	par->zpower_input = gtk_spin_button_new_with_range (2.0, 100000.0, 1.0);
-	gtk_size_group_add_widget (input_size_group, par->zpower_input);
-	par->preal_label = my_gtk_label_new ("Real Part of Parameter", label_size_group);
-	par->preal_input = gtk_entry_new ();
-	gtk_size_group_add_widget (input_size_group, par->preal_input);
-	par->pimag_label = my_gtk_label_new ("Imaginary Part of Parameter", label_size_group);
-	par->pimag_input = gtk_entry_new ();
-	gtk_size_group_add_widget (input_size_group, par->pimag_input);
-	par->ftype.main_widget = gtk_table_new (2, 3, FALSE);
-	GtkTable *table = GTK_TABLE (par->ftype.main_widget);
+	GtkWidget *widget;
+	GtkTable *table = GTK_TABLE (gtk_table_new (2, 3, FALSE));
 	gtk_table_set_row_spacings (table, 2);
 	gtk_table_set_col_spacings (table, 2);
-	gtk_table_attach (table, par->zpower_label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (table, par->zpower_input, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (table, par->preal_label, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (table, par->preal_input, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
-	gtk_table_attach (table, par->pimag_label, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
-	gtk_table_attach (table, par->pimag_input, 1, 2, 2, 3, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	par->ftype.main_widget = GTK_WIDGET (table);
+	g_object_ref (par->ftype.main_widget);
+
+	gtk_table_attach (table, my_gtk_label_new ("Power of Z", label_size_group), 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+
+	widget = gtk_spin_button_new_with_range (2.0, 100000.0, 1.0);
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (table, widget, 1, 2, 0, 1, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	par->zpower_input = widget;
+	g_object_ref (par->zpower_input);
+
+	gtk_table_attach (table, my_gtk_label_new ("Real Part of Parameter", label_size_group), 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+
+	widget = gtk_entry_new ();
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (table, widget, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	par->preal_input = widget;
+	g_object_ref (par->preal_input);
+
+	gtk_table_attach (table, my_gtk_label_new ("Imaginary Part of Parameter", label_size_group), 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+
+	widget = gtk_entry_new ();
+	gtk_size_group_add_widget (input_size_group, widget);
+	gtk_table_attach (table, widget, 1, 2, 2, 3, GTK_EXPAND | GTK_FILL, 0, 0, 0);
+	par->pimag_input = widget;
+	g_object_ref (par->pimag_input);
+
 	mpf_init (par->param.real);
 	mpf_init (par->param.imag);
 	return &par->ftype;
