@@ -54,7 +54,8 @@
      TOKEN_ESCAPE_LOG = 270,
      TOKEN_DISTANCE = 271,
      TOKEN_BASE = 272,
-     TOKEN_IDENTIFIER = 273
+     TOKEN_IDENTIFIER = 273,
+     TOKEN_INVALID_CHAR = 274
    };
 #endif
 /* Tokens.  */
@@ -74,13 +75,14 @@
 #define TOKEN_DISTANCE 271
 #define TOKEN_BASE 272
 #define TOKEN_IDENTIFIER 273
+#define TOKEN_INVALID_CHAR 274
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 23 "coord_parse.y"
+#line 24 "coord_parse.y"
 {
 	char *string;
 	struct mandel_point mandel_point;
@@ -91,12 +93,26 @@ typedef union YYSTYPE
 	struct mandel_repres *repres;
 }
 /* Line 1489 of yacc.c.  */
-#line 95 "coord_parse.tab.h"
+#line 97 "coord_parse.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1
 #endif
 
+
+
+#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+typedef struct YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+} YYLTYPE;
+# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
+# define YYLTYPE_IS_DECLARED 1
+# define YYLTYPE_IS_TRIVIAL 1
+#endif
 
 

@@ -1,4 +1,5 @@
 %error-verbose
+%locations
 %pure-parser
 
 %parse-param {yyscan_t scanner}
@@ -34,9 +35,13 @@ struct coordparam;
 #include "coord_lex.yy.h"
 
 static void
-coord_error (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
+coord_error (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
 {
-	my_safe_strcpy (errbuf, msg, errbsize);
+	errbuf[0] = 0; /* default value in case snprintf barfs */
+	if (loc->last_column > loc->first_column + 1)
+		snprintf (errbuf, errbsize, "%s in line %d, column %d-%d", msg, loc->first_line, loc->first_column + 1, loc->last_column);
+	else
+		snprintf (errbuf, errbsize, "%s in line %d, column %d", msg, loc->first_line, loc->first_column + 1);
 }
 
 
@@ -158,6 +163,7 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 %token TOKEN_DISTANCE
 %token TOKEN_BASE
 %token TOKEN_IDENTIFIER
+%token TOKEN_INVALID_CHAR
 
 %start coord
 

@@ -1,18 +1,21 @@
 %option noyywrap
 %option reentrant
 %option bison-bridge
+%option bison-locations
 
 %{
 #include <string.h>
 #include "mandelbrot.h"
 #include "coord_parse.tab.h"
+
+#define YY_USER_ACTION {yylloc->first_column = yylloc->last_column; yylloc->last_column += yyleng;}
 %}
 
 DIGIT		[0-9]
 INT			[-+]?{DIGIT}+
 REAL		[-+]?{DIGIT}+(\.{DIGIT}+)?([eE]{INT})?
 IDENTIFIER	[A-Za-z_][-A-Za-z_0-9]*
-COMMENT		\/\/[^\n]*\n
+COMMENT		\/\/[^\n]*
 
 %%
 
@@ -40,6 +43,8 @@ escape-log				return TOKEN_ESCAPE_LOG;
 distance				return TOKEN_DISTANCE;
 base					return TOKEN_BASE;
 {IDENTIFIER}			return TOKEN_IDENTIFIER;
+\n						yylloc->first_line++; yylloc->last_column = 0;
+[[:space:]]				/* do nothing */
 [;\{\}/]				return *yytext;
-[[:space:]]+			/* do nothing */
 {COMMENT}				/* do nothing */
+.						return TOKEN_INVALID_CHAR;

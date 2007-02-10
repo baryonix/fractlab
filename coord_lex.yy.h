@@ -267,6 +267,10 @@ YYSTYPE * coord_get_lval (yyscan_t yyscanner );
 
 void coord_set_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
+       YYLTYPE *coord_get_lloc (yyscan_t yyscanner );
+    
+        void coord_set_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
+    
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
  */
@@ -307,9 +311,9 @@ static int yy_flex_strlen (yyconst char * ,yyscan_t yyscanner);
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int coord_lex (YYSTYPE * yylval_param ,yyscan_t yyscanner);
+extern int coord_lex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int coord_lex (YYSTYPE * yylval_param , yyscan_t yyscanner)
+#define YY_DECL int coord_lex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
@@ -326,8 +330,8 @@ extern int coord_lex (YYSTYPE * yylval_param ,yyscan_t yyscanner);
 #undef YY_DECL
 #endif
 
-#line 46 "coord_lex.l"
+#line 51 "coord_lex.l"
 
-#line 332 "coord_lex.yy.h"
+#line 336 "coord_lex.yy.h"
 #undef coord_IN_HEADER
 #endif /* coord_HEADER_H */
