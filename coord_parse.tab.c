@@ -90,7 +90,7 @@
      TOKEN_DISTANCE = 271,
      TOKEN_BASE = 272,
      TOKEN_IDENTIFIER = 273,
-     TOKEN_INVALID_CHAR = 274
+     TOKEN_LEX_ERROR = 274
    };
 #endif
 /* Tokens.  */
@@ -110,7 +110,7 @@
 #define TOKEN_DISTANCE 271
 #define TOKEN_BASE 272
 #define TOKEN_IDENTIFIER 273
-#define TOKEN_INVALID_CHAR 274
+#define TOKEN_LEX_ERROR 274
 
 
 
@@ -186,14 +186,34 @@ typedef struct YYLTYPE
 
 #include "coord_lex.yy.h"
 
+/*
+ * We must access yychar (the lookahead token) and yylval for error reporting,
+ * but in the pure world they are local variables within yyparse(). Thus, we
+ * define yyerror() as a macro which passes them as arguments to the actual
+ * error reporting function.
+ */
+#define coord_error(loc, scanner, md, errbuf, errbsize, msg) (coord_error_func (loc, scanner, md, errbuf, errbsize, msg, yychar, &yylval))
+
 static void
-coord_error (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
+coord_error_func (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg, int lookahead, YYSTYPE *lval)
 {
+	switch (lookahead) {
+		case TOKEN_LEX_ERROR:
+			msg = lval->string;
+			break;
+		case 0:
+			msg = "Unexpected EOF";
+			break;
+		default:
+			break;
+	}
 	errbuf[0] = 0; /* default value in case snprintf barfs */
 	if (loc->last_column > loc->first_column + 1)
-		snprintf (errbuf, errbsize, "%s in line %d, column %d-%d", msg, loc->first_line, loc->first_column + 1, loc->last_column);
+		snprintf (errbuf, errbsize, "%s in line %d, columns %d-%d", msg, loc->first_line, loc->first_column + 1, loc->last_column);
 	else
 		snprintf (errbuf, errbsize, "%s in line %d, column %d", msg, loc->first_line, loc->first_column + 1);
+	if (lookahead == TOKEN_LEX_ERROR)
+		free (lval->string);
 }
 
 
@@ -288,7 +308,7 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 
 
 /* Line 216 of yacc.c.  */
-#line 292 "coord_parse.tab.c"
+#line 312 "coord_parse.tab.c"
 
 #ifdef short
 # undef short
@@ -583,9 +603,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   172,   172,   173,   176,   185,   189,   194,   199,   205,
-     209,   215,   218,   224,   229,   232,   238,   241,   247,   251,
-     257,   266,   276,   280,   284,   290,   293
+       0,   192,   192,   193,   196,   205,   209,   214,   219,   225,
+     229,   235,   238,   244,   249,   252,   258,   261,   267,   271,
+     277,   286,   296,   300,   304,   310,   313
 };
 #endif
 
@@ -598,7 +618,7 @@ static const char *const yytname[] =
   "TOKEN_COORD_V1", "TOKEN_TYPE", "TOKEN_MANDELBROT", "TOKEN_JULIA",
   "TOKEN_AREA", "TOKEN_ZPOWER", "TOKEN_MAXITER", "TOKEN_PARAMETER",
   "TOKEN_REPRESENTATION", "TOKEN_ESCAPE", "TOKEN_ESCAPE_LOG",
-  "TOKEN_DISTANCE", "TOKEN_BASE", "TOKEN_IDENTIFIER", "TOKEN_INVALID_CHAR",
+  "TOKEN_DISTANCE", "TOKEN_BASE", "TOKEN_IDENTIFIER", "TOKEN_LEX_ERROR",
   "'{'", "'}'", "';'", "'/'", "$accept", "real", "coord", "coord_params",
   "coord_param", "mandelbrot_params", "mandelbrot_param", "julia_params",
   "julia_param", "mandel_julia_param", "point_desc", "area_desc",
@@ -1569,17 +1589,17 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 172 "coord_parse.y"
+#line 192 "coord_parse.y"
     { (yyval.string) = (yyvsp[(1) - (1)].string); ;}
     break;
 
   case 3:
-#line 173 "coord_parse.y"
+#line 193 "coord_parse.y"
     { (yyval.string) = (yyvsp[(1) - (1)].string); ;}
     break;
 
   case 4:
-#line 176 "coord_parse.y"
+#line 196 "coord_parse.y"
     {
 						mandeldata_init (md, fractal_type_by_id ((yyvsp[(3) - (5)].coordparam)->type));
 						mandeldata_set_defaults (md);
@@ -1590,7 +1610,7 @@ yyreduce:
     break;
 
   case 5:
-#line 185 "coord_parse.y"
+#line 205 "coord_parse.y"
     {
 						(yyval.coordparam) = malloc (sizeof (*(yyval.coordparam)));
 						(yyval.coordparam)->param = mdparam_new (set_compound);
@@ -1598,7 +1618,7 @@ yyreduce:
     break;
 
   case 6:
-#line 189 "coord_parse.y"
+#line 209 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (7)].coordparam);
 						(yyval.coordparam)->type = FRACTAL_MANDELBROT;
@@ -1607,7 +1627,7 @@ yyreduce:
     break;
 
   case 7:
-#line 194 "coord_parse.y"
+#line 214 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (7)].coordparam);
 						(yyval.coordparam)->type = FRACTAL_JULIA;
@@ -1616,7 +1636,7 @@ yyreduce:
     break;
 
   case 8:
-#line 199 "coord_parse.y"
+#line 219 "coord_parse.y"
     {
 						(yyval.coordparam) = (yyvsp[(1) - (3)].coordparam);
 						add_to_compound ((yyval.coordparam)->param, (yyvsp[(2) - (3)].mdparam));
@@ -1624,7 +1644,7 @@ yyreduce:
     break;
 
   case 9:
-#line 205 "coord_parse.y"
+#line 225 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_area);
 						memcpy (&(yyval.mdparam)->data.mandel_area, &(yyvsp[(2) - (2)].mandel_area), sizeof ((yyval.mdparam)->data.mandel_area));
@@ -1632,7 +1652,7 @@ yyreduce:
     break;
 
   case 10:
-#line 209 "coord_parse.y"
+#line 229 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_repres);
 						(yyval.mdparam)->data.repres = (yyvsp[(2) - (2)].repres);
@@ -1640,14 +1660,14 @@ yyreduce:
     break;
 
   case 11:
-#line 215 "coord_parse.y"
+#line 235 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_compound);
 					;}
     break;
 
   case 12:
-#line 218 "coord_parse.y"
+#line 238 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (3)].mdparam);
 						add_to_compound ((yyval.mdparam), (yyvsp[(2) - (3)].mdparam));
@@ -1655,21 +1675,21 @@ yyreduce:
     break;
 
   case 13:
-#line 224 "coord_parse.y"
+#line 244 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (1)].mdparam);
 					;}
     break;
 
   case 14:
-#line 229 "coord_parse.y"
+#line 249 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_compound);
 					;}
     break;
 
   case 15:
-#line 232 "coord_parse.y"
+#line 252 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (3)].mdparam);
 						add_to_compound ((yyval.mdparam), (yyvsp[(2) - (3)].mdparam));
@@ -1677,14 +1697,14 @@ yyreduce:
     break;
 
   case 16:
-#line 238 "coord_parse.y"
+#line 258 "coord_parse.y"
     {
 						(yyval.mdparam) = (yyvsp[(1) - (1)].mdparam);
 					;}
     break;
 
   case 17:
-#line 241 "coord_parse.y"
+#line 261 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_julia_parameter);
 						memcpy (&(yyval.mdparam)->data.mandel_point, &(yyvsp[(2) - (2)].mandel_point), sizeof ((yyval.mdparam)->data.mandel_point));
@@ -1692,7 +1712,7 @@ yyreduce:
     break;
 
   case 18:
-#line 247 "coord_parse.y"
+#line 267 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_zpower);
 						(yyval.mdparam)->data.string = (yyvsp[(2) - (2)].string);
@@ -1700,7 +1720,7 @@ yyreduce:
     break;
 
   case 19:
-#line 251 "coord_parse.y"
+#line 271 "coord_parse.y"
     {
 						(yyval.mdparam) = mdparam_new (set_maxiter);
 						(yyval.mdparam)->data.string = (yyvsp[(2) - (2)].string);
@@ -1708,7 +1728,7 @@ yyreduce:
     break;
 
   case 20:
-#line 257 "coord_parse.y"
+#line 277 "coord_parse.y"
     {
 						mandel_point_init (&(yyval.mandel_point));
 						mpf_set_str ((yyval.mandel_point).real, (yyvsp[(1) - (3)].string), 10);
@@ -1719,7 +1739,7 @@ yyreduce:
     break;
 
   case 21:
-#line 266 "coord_parse.y"
+#line 286 "coord_parse.y"
     {
 						mandel_area_init (&(yyval.mandel_area));
 						mpf_set ((yyval.mandel_area).center.real, (yyvsp[(1) - (3)].mandel_point).real);
@@ -1731,7 +1751,7 @@ yyreduce:
     break;
 
   case 22:
-#line 276 "coord_parse.y"
+#line 296 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 						(yyval.repres)->repres = REPRES_ESCAPE;
@@ -1739,7 +1759,7 @@ yyreduce:
     break;
 
   case 23:
-#line 280 "coord_parse.y"
+#line 300 "coord_parse.y"
     {
 						(yyval.repres) = (yyvsp[(3) - (4)].repres);
 						(yyval.repres)->repres = REPRES_ESCAPE_LOG;
@@ -1747,7 +1767,7 @@ yyreduce:
     break;
 
   case 24:
-#line 284 "coord_parse.y"
+#line 304 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 						(yyval.repres)->repres = REPRES_DISTANCE;
@@ -1755,14 +1775,14 @@ yyreduce:
     break;
 
   case 25:
-#line 290 "coord_parse.y"
+#line 310 "coord_parse.y"
     {
 						(yyval.repres) = malloc (sizeof (*(yyval.repres)));
 					;}
     break;
 
   case 26:
-#line 293 "coord_parse.y"
+#line 313 "coord_parse.y"
     {
 						(yyval.repres) = (yyvsp[(1) - (4)].repres);
 						(yyvsp[(1) - (4)].repres)->params.log_base = strtod ((yyvsp[(3) - (4)].string), NULL);
@@ -1772,7 +1792,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1776 "coord_parse.tab.c"
+#line 1796 "coord_parse.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

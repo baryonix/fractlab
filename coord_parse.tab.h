@@ -55,7 +55,7 @@
      TOKEN_DISTANCE = 271,
      TOKEN_BASE = 272,
      TOKEN_IDENTIFIER = 273,
-     TOKEN_INVALID_CHAR = 274
+     TOKEN_LEX_ERROR = 274
    };
 #endif
 /* Tokens.  */
@@ -75,7 +75,7 @@
 #define TOKEN_DISTANCE 271
 #define TOKEN_BASE 272
 #define TOKEN_IDENTIFIER 273
-#define TOKEN_INVALID_CHAR 274
+#define TOKEN_LEX_ERROR 274
 
 
 

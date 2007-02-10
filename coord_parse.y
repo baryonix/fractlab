@@ -34,14 +34,34 @@ struct coordparam;
 %{
 #include "coord_lex.yy.h"
 
+/*
+ * We must access yychar (the lookahead token) and yylval for error reporting,
+ * but in the pure world they are local variables within yyparse(). Thus, we
+ * define yyerror() as a macro which passes them as arguments to the actual
+ * error reporting function.
+ */
+#define coord_error(loc, scanner, md, errbuf, errbsize, msg) (coord_error_func (loc, scanner, md, errbuf, errbsize, msg, yychar, &yylval))
+
 static void
-coord_error (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg)
+coord_error_func (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg, int lookahead, YYSTYPE *lval)
 {
+	switch (lookahead) {
+		case TOKEN_LEX_ERROR:
+			msg = lval->string;
+			break;
+		case 0:
+			msg = "Unexpected EOF";
+			break;
+		default:
+			break;
+	}
 	errbuf[0] = 0; /* default value in case snprintf barfs */
 	if (loc->last_column > loc->first_column + 1)
-		snprintf (errbuf, errbsize, "%s in line %d, column %d-%d", msg, loc->first_line, loc->first_column + 1, loc->last_column);
+		snprintf (errbuf, errbsize, "%s in line %d, columns %d-%d", msg, loc->first_line, loc->first_column + 1, loc->last_column);
 	else
 		snprintf (errbuf, errbsize, "%s in line %d, column %d", msg, loc->first_line, loc->first_column + 1);
+	if (lookahead == TOKEN_LEX_ERROR)
+		free (lval->string);
 }
 
 
@@ -163,7 +183,7 @@ add_to_compound (struct mdparam *param, struct mdparam *child)
 %token TOKEN_DISTANCE
 %token TOKEN_BASE
 %token TOKEN_IDENTIFIER
-%token TOKEN_INVALID_CHAR
+%token <string> TOKEN_LEX_ERROR
 
 %start coord
 

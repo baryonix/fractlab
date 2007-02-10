@@ -2,6 +2,9 @@
 %option reentrant
 %option bison-bridge
 %option bison-locations
+%option stack
+
+%x CCOMMENT
 
 %{
 #include <string.h>
@@ -15,7 +18,7 @@ DIGIT		[0-9]
 INT			[-+]?{DIGIT}+
 REAL		[-+]?{DIGIT}+(\.{DIGIT}+)?([eE]{INT})?
 IDENTIFIER	[A-Za-z_][-A-Za-z_0-9]*
-COMMENT		\/\/[^\n]*
+CXXCOMMENT	\/\/[^\n]*
 
 %%
 
@@ -43,8 +46,21 @@ escape-log				return TOKEN_ESCAPE_LOG;
 distance				return TOKEN_DISTANCE;
 base					return TOKEN_BASE;
 {IDENTIFIER}			return TOKEN_IDENTIFIER;
-\n						yylloc->first_line++; yylloc->last_column = 0;
+<INITIAL,CCOMMENT>"/*"	yy_push_state (CCOMMENT, yyscanner);
+<INITIAL,CCOMMENT>\n	yylloc->first_line++; yylloc->first_column = yylloc->last_column = 0;
 [[:space:]]				/* do nothing */
-[;\{\}/]				return *yytext;
-{COMMENT}				/* do nothing */
-.						return TOKEN_INVALID_CHAR;
+[;\{\}/]				return yytext[0];
+{CXXCOMMENT}			/* do nothing */
+. {
+	char buf[128];
+	buf[0] = 0;
+	snprintf (buf, sizeof (buf), "Invalid character `%c'", yytext[0]);
+	yylval->string = strdup (buf);
+	return TOKEN_LEX_ERROR;
+}
+<CCOMMENT>"*/"			yy_pop_state (yyscanner);
+<CCOMMENT><<EOF>> {
+	yylval->string = strdup ("Comment extends past end of file");
+	return TOKEN_LEX_ERROR;
+}
+<CCOMMENT>.				/* do nothing */

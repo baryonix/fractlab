@@ -219,6 +219,7 @@ void coord_free (void * ,yyscan_t yyscanner );
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
+#define CCOMMENT 1
 
 #endif
 
@@ -330,8 +331,8 @@ extern int coord_lex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yy
 #undef YY_DECL
 #endif
 
-#line 51 "coord_lex.l"
+#line 67 "coord_lex.l"
 
-#line 336 "coord_lex.yy.h"
+#line 337 "coord_lex.yy.h"
 #undef coord_IN_HEADER
 #endif /* coord_HEADER_H */
