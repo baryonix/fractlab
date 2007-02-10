@@ -176,3 +176,13 @@ my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format
 		my_safe_strcpy (errbuf, strerror (errno), errbsize);
 	return res;
 }
+
+
+FILE *
+my_fopen (const char *path, const char *mode, char *errbuf, size_t errbsize)
+{
+	FILE *f = fopen (path, mode);
+	if (f == NULL)
+		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	return f;
+}

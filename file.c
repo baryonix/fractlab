@@ -36,11 +36,9 @@ bool
 read_mandeldata (const char *filename, struct mandeldata *md, char *errbuf, size_t errbsize)
 {
 	bool res;
-	FILE *f = fopen (filename, "r");
-	if (f == NULL) {
-		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	FILE *f = my_fopen (filename, "r", errbuf, errbsize);
+	if (f == NULL)
 		return false;
-	}
 	res = fread_mandeldata (f, md, errbuf, errbsize);
 	fclose (f);
 	return res;
@@ -114,11 +112,9 @@ bool
 write_mandeldata (const char *filename, const struct mandeldata *md, char *errbuf, size_t errbsize)
 {
 	bool res;
-	FILE *f = fopen (filename, "w");
-	if (f == NULL) {
-		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	FILE *f = my_fopen (filename, "w", errbuf, errbsize);
+	if (f == NULL)
 		return false;
-	}
 	res = fwrite_mandeldata (f, md, errbuf, errbsize);
 	fclose (f);
 	return res;

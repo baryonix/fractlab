@@ -40,4 +40,6 @@ int my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format
 int my_gmp_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...);
 int my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
 
+FILE *my_fopen (const char *path, const char *mode, char *errbuf, size_t errbsize);
+
 #endif /* _GTKMANDEL_UTIL_H */
