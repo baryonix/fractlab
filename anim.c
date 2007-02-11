@@ -203,6 +203,9 @@ render_frame (struct anim_state *state, unsigned long i)
 	sprintf (name, "file%06lu.png", i);
 	write_png (state, renderer, name);
 
+#ifdef _POSIX_THREAD_SAFE_FUNCTIONS
+	flockfile (stderr);
+#endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 	if (clock_ok)
 		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
@@ -214,6 +217,9 @@ render_frame (struct anim_state *state, unsigned long i)
 	else
 		fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
 	fprintf (stderr, ".\n");
+#ifdef _POSIX_THREAD_SAFE_FUNCTIONS
+	funlockfile (stderr);
+#endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 
 	mandel_renderer_clear (renderer);
 	mandeldata_clear (md);
