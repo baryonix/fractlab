@@ -967,7 +967,7 @@ YY_RULE_SETUP
 {
 	char buf[128];
 	buf[0] = 0;
-	snprintf (buf, sizeof (buf), "Invalid character `%c'", yytext[0]);
+	snprintf (buf, sizeof (buf), "Invalid character \342\200\230%c\342\200\231", yytext[0]);
 	yylval->string = strdup (buf);
 	return TOKEN_LEX_ERROR;
 }
