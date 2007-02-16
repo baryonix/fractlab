@@ -512,7 +512,7 @@ static yyconst flex_int16_t yy_chk[191] =
 
 #line 10 "coord_lex.l"
 #include <string.h>
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "coord_parse.tab.h"
 
 #define YY_USER_ACTION {yylloc->first_column = yylloc->last_column; yylloc->last_column += yyleng;}

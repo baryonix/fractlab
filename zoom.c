@@ -12,7 +12,7 @@
 #include "util.h"
 #include "file.h"
 #include "defs.h"
-#include "mandelbrot.h"
+#include "fractal-render.h"
 
 
 

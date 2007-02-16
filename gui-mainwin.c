@@ -3,7 +3,7 @@
 #include <glib.h>
 #include <gtk/gtk.h>
 
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "gtkmandel.h"
 #include "gui-util.h"
 #include "gui-mainwin.h"

@@ -19,7 +19,7 @@
 
 #include "file.h"
 #include "fpdefs.h"
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "gtkmandel.h"
 #include "defs.h"
 #include "gui.h"

@@ -2,7 +2,7 @@
 #define _MANDEL_FILE_H
 
 #include <stdbool.h>
-#include "mandelbrot.h"
+#include "fractal-render.h"
 
 bool read_mandeldata (const char *filename, struct mandeldata *md, char *errbuf, size_t errbsize);
 bool fread_mandeldata (FILE *f, struct mandeldata *md, char *errbuf, size_t errbsize);

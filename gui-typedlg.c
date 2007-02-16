@@ -4,7 +4,7 @@
 #include <glib.h>
 #include <gtk/gtk.h>
 
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "util.h"
 #include "gui-util.h"
 #include "gui-typedlg.h"

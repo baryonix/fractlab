@@ -3,7 +3,7 @@ TODO
 - dynamically adjusted precision for all calculations
 - fix all memory leaks
 - implement real color palette handling, get rid of global variable mandelcolors
-- improve statistics about calculated/saved iterations, must become
+- implement statistics about calculated/saved iterations, must become
   thread-safe too
 - fix asm routine to support Julia set
 - find a way to parallelize the boundary trace method

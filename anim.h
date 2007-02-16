@@ -5,7 +5,7 @@
 
 #include <glib.h>
 
-#include "mandelbrot.h"
+#include "fractal-render.h"
 
 typedef void (*frame_func_t) (void *data, struct mandeldata *md, unsigned long i);
 

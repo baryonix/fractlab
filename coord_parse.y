@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "util.h"
 
 struct mdparam;

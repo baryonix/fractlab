@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "file.h"
 #include "coord_parse.tab.h"
 

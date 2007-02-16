@@ -17,7 +17,7 @@
 
 
 #include "gtkmandel.h"
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "defs.h"
 #include "file.h"
 #include "util.h"

@@ -2,7 +2,7 @@
 #define _GTKMANDEL_H
 
 
-#include "mandelbrot.h"
+#include "fractal-render.h"
 #include "gui-util.h"
 
 
