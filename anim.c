@@ -18,17 +18,27 @@ struct color {
 };
 
 
-struct anim_state {
-	GMutex *mutex;
-	unsigned long i;
-	frame_func_t frame_func;
-	void *data;
+struct work_list_item {
+	int i;
+	struct mandeldata md;
+	struct work_list_item *next;
 };
 
 
-static void write_png (const struct anim_state *state, const struct mandel_renderer *md, const char *filename);
+struct anim_state {
+	GMutex *mutex;
+	unsigned thread_count;
+	struct work_list_item *work_list;
+	struct work_list_item **threads;
+};
+
+
+static void write_png (const struct mandel_renderer *md, const char *filename);
 static gpointer thread_func (gpointer data);
-static void render_frame (struct anim_state *state, unsigned long i);
+static void render_frame (struct mandeldata *md, unsigned long i);
+static struct work_list_item *generate_work_list (frame_func_t frame_func, void *data);
+static void free_work_list (struct work_list_item *list);
+static void free_work_list_item (struct work_list_item *item);
 
 
 struct color colors[COLORS];
@@ -73,9 +83,17 @@ anim_render (frame_func_t frame_func, void *data)
 		clock_ticks = CLK_TCK;
 #endif
 	struct anim_state state[1];
-	state->frame_func = frame_func;
-	state->data = data;
-	state->i = start_frame;
+	memset (state, 0, sizeof (*state));
+	fprintf (stderr, "* DEBUG: Generating work list...\n");
+	state->work_list = generate_work_list (frame_func, data);
+	if (state->work_list == NULL)
+		return;
+	state->threads = malloc (zoom_threads * sizeof (*state->threads));
+	if (state->threads == NULL) {
+		fprintf (stderr, "* ERROR: Out of memory.\n");
+		return;
+	}
+	memset (state->threads, 0, zoom_threads * sizeof (*state->threads));
 
 	int i;
 	for (i = 0; i < COLORS; i++) {
@@ -88,20 +106,21 @@ anim_render (frame_func_t frame_func, void *data)
 		g_thread_init (NULL);
 		GThread *threads[zoom_threads];
 		state->mutex = g_mutex_new ();
-		state->i = start_frame;
 		for (i = 0; i < zoom_threads; i++)
 			threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
 		for (i = 0; i < zoom_threads; i++)
 			g_thread_join (threads[i]);
 		g_mutex_free (state->mutex);
-	} else
-		for (i = start_frame; i < frame_count; i++)
-			render_frame (state, i);
+	} else {
+		struct work_list_item *cur;
+		for (cur = state->work_list; cur != NULL; cur = cur->next)
+			render_frame (&cur->md, cur->i);
+	}
 }
 
 
 static void
-write_png (const struct anim_state *state, const struct mandel_renderer *renderer, const char *filename)
+write_png (const struct mandel_renderer *renderer, const char *filename)
 {
 	FILE *f = fopen (filename, "wb");
 
@@ -154,7 +173,6 @@ thread_func (gpointer data)
 	while (TRUE) {
 		unsigned long i;
 		g_mutex_lock (state->mutex);
-		i = state->i++;
 		g_mutex_unlock (state->mutex);
 		if (i >= frame_count)
 			break;
@@ -166,12 +184,9 @@ thread_func (gpointer data)
 
 
 static void
-render_frame (struct anim_state *state, unsigned long i)
+render_frame (struct mandeldata *md, unsigned long i)
 {
-	struct mandeldata md[1];
 	struct mandel_renderer renderer[1];
-
-	state->frame_func (state->data, md, i);
 
 	mandel_renderer_init (renderer, md, img_width, img_height);
 	renderer->render_method = RM_BOUNDARY_TRACE;
@@ -201,7 +216,7 @@ render_frame (struct anim_state *state, unsigned long i)
 
 	char name[64];
 	sprintf (name, "file%06lu.png", i);
-	write_png (state, renderer, name);
+	write_png (renderer, name);
 
 #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
 	flockfile (stderr);
@@ -222,5 +237,54 @@ render_frame (struct anim_state *state, unsigned long i)
 #endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 
 	mandel_renderer_clear (renderer);
-	mandeldata_clear (md);
+}
+
+
+static struct work_list_item *
+generate_work_list (frame_func_t frame_func, void *data)
+{
+	struct work_list_item *cur = malloc (sizeof (*cur)), *first = cur;
+	unsigned i = start_frame;
+
+	if (i >= frame_count)
+		return NULL; /* nothing to do */
+
+	while (true) {
+		cur->next = NULL;
+
+		if (cur == NULL) {
+			fprintf (stderr, "* ERROR: Out of memory while generating work list.\n");
+			free_work_list (first);
+			return NULL;
+		}
+
+		cur->i = i;
+		frame_func (data, &cur->md, i);
+
+		if (++i >= frame_count)
+			break;
+
+		cur->next = malloc (sizeof (*cur->next));
+		cur = cur->next;
+	}
+	return first;
+}
+
+
+static void
+free_work_list (struct work_list_item *list)
+{
+	while (list != NULL) {
+		struct work_list_item *next = list->next;
+		free_work_list_item (list);
+		list = next;
+	}
+}
+
+
+static void
+free_work_list_item (struct work_list_item *item)
+{
+	mandeldata_clear (&item->md);
+	free (item);
 }
