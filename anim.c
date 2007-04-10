@@ -61,8 +61,8 @@ anim_get_option_group (void)
 }
 
 
-void anim_render
-(frame_func_t frame_func, void *data)
+void
+anim_render (frame_func_t frame_func, void *data)
 {
 	clock_ticks = -1;
 #ifdef _SC_CLK_TCK
