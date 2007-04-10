@@ -5,7 +5,7 @@ coord_lex.yy.o: coord_lex.yy.c fractal-render.h fpdefs.h fractal-math.h \
 coord_parse.tab.o: coord_parse.tab.c fractal-render.h fpdefs.h \
   fractal-math.h util.h coord_lex.yy.h
 crc.o: crc.c crc.h
-file.o: file.c file.h fractal-render.h fpdefs.h fractal-math.h util.h
+file.o: file.c file.h util.h fpdefs.h fractal-render.h fractal-math.h
 fractal-math.o: fractal-math.c fpdefs.h misc-math.h fractal-math.h
 fractal-render.o: fractal-render.c defs.h fractal-render.h fpdefs.h \
   fractal-math.h util.h misc-math.h
@@ -22,14 +22,15 @@ gui.o: gui.c defs.h fractal-render.h fpdefs.h fractal-math.h gtkmandel.h \
   gui-util.h gui-typedlg.h gui-infodlg.h gui.h gui-mainwin.h util.h \
   file.h
 lissajoulia.o: lissajoulia.c anim.h fractal-render.h fpdefs.h \
-  fractal-math.h file.h
-main.o: main.c file.h fractal-render.h fpdefs.h fractal-math.h \
+  fractal-math.h file.h util.h
+main.o: main.c file.h util.h fpdefs.h fractal-render.h fractal-math.h \
   gtkmandel.h gui-util.h defs.h gui.h gui-mainwin.h gui-infodlg.h \
-  gui-typedlg.h util.h
+  gui-typedlg.h
 misc-math.o: misc-math.c fpdefs.h misc-math.h
 stupidmng.o: stupidmng.c crc.h
+test_iobuf.o: test_iobuf.c util.h fpdefs.h
 test_parser.o: test_parser.c fractal-render.h fpdefs.h fractal-math.h \
-  file.h coord_parse.tab.h
+  file.h util.h coord_parse.tab.h
 util.o: util.c util.h fpdefs.h
 zoom.o: zoom.c anim.h fractal-render.h fpdefs.h fractal-math.h util.h \
   file.h defs.h

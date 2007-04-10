@@ -33,7 +33,12 @@ main (int argc, char *argv[])
 		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
 	}
-	fwrite_mandeldata (stdout, md, false, errbuf, sizeof (errbuf));
+	struct io_buffer iob[1];
+	io_buffer_init (iob, NULL, 1024);
+	struct io_stream stream[1];
+	io_stream_init_buffer (stream, iob);
+	generic_write_mandeldata (stream, md, false, errbuf, sizeof (errbuf));
+	printf ("[%s]\n", iob->buf);
 #if 1
 	mandeldata_clear (md);
 	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {

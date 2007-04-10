@@ -3,8 +3,27 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "fpdefs.h"
+
+
+struct io_buffer {
+	char *buf;
+	size_t len, pos;
+	bool must_free;
+};
+
+
+/* This is a bit OOPish... */
+
+typedef int (*vprintf_func_t) (void *data, char *errbuf, size_t errbsize, const char *format, va_list args);
+
+struct io_stream {
+	vprintf_func_t vprintf, gmp_vprintf;
+	void *data;
+};
+
 
 static inline double
 my_fmax (double a, double b)
@@ -35,11 +54,18 @@ int corner_coords_to_string (mpf_srcptr xmin, mpf_srcptr xmax, mpf_srcptr ymin, 
 int center_coords_to_string (mpf_srcptr cx, mpf_srcptr cy, mpf_srcptr magf, char *cx_buf, char *cy_buf, char *magf_buf, int buf_size);
 
 void free_not_null (void *ptr);
-int my_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...);
-int my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
-int my_gmp_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...);
-int my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
+
+int my_printf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, ...);
+int my_vprintf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
+int my_gmp_printf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, ...);
+int my_gmp_vprintf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, va_list ap);
 
 FILE *my_fopen (const char *path, const char *mode, char *errbuf, size_t errbsize);
+
+bool io_buffer_init (struct io_buffer *buf, char *store, size_t len);
+void io_buffer_clear (struct io_buffer *buf);
+
+void io_stream_init_file (struct io_stream *stream, FILE *file);
+void io_stream_init_buffer (struct io_stream *stream, struct io_buffer *buf);
 
 #endif /* _GTKMANDEL_UTIL_H */

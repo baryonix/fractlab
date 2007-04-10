@@ -9,6 +9,8 @@
 
 static void absdiff (mpf_ptr d, mpf_srcptr a, mpf_srcptr b);
 static void center (mpf_ptr c, mpf_srcptr a, mpf_srcptr b);
+static int file_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap);
+static int io_buffer_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap);
 
 
 static void
@@ -134,21 +136,10 @@ free_not_null (void *ptr)
 }
 
 
-int
-my_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...)
+static int
+file_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap)
 {
-	int res;
-	va_list ap;
-	va_start (ap, format);
-	res = my_vfprintf (stream, errbuf, errbsize, format, ap);
-	va_end (ap);
-	return res;
-}
-
-
-int
-my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
-{
+	FILE *stream = (FILE *) data;
 	int res = vfprintf (stream, format, ap);
 	if (res < 0 && errbuf != NULL && errbsize > 0)
 		my_safe_strcpy (errbuf, strerror (errno), errbsize);
@@ -156,21 +147,10 @@ my_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va
 }
 
 
-int
-my_gmp_fprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, ...)
+static int
+file_gmp_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap)
 {
-	int res;
-	va_list ap;
-	va_start (ap, format);
-	res = my_gmp_vfprintf (stream, errbuf, errbsize, format, ap);
-	va_end (ap);
-	return res;
-}
-
-
-int
-my_gmp_vfprintf (FILE *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
-{
+	FILE *stream = (FILE *) data;
 	int res = gmp_vfprintf (stream, format, ap);
 	if (res < 0 && errbuf != NULL && errbsize > 0)
 		my_safe_strcpy (errbuf, strerror (errno), errbsize);
@@ -185,4 +165,120 @@ my_fopen (const char *path, const char *mode, char *errbuf, size_t errbsize)
 	if (f == NULL)
 		my_safe_strcpy (errbuf, strerror (errno), errbsize);
 	return f;
+}
+
+
+bool
+io_buffer_init (struct io_buffer *buf, char *store, size_t len)
+{
+	if (len <= 0)
+		return false;
+	buf->len = len;
+	buf->pos = 0;
+	buf->must_free = store == NULL;
+	if (store != NULL)
+		buf->buf = store;
+	else
+		buf->buf = malloc (buf->len);
+	if (buf->buf == NULL)
+		return false;
+	buf->buf[0] = 0;
+	return true;
+}
+
+
+void
+io_buffer_clear (struct io_buffer *buf)
+{
+	if (buf->must_free)
+		free (buf->buf);
+	buf->buf = NULL;
+}
+
+
+static int
+io_buffer_generic_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap, int (*vsnprintf_func) (char *, size_t, const char *, ...))
+{
+	struct io_buffer *buf = (struct io_buffer *) data;
+	size_t rem = buf->len - buf->pos;
+	int res = vsnprintf_func (buf->buf + buf->pos, rem, format, ap);
+	if (res < 0 && errbuf != NULL && errbsize > 0)
+		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+	if (res >= rem && errbuf != NULL && errbsize > 0)
+		my_safe_strcpy (errbuf, "Buffer too small", errbsize);
+	if (res < 0 || res >= rem) {
+		if (buf->pos < buf->len)
+			buf->buf[buf->pos] = 0;
+		return -1;
+	}
+	buf->pos += res;
+	return res;
+}
+
+
+static int
+io_buffer_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	return io_buffer_generic_vprintf (data, errbuf, errbsize, format, ap, vsnprintf);
+}
+
+
+static int
+io_buffer_gmp_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	return io_buffer_generic_vprintf (data, errbuf, errbsize, format, ap, gmp_vsnprintf);
+}
+
+
+void
+io_stream_init_file (struct io_stream *stream, FILE *file)
+{
+	stream->data = file;
+	stream->vprintf = file_vprintf;
+	stream->gmp_vprintf = file_gmp_vprintf;
+}
+
+
+void
+io_stream_init_buffer (struct io_stream *stream, struct io_buffer *buf)
+{
+	stream->data = buf;
+	stream->vprintf = io_buffer_vprintf;
+	stream->gmp_vprintf = io_buffer_gmp_vprintf;
+}
+
+
+int
+my_printf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, ...)
+{
+	va_list ap;
+	va_start (ap, format);
+	int r = my_vprintf (stream, errbuf, errbsize, format, ap);
+	va_end (ap);
+	return r;
+}
+
+
+int
+my_vprintf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	return stream->vprintf (stream->data, errbuf, errbsize, format, ap);
+}
+
+
+int
+my_gmp_printf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, ...)
+{
+	va_list ap;
+	va_start (ap, format);
+	int r = my_gmp_vprintf (stream, errbuf, errbsize, format, ap);
+	va_end (ap);
+	return r;
+}
+
+
+int
+my_gmp_vprintf (struct io_stream *stream, char *errbuf, size_t errbsize, const char *format, va_list ap)
+{
+	return stream->gmp_vprintf (stream->data, errbuf, errbsize, format, ap);
 }
