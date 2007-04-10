@@ -3,6 +3,7 @@
 %option bison-bridge
 %option bison-locations
 %option stack
+/* %option always-interactive */
 
 %x CCOMMENT
 

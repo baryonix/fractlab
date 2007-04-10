@@ -33,15 +33,17 @@ main (int argc, char *argv[])
 		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
 	}
-	fwrite_mandeldata (stdout, md, errbuf, sizeof (errbuf));
+	fwrite_mandeldata (stdout, md, false, errbuf, sizeof (errbuf));
 #if 1
 	mandeldata_clear (md);
 	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {
 		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
 	}
-	fwrite_mandeldata (stdout, md, errbuf, sizeof (errbuf));
+	fwrite_mandeldata (stdout, md, false, errbuf, sizeof (errbuf));
 #endif
+	fgets (errbuf, sizeof (errbuf), f);
+	printf ("after coords: [%s]\n", errbuf);
 	mandeldata_clear (md);
 	coord_lex_destroy (scanner);
 	fclose (f);

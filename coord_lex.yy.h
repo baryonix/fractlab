@@ -312,9 +312,11 @@ static int yy_flex_strlen (yyconst char * ,yyscan_t yyscanner);
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int coord_lex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int coord_lex \
+               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int coord_lex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int coord_lex \
+               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
@@ -331,8 +333,8 @@ extern int coord_lex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yy
 #undef YY_DECL
 #endif
 
-#line 67 "coord_lex.l"
+#line 68 "coord_lex.l"
 
-#line 337 "coord_lex.yy.h"
+#line 339 "coord_lex.yy.h"
 #undef coord_IN_HEADER
 #endif /* coord_HEADER_H */

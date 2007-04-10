@@ -509,14 +509,15 @@ static yyconst flex_int16_t yy_chk[191] =
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 #line 1 "coord_lex.l"
+/* %option always-interactive */
 
-#line 10 "coord_lex.l"
+#line 11 "coord_lex.l"
 #include <string.h>
 #include "fractal-render.h"
 #include "coord_parse.tab.h"
 
 #define YY_USER_ACTION {yylloc->first_column = yylloc->last_column; yylloc->last_column += yyleng;}
-#line 520 "coord_lex.yy.c"
+#line 521 "coord_lex.yy.c"
 
 #define INITIAL 0
 #define CCOMMENT 1
@@ -729,9 +730,11 @@ static int input (yyscan_t yyscanner );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int coord_lex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int coord_lex \
+               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int coord_lex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int coord_lex \
+               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -758,10 +761,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 23 "coord_lex.l"
+#line 24 "coord_lex.l"
 
 
-#line 765 "coord_lex.yy.c"
+#line 768 "coord_lex.yy.c"
 
     yylval = yylval_param;
 
@@ -850,7 +853,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 25 "coord_lex.l"
+#line 26 "coord_lex.l"
 {
 	yylval->string = strdup (yytext);
 	return TOKEN_INT;
@@ -858,7 +861,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 30 "coord_lex.l"
+#line 31 "coord_lex.l"
 {
 	yylval->string = strdup (yytext);
 	return TOKEN_REAL;
@@ -866,104 +869,104 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 35 "coord_lex.l"
+#line 36 "coord_lex.l"
 return TOKEN_COORD_V1;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 36 "coord_lex.l"
+#line 37 "coord_lex.l"
 return TOKEN_TYPE;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 37 "coord_lex.l"
+#line 38 "coord_lex.l"
 return TOKEN_MANDELBROT;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 38 "coord_lex.l"
+#line 39 "coord_lex.l"
 return TOKEN_JULIA;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 39 "coord_lex.l"
+#line 40 "coord_lex.l"
 return TOKEN_ZPOWER;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 40 "coord_lex.l"
+#line 41 "coord_lex.l"
 return TOKEN_MAXITER;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 41 "coord_lex.l"
+#line 42 "coord_lex.l"
 return TOKEN_AREA;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 42 "coord_lex.l"
+#line 43 "coord_lex.l"
 return TOKEN_PARAMETER;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 43 "coord_lex.l"
+#line 44 "coord_lex.l"
 return TOKEN_REPRESENTATION;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 44 "coord_lex.l"
+#line 45 "coord_lex.l"
 return TOKEN_ESCAPE;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 45 "coord_lex.l"
+#line 46 "coord_lex.l"
 return TOKEN_ESCAPE_LOG;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 46 "coord_lex.l"
+#line 47 "coord_lex.l"
 return TOKEN_DISTANCE;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 47 "coord_lex.l"
+#line 48 "coord_lex.l"
 return TOKEN_BASE;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 48 "coord_lex.l"
+#line 49 "coord_lex.l"
 return TOKEN_IDENTIFIER;
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 49 "coord_lex.l"
+#line 50 "coord_lex.l"
 yy_push_state (CCOMMENT, yyscanner);
 	YY_BREAK
 case 18:
 /* rule 18 can match eol */
 YY_RULE_SETUP
-#line 50 "coord_lex.l"
+#line 51 "coord_lex.l"
 yylloc->first_line++; yylloc->first_column = yylloc->last_column = 0;
 	YY_BREAK
 case 19:
 /* rule 19 can match eol */
 YY_RULE_SETUP
-#line 51 "coord_lex.l"
+#line 52 "coord_lex.l"
 /* do nothing */
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 52 "coord_lex.l"
+#line 53 "coord_lex.l"
 return yytext[0];
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 53 "coord_lex.l"
+#line 54 "coord_lex.l"
 /* do nothing */
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 54 "coord_lex.l"
+#line 55 "coord_lex.l"
 {
 	char buf[128];
 	buf[0] = 0;
@@ -974,11 +977,11 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 61 "coord_lex.l"
+#line 62 "coord_lex.l"
 yy_pop_state (yyscanner);
 	YY_BREAK
 case YY_STATE_EOF(CCOMMENT):
-#line 62 "coord_lex.l"
+#line 63 "coord_lex.l"
 {
 	yylval->string = strdup ("Comment extends past end of file");
 	return TOKEN_LEX_ERROR;
@@ -986,15 +989,15 @@ case YY_STATE_EOF(CCOMMENT):
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 66 "coord_lex.l"
+#line 67 "coord_lex.l"
 /* do nothing */
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 67 "coord_lex.l"
+#line 68 "coord_lex.l"
 ECHO;
 	YY_BREAK
-#line 998 "coord_lex.yy.c"
+#line 1001 "coord_lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1226,7 +1229,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, num_to_read );
+			yyg->yy_n_chars, (size_t) num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -1740,7 +1743,7 @@ YY_BUFFER_STATE coord__scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 
 /** Setup the input buffer state to scan a string. The next call to coord_lex() will
  * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
+ * @param yystr a NUL-terminated string to scan
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
@@ -2166,4 +2169,4 @@ void coord_free (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 67 "coord_lex.l"
+#line 68 "coord_lex.l"
