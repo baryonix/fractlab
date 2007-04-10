@@ -5,16 +5,19 @@
 #include "file.h"
 #include "coord_parse.tab.h"
 
-int coord_parse (void);
-extern struct mandeldata *coord_parser_mandeldata;
-extern const char *coord_errstr;
+typedef void *yyscan_t;
+int coord_lex_init (yyscan_t *scanner);
+void coord_restart (FILE *input_file, yyscan_t yyscanner);
+void coord_lex_destroy (yyscan_t yyscanner);
+int coord_parse (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize);
 
 int
 main (int argc, char *argv[])
 {
+	char errbuf[128];
 	mpf_set_default_prec (1024);
 	struct mandeldata md[1];
-	coord_parser_mandeldata = md;
+	yyscan_t scanner;
 	if (argc != 2) {
 		fprintf (stderr, "* USAGE: %s <coord file>\n", argv[0]);
 		return 1;
@@ -24,21 +27,23 @@ main (int argc, char *argv[])
 		perror ("fopen");
 		return 1;
 	}
-	coord_restart (f);
-	if (coord_parse () != 0) {
-		fprintf (stderr, "* ERROR: %s\n", coord_errstr);
+	coord_lex_init (&scanner);
+	coord_restart (f, scanner);
+	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {
+		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
 	}
-	fwrite_mandeldata (stdout, md);
+	fwrite_mandeldata (stdout, md, errbuf, sizeof (errbuf));
 #if 1
 	mandeldata_clear (md);
-	if (coord_parse () != 0) {
-		fprintf (stderr, "* ERROR: %s\n", coord_errstr);
+	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {
+		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
 	}
-	fwrite_mandeldata (stdout, md);
+	fwrite_mandeldata (stdout, md, errbuf, sizeof (errbuf));
 #endif
 	mandeldata_clear (md);
+	coord_lex_destroy (scanner);
 	fclose (f);
 	return 0;
 }

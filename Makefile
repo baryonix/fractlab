@@ -25,7 +25,7 @@ MANDEL_GTK_OBJECTS = main.o coord_lex.yy.o coord_parse.tab.o file.o fractal-rend
 MANDEL_ZOOM_OBJECTS = zoom.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o anim.o misc-math.o fractal-math.o
 LISSAJOULIA_OBJECTS = lissajoulia.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o anim.o misc-math.o fractal-math.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
-TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o mandelbrot.o util.o file.o
+TEST_PARSER_OBJECTS = test_parser.o coord_lex.yy.o coord_parse.tab.o util.o file.o fractal-render.o fractal-math.o misc-math.o
 
 ifeq ($(USE_IA32_ASM),i387)
 CFLAGS += -DMANDELBROT_FP_ASM

@@ -11,9 +11,6 @@ fractal-render.o: fractal-render.c defs.h fractal-render.h fpdefs.h \
   fractal-math.h util.h misc-math.h
 gtkmandel.o: gtkmandel.c gtkmandel.h fractal-render.h fpdefs.h \
   fractal-math.h gui-util.h defs.h file.h util.h
-gui.o: gui.c defs.h fractal-render.h fpdefs.h fractal-math.h gtkmandel.h \
-  gui-util.h gui-typedlg.h gui-infodlg.h gui.h gui-mainwin.h util.h \
-  file.h
 gui-infodlg.o: gui-infodlg.c fractal-render.h fpdefs.h fractal-math.h \
   gui-util.h gui-infodlg.h util.h
 gui-mainwin.o: gui-mainwin.c fractal-render.h fpdefs.h fractal-math.h \
@@ -21,6 +18,9 @@ gui-mainwin.o: gui-mainwin.c fractal-render.h fpdefs.h fractal-math.h \
 gui-typedlg.o: gui-typedlg.c fractal-render.h fpdefs.h fractal-math.h \
   util.h gui-util.h gui-typedlg.h
 gui-util.o: gui-util.c gui-util.h
+gui.o: gui.c defs.h fractal-render.h fpdefs.h fractal-math.h gtkmandel.h \
+  gui-util.h gui-typedlg.h gui-infodlg.h gui.h gui-mainwin.h util.h \
+  file.h
 lissajoulia.o: lissajoulia.c anim.h fractal-render.h fpdefs.h \
   fractal-math.h file.h
 main.o: main.c file.h fractal-render.h fpdefs.h fractal-math.h \
