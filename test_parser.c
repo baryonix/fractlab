@@ -27,8 +27,11 @@ main (int argc, char *argv[])
 		perror ("fopen");
 		return 1;
 	}
+	char filebuf[65536];
+	filebuf[fread (filebuf, 1, 65536, f)] = 0;
 	coord_lex_init (&scanner);
-	coord_restart (f, scanner);
+	coord__scan_string (filebuf, scanner);
+	//coord_restart (f, scanner);
 	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {
 		fprintf (stderr, "* ERROR: %s\n", errbuf);
 		return 1;
@@ -39,7 +42,7 @@ main (int argc, char *argv[])
 	io_stream_init_buffer (stream, iob);
 	generic_write_mandeldata (stream, md, false, errbuf, sizeof (errbuf));
 	printf ("[%s]\n", iob->buf);
-#if 1
+#if 0
 	mandeldata_clear (md);
 	if (coord_parse (scanner, md, errbuf, sizeof (errbuf)) != 0) {
 		fprintf (stderr, "* ERROR: %s\n", errbuf);
