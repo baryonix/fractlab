@@ -13,7 +13,7 @@ void coord_restart (FILE *input_file, yyscan_t yyscanner);
 void coord_lex_destroy (yyscan_t yyscanner);
 int coord_parse (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize);
 
-static bool fwrite_mandel_julia (FILE *f, const struct mandel_julia_param *param, char *errbuf, size_t errbsize);
+static bool fwrite_mandel_julia (FILE *f, const struct mandel_julia_param *param, bool crlf, char *errbuf, size_t errbsize);
 
 
 bool
@@ -46,14 +46,15 @@ read_mandeldata (const char *filename, struct mandeldata *md, char *errbuf, size
 
 
 bool
-fwrite_mandeldata (FILE *f, const struct mandeldata *md, char *errbuf, size_t errbsize)
+fwrite_mandeldata (FILE *f, const struct mandeldata *md, bool crlf, char *errbuf, size_t errbsize)
 {
+	const char *nl = crlf ? "\r\n" : "\n";
 	char creal[1024], cimag[1024], magf[1024];
 	if (center_coords_to_string (md->area.center.real, md->area.center.imag, md->area.magf, creal, cimag, magf, 1024) < 0) {
 		my_safe_strcpy (errbuf, "Error converting coordinates", errbsize);
 		return false;
 	}
-	if (my_fprintf (f, errbuf, errbsize, "coord-v1 {\n\tarea %s/%s/%s;\n\trepresentation ", creal, cimag, magf) < 0)
+	if (my_fprintf (f, errbuf, errbsize, "coord-v1 {%s\tarea %s/%s/%s;%s\trepresentation ", nl, creal, cimag, magf, nl) < 0)
 		return false;
 	switch (md->repres.repres) {
 		case REPRES_ESCAPE:
@@ -61,7 +62,7 @@ fwrite_mandeldata (FILE *f, const struct mandeldata *md, char *errbuf, size_t er
 				return false;
 			break;
 		case REPRES_ESCAPE_LOG:
-			if (my_fprintf (f, errbuf, errbsize, "escape-log {\n\t\tbase %f;\n\t}", md->repres.params.log_base) < 0)
+			if (my_fprintf (f, errbuf, errbsize, "escape-log {%s\t\tbase %f;%s\t}", nl, md->repres.params.log_base, nl) < 0)
 				return false;
 			break;
 		case REPRES_DISTANCE:
@@ -72,19 +73,19 @@ fwrite_mandeldata (FILE *f, const struct mandeldata *md, char *errbuf, size_t er
 			snprintf (errbuf, errbsize, "Unknown representation type %d", (int) md->repres.repres);
 			return false;
 	}
-	if (my_fprintf (f, errbuf, errbsize, ";\n\ttype %s {\n", md->type->name) < 0)
+	if (my_fprintf (f, errbuf, errbsize, ";%s\ttype %s {%s", nl, md->type->name, nl) < 0)
 		return false;
 	switch (md->type->type) {
 		case FRACTAL_MANDELBROT: {
-			if (!fwrite_mandel_julia (f, md->type_param, errbuf, errbsize))
+			if (!fwrite_mandel_julia (f, md->type_param, crlf, errbuf, errbsize))
 				return false;
 			break;
 		}
 		case FRACTAL_JULIA: {
-			if (!fwrite_mandel_julia (f, md->type_param, errbuf, errbsize))
+			if (!fwrite_mandel_julia (f, md->type_param, crlf, errbuf, errbsize))
 				return false;
 			const struct julia_param *jparam = (const struct julia_param *) md->type_param;
-			if (my_gmp_fprintf (f, errbuf, errbsize, "\t\tparameter %.20Ff/%.20Ff;\n", jparam->param.real, jparam->param.imag) < 0)
+			if (my_gmp_fprintf (f, errbuf, errbsize, "\t\tparameter %.20Ff/%.20Ff;%s", jparam->param.real, jparam->param.imag, nl) < 0)
 				return false;
 			break;
 		}
@@ -93,29 +94,30 @@ fwrite_mandeldata (FILE *f, const struct mandeldata *md, char *errbuf, size_t er
 			return false;
 		}
 	}
-	if (my_fprintf (f, errbuf, errbsize, "\t};\n};\n") < 0)
+	if (my_fprintf (f, errbuf, errbsize, "\t};%s};%s", nl, nl) < 0)
 		return false;
 	return true;
 }
 
 
 static bool
-fwrite_mandel_julia (FILE *f, const struct mandel_julia_param *param, char *errbuf, size_t errbsize)
+fwrite_mandel_julia (FILE *f, const struct mandel_julia_param *param, bool crlf, char *errbuf, size_t errbsize)
 {
-	if (my_fprintf (f, errbuf, errbsize, "\t\tzpower %u;\n\t\tmaxiter %u;\n", param->zpower, param->maxiter) < 0)
+	const char *nl = crlf ? "\r\n" : "\n";
+	if (my_fprintf (f, errbuf, errbsize, "\t\tzpower %u;%s\t\tmaxiter %u;%s", param->zpower, nl, param->maxiter, nl) < 0)
 		return false;
 	return true;
 }
 
 
 bool
-write_mandeldata (const char *filename, const struct mandeldata *md, char *errbuf, size_t errbsize)
+write_mandeldata (const char *filename, const struct mandeldata *md, bool crlf, char *errbuf, size_t errbsize)
 {
 	bool res;
 	FILE *f = my_fopen (filename, "w", errbuf, errbsize);
 	if (f == NULL)
 		return false;
-	res = fwrite_mandeldata (f, md, errbuf, errbsize);
+	res = fwrite_mandeldata (f, md, crlf, errbuf, errbsize);
 	fclose (f);
 	return res;
 }

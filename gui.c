@@ -172,7 +172,7 @@ save_coord_dlg_response (GtkMandelApplication *app, gint response, gpointer data
 
 	if (response == GTK_RESPONSE_ACCEPT) {
 		const char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (app->save_coord_chooser));
-		if (write_mandeldata (filename, fractal_main_window_get_mandeldata (app->main_window), errbuf, sizeof (errbuf))) {
+		if (write_mandeldata (filename, fractal_main_window_get_mandeldata (app->main_window), false, errbuf, sizeof (errbuf))) {
 			my_gtk_widget_destroy_unref (app->save_coord_chooser);
 			app->save_coord_chooser = NULL;
 		} else
