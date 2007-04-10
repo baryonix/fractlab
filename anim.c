@@ -29,7 +29,6 @@ struct anim_state {
 	GMutex *mutex;
 	unsigned thread_count;
 	struct work_list_item *work_list;
-	struct work_list_item **threads;
 };
 
 
@@ -39,6 +38,7 @@ static void render_frame (struct mandeldata *md, unsigned long i);
 static struct work_list_item *generate_work_list (frame_func_t frame_func, void *data);
 static void free_work_list (struct work_list_item *list);
 static void free_work_list_item (struct work_list_item *item);
+static struct work_list_item *get_work (struct anim_state *state);
 
 
 struct color colors[COLORS];
@@ -88,12 +88,6 @@ anim_render (frame_func_t frame_func, void *data)
 	state->work_list = generate_work_list (frame_func, data);
 	if (state->work_list == NULL)
 		return;
-	state->threads = malloc (zoom_threads * sizeof (*state->threads));
-	if (state->threads == NULL) {
-		fprintf (stderr, "* ERROR: Out of memory.\n");
-		return;
-	}
-	memset (state->threads, 0, zoom_threads * sizeof (*state->threads));
 
 	int i;
 	for (i = 0; i < COLORS; i++) {
@@ -171,13 +165,13 @@ thread_func (gpointer data)
 {
 	struct anim_state *state = (struct anim_state *) data;
 	while (TRUE) {
-		unsigned long i;
 		g_mutex_lock (state->mutex);
+		struct work_list_item *item = get_work (state);
 		g_mutex_unlock (state->mutex);
-		if (i >= frame_count)
+		if (item == NULL)
 			break;
-
-		render_frame (state, i);
+		render_frame (&item->md, item->i);
+		free_work_list_item (item);
 	}
 	return NULL;
 }
@@ -287,4 +281,14 @@ free_work_list_item (struct work_list_item *item)
 {
 	mandeldata_clear (&item->md);
 	free (item);
+}
+
+
+static struct work_list_item *
+get_work (struct anim_state *state)
+{
+	struct work_list_item *r = state->work_list;
+	if (r != NULL)
+		state->work_list = r->next;
+	return r;
 }
