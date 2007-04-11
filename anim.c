@@ -683,6 +683,7 @@ process_net_input (struct net_client *client)
 				return false;
 			}
 			/* XXX save the information that this client successfully rendered frame i */
+			free_work_list_item (client->work_items[j]);
 			client->work_items[j] = NULL;
 		} else {
 			fprintf (stderr, "* DEBUG: unknown keyword [%s].\n", keyword);
