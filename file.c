@@ -12,6 +12,7 @@ int coord_lex_init (yyscan_t *scanner);
 void coord_restart (FILE *input_file, yyscan_t yyscanner);
 void coord_lex_destroy (yyscan_t yyscanner);
 int coord_parse (yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize);
+void coord__scan_string (const char *yy_str, yyscan_t yyscanner);
 
 static bool generic_write_mandel_julia (struct io_stream *f, const struct mandel_julia_param *param, bool crlf, char *errbuf, size_t errbsize);
 
@@ -26,6 +27,22 @@ fread_mandeldata (FILE *f, struct mandeldata *md, char *errbuf, size_t errbsize)
 		return false;
 	}
 	coord_restart (f, scanner);
+	res = coord_parse (scanner, md, errbuf, errbsize) == 0;
+	coord_lex_destroy (scanner);
+	return res;
+}
+
+
+bool
+sread_mandeldata (const char *buf, struct mandeldata *md, char *errbuf, size_t errbsize)
+{
+	bool res;
+	yyscan_t scanner;
+	if (coord_lex_init (&scanner) != 0) {
+		my_safe_strcpy (errbuf, strerror (errno), errbsize);
+		return false;
+	}
+	coord__scan_string (buf, scanner);
 	res = coord_parse (scanner, md, errbuf, errbsize) == 0;
 	coord_lex_destroy (scanner);
 	return res;
