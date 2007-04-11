@@ -17,3 +17,4 @@ TODO
 - verify that commit 2d6d396232bdbbc12984ec00e85ede4504aebfc4 didn't have any
   bad performance implications
 - use the asm routine again
+- full IPv6 support in network code
