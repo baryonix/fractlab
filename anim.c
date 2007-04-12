@@ -60,6 +60,7 @@ struct anim_state {
 	unsigned socket_count;
 	struct pollfd *pollfds;
 	struct net_client **clients;
+	unsigned net_threads; /* number of net threads currently working (not including idle ones) */
 };
 
 
@@ -73,7 +74,8 @@ static void add_socket (struct anim_state *state, int fd, struct net_client *cli
 static int create_listener (const struct addrinfo *ai);
 static void accept_connection (struct anim_state *state, unsigned i);
 static bool send_render_command (struct anim_state *state, unsigned client_id, unsigned thread_id, unsigned frame_no, const struct mandeldata *md);
-static bool process_net_input (struct net_client *client);
+static bool process_net_input (struct anim_state *state, unsigned i);
+static void disconnect_client (struct anim_state *state, unsigned i);
 
 
 static struct color colors[COLORS];
@@ -324,7 +326,7 @@ network_thread (gpointer data)
 				/* There is input to be processed on this fd. */
 				if (client != NULL) {
 					/* This is a client connection on which we received data. */
-					if (!process_net_input (client))
+					if (!process_net_input (state, i))
 						client->dying = true;
 				} else {
 					/* This is a listening socket on which a new connection has just arrived. */
@@ -356,39 +358,14 @@ network_thread (gpointer data)
 			}
 		}
 
-		/* XXX This would be a good place to remove any dead clients from our data structures. */
-		for (i = 0; i < state->socket_count; i++) {
-			struct net_client *client = state->clients[i];
-			int j;
-
-			if (client == NULL || !client->dying)
-				continue;
-
-			/* No error checks here, there's nothing we could do anyway. */
-			fputs ("TERMINATE\r\n", client->f);
-			fclose (client->f);
-			close (client->fd);
-
-			g_mutex_lock (state->mutex);
-			for (j = 0; j < client->thread_count; j++) {
-				struct work_list_item *item = client->work_items[j];
-				if (item == NULL)
-					continue;
-				fprintf (stderr, "* WARNING: Will have to re-render frame %d due to client failure.\n", item->i);
-				item->next = state->work_list;
-				state->work_list = item;
-			}
-			g_mutex_unlock (state->mutex);
-
-			free (client->work_items);
-			free (client);
-
-			state->socket_count--;
-			if (i < state->socket_count) {
-				memcpy (&state->pollfds[i], &state->pollfds[state->socket_count], sizeof (*state->pollfds));
-				state->clients[i] = state->clients[state->socket_count];
-			}
-		}
+		/*
+		 * Scan the client list again and remove any clients that are in
+		 * dying state. Put their current work items back to the work list
+		 * for retry.
+		 */
+		for (i = 0; i < state->socket_count; i++)
+			if (state->clients[i] != NULL && state->clients[i]->dying)
+				disconnect_client (state, i);
 
 		/*
 		 * After we did all the I/O stuff for this iteration, we now give
@@ -412,10 +389,26 @@ network_thread (gpointer data)
 				}
 				send_render_command (state, i, j, item->i, &item->md);
 				client->work_items[j] = item;
+				state->net_threads++;
 			}
 			g_mutex_unlock (state->mutex);
 		}
+
+		g_mutex_lock (state->mutex);
+		struct work_list_item *item = state->work_list;
+		g_mutex_unlock (state->mutex);
+		if (item == NULL && state->net_threads == 0)
+			break;
 	}
+
+	fprintf (stderr, "* INFO: Network thread terminating, disconnecting all clients.\n");
+	unsigned i = 0;
+	while (i < state->socket_count)
+		if (state->clients[i] != NULL)
+			disconnect_client (state, i);
+		else
+			i++;
+
 	return NULL;
 }
 
@@ -504,11 +497,15 @@ accept_connection (struct anim_state *state, unsigned i)
 	fprintf (stderr, "* INFO: Accepted new connection from [%s]\n", client->name);
 
 	if (fcntl (client->fd, F_SETFL, O_NONBLOCK) < 0) {
-		fprintf (stderr, "* ERROR: fcntl(set O_NONBLOCK): %s\n", strerror (errno));
+		fprintf (stderr, "* ERROR: fcntl (enable O_NONBLOCK): %s\n", strerror (errno));
 		close (client->fd);
 		free (client);
 		return;
 	}
+
+	static const int one = 1;
+	if (setsockopt (client->fd, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof (one)) < 0)
+		fprintf (stderr, "* WARNING: setsockopt (enable SO_KEEPALIVE): %s\n", strerror (errno));
 
 	client->f = fdopen (client->fd, "r+");
 	if (client->f == NULL) {
@@ -517,7 +514,11 @@ accept_connection (struct anim_state *state, unsigned i)
 		free (client);
 	}
 
-	/* Just to be safe... */
+	/*
+	 * XXX Without buffering, I/O is _badly_ inefficient.
+	 * But with buffering, some race conditions may exist as we are
+	 * using non-blocking I/O. This needs further investigation.
+	 */
 	if (setvbuf (client->f, NULL, _IONBF, 0) != 0)
 		fprintf (stderr, "* WARNING: setvbuf(): %s\n", strerror (errno));
 
@@ -583,8 +584,10 @@ send_render_command (struct anim_state *state, unsigned client_id, unsigned thre
 
 
 static bool
-process_net_input (struct net_client *client)
+process_net_input (struct anim_state *state, unsigned i)
 {
+	struct net_client *client = state->clients[i];
+
 	if (fgets (client->input_buf + client->input_pos, sizeof (client->input_buf) - client->input_pos, client->f) == NULL) {
 		if (feof (client->f))
 			fprintf (stderr, "* WARNING: EOF from client\n");
@@ -641,14 +644,51 @@ process_net_input (struct net_client *client)
 				fprintf (stderr, "* ERROR: Invalid thread id in DONE message.\n");
 				return false;
 			}
-			fprintf (stderr, "Frame %d done, precision unknown, on %s.\n", client->work_items[j]->i, client->name);
+			fprintf (stderr, "Frame %d done, on %s.\n", client->work_items[j]->i, client->name);
 			/* XXX save the information that this client successfully rendered frame i */
 			free_work_list_item (client->work_items[j]);
 			client->work_items[j] = NULL;
+			state->net_threads--;
 		} else {
 			fprintf (stderr, "* DEBUG: unknown keyword [%s].\n", keyword);
 			return false;
 		}
 	}
 	return true;
+}
+
+
+static void
+disconnect_client (struct anim_state *state, unsigned i)
+{
+	struct net_client *client = state->clients[i];
+
+	fprintf (stderr, "* DEBUG: disconnecting [%s]\n", client->name);
+
+	/* No error checks here, there's nothing we could do anyway. */
+	fputs ("TERMINATE\r\n", client->f);
+	fclose (client->f);
+	close (client->fd);
+
+	g_mutex_lock (state->mutex);
+	unsigned j;
+	for (j = 0; j < client->thread_count; j++) {
+		struct work_list_item *item = client->work_items[j];
+		if (item == NULL)
+			continue;
+		fprintf (stderr, "* WARNING: Will have to re-render frame %d due to client failure.\n", item->i);
+		item->next = state->work_list;
+		state->work_list = item;
+		state->net_threads--;
+	}
+	g_mutex_unlock (state->mutex);
+
+	free (client->work_items);
+	free (client);
+
+	state->socket_count--;
+	if (i < state->socket_count) {
+		memcpy (&state->pollfds[i], &state->pollfds[state->socket_count], sizeof (*state->pollfds));
+		state->clients[i] = state->clients[state->socket_count];
+	}
 }

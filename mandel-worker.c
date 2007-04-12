@@ -269,6 +269,9 @@ main (int argc, char **argv)
 			}
 			g_mutex_unlock (tinfo[tid].mutex);
 			g_cond_signal (tinfo[tid].cond);
+		} else if (strcmp (keyword, "TERMINATE") == 0) {
+			fprintf (stderr, "* INFO: Server requested termination.\n");
+			return 0;
 		} else {
 			fprintf (stderr, "* ERROR: Unknown message received from server.\n");
 			return 1;

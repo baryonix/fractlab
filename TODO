@@ -17,4 +17,5 @@ TODO
 - verify that commit 2d6d396232bdbbc12984ec00e85ede4504aebfc4 didn't have any
   bad performance implications
 - use the asm routine again
-- detect "all done" situation in network rendering (server and client)
+- Network thread doesn't terminate when the work list is emptied by a local
+  thread. Currently a bit unsure what to do about this.
