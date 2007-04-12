@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "anim.h"
 #include "util.h"
@@ -46,6 +47,7 @@ struct net_client {
 	client_state_t state;
 	struct work_list_item **work_items;
 	bool dying;
+	char name[256];
 };
 
 
@@ -81,6 +83,7 @@ static gint zoom_threads = 1;
 static gint compression = -1;
 static gint start_frame = 0;
 static gint network_port = 0;
+static gint no_dns = 0;
 
 
 static GOptionEntry option_entries[] = {
@@ -91,6 +94,7 @@ static GOptionEntry option_entries[] = {
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
 	{"listen", 'l', 0, G_OPTION_ARG_INT, &network_port, "Listen on PORT for network rendering", "PORT"},
+	{"no-dns", 'N', 0, G_OPTION_ARG_NONE, &no_dns, "Don't resolve hostnames of clients via DNS"},
 	{NULL}
 };
 
@@ -176,24 +180,24 @@ thread_func (gpointer data)
 		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
-	clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
+		clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
 #endif
 
 #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
-	flockfile (stderr);
+		flockfile (stderr);
 #endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
-	if (clock_ok)
-		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
+		if (clock_ok)
+			fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
 #endif
-	fprintf (stderr, "Frame [%s] done", filename);
-	if (bits == 0)
-		fprintf (stderr, ", using FP arithmetic");
-	else
-		fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
-	fprintf (stderr, ".\n");
+		fprintf (stderr, "Frame %u done", item->i);
+		if (bits == 0)
+			fprintf (stderr, ", using FP arithmetic");
+		else
+			fprintf (stderr, ", using MP arithmetic (%d bits precision)", bits);
+		fprintf (stderr, ".\n");
 #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
-	funlockfile (stderr);
+		funlockfile (stderr);
 #endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 
 		free_work_list_item (item);
@@ -449,28 +453,15 @@ accept_connection (struct anim_state *state, unsigned i)
 		return;
 	}
 
-	char addrbuf[128];
-	bool addr_ok = false;
-	u_int16_t port = 0;
-	switch (client->addr.ss_family) {
-		case AF_INET: {
-			struct sockaddr_in *sin = (struct sockaddr_in *) &client->addr;
-			addr_ok = inet_ntop (AF_INET, &sin->sin_addr, addrbuf, sizeof (addrbuf)) != NULL;
-			port = ntohs (sin->sin_port);
-			break;
-		}
-		case AF_INET6: {
-			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &client->addr;
-			addr_ok = inet_ntop (AF_INET6, &sin6->sin6_addr, addrbuf, sizeof (addrbuf)) != NULL;
-			port = ntohs (sin6->sin6_port);
-			break;
-		}
-		default:
-			break;
+	int niflags = NI_NOFQDN | NI_NUMERICSERV;
+	if (no_dns)
+		niflags |= NI_NUMERICHOST;
+	int r = getnameinfo ((struct sockaddr *) &client->addr, client->addrlen, client->name, sizeof (client->name), NULL, 0, niflags);
+	if (r != 0) {
+		fprintf (stderr, "* WARNING: getnameinfo() failed: %s\n", gai_strerror (r));
+		my_safe_strcpy (client->name, "???", sizeof (client->name));
 	}
-	if (!addr_ok)
-		my_safe_strcpy (addrbuf, "???", sizeof (addrbuf));
-	fprintf (stderr, "* INFO: Accepted new connection from %s:%hu\n", addrbuf, (unsigned short) port);
+	fprintf (stderr, "* INFO: Accepted new connection from %s\n", client->name);
 
 	if (fcntl (client->fd, F_SETFL, O_NONBLOCK) < 0) {
 		fprintf (stderr, "* ERROR: fcntl(set O_NONBLOCK): %s\n", strerror (errno));
@@ -526,7 +517,7 @@ send_render_command (struct anim_state *state, unsigned client_id, unsigned thre
 	}
 	io_stream_init_buffer (ios2, iob2);
 
-	if (my_printf (ios2, errbuf, sizeof (errbuf), "RENDER %u %u %lu\r\n%s", thread_id, frame_no, (unsigned long) iob1->pos, iob1->buf) < 0) {
+	if (my_printf (ios2, errbuf, sizeof (errbuf), "RENDER %u %u %lu %u %u\r\n%s", thread_id, frame_no, (unsigned long) iob1->pos, (unsigned) img_width, (unsigned) img_height, iob1->buf) < 0) {
 		fprintf (stderr, "* ERROR: writing RENDER request to buffer: %s\n", errbuf);
 		io_buffer_clear (iob1);
 		io_buffer_clear (iob2);
@@ -610,6 +601,7 @@ process_net_input (struct net_client *client)
 				fprintf (stderr, "* ERROR: Invalid thread id in DONE message.\n");
 				return false;
 			}
+			fprintf (stderr, "Frame %d done, precision unknown, on %s.\n", client->work_items[j]->i, client->name);
 			/* XXX save the information that this client successfully rendered frame i */
 			free_work_list_item (client->work_items[j]);
 			client->work_items[j] = NULL;

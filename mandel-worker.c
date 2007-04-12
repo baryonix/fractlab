@@ -40,7 +40,7 @@ struct thread_info {
 	GCond *cond;
 	bool terminate;
 	struct mandeldata md;
-	unsigned frame;
+	unsigned frame, w, h;
 };
 
 
@@ -61,7 +61,7 @@ worker_thread (gpointer data)
 		char buf[256];
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
-		render_to_png (&info->md, buf, 9, NULL, colors, 500, 500);
+		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h);
 		size_t mlen = snprintf (buf, sizeof (buf), "DONE %u\r\n", info->thread_id);
 		write (state->connection, buf, mlen);
 	}
@@ -186,7 +186,7 @@ main (int argc, char **argv)
 		}
 
 		if (strcmp (keyword, "RENDER") == 0) {
-			int tid, frame, mdlen;
+			int tid, frame, mdlen, w, h;
 
 			const char *arg = strtok_r (NULL, NETWORK_DELIM, &saveptr);
 			if (arg == NULL) {
@@ -221,6 +221,28 @@ main (int argc, char **argv)
 				return 1;
 			}
 
+			arg = strtok_r (NULL, NETWORK_DELIM, &saveptr);
+			if (arg == NULL) {
+				fprintf (stderr, "* ERROR: Cannot extract image width from RENDER message.\n");
+				return 1;
+			}
+			w = atoi (arg);
+			if (w <= 0) {
+				fprintf (stderr, "* ERROR: Invalid image width in RENDER message.\n");
+				return 1;
+			}
+
+			arg = strtok_r (NULL, NETWORK_DELIM, &saveptr);
+			if (arg == NULL) {
+				fprintf (stderr, "* ERROR: Cannot extract image height from RENDER message.\n");
+				return 1;
+			}
+			h = atoi (arg);
+			if (h <= 0) {
+				fprintf (stderr, "* ERROR: Invalid image height in RENDER message.\n");
+				return 1;
+			}
+
 			char *mdbuf = malloc (mdlen + 1);
 			mdbuf[mdlen] = 0;
 			errno = 0;
@@ -232,6 +254,8 @@ main (int argc, char **argv)
 
 			g_mutex_lock (tinfo[tid].mutex);
 			tinfo[tid].frame = frame;
+			tinfo[tid].w = w;
+			tinfo[tid].h = h;
 			char errbuf[128];
 			if (!sread_mandeldata (mdbuf, &tinfo[tid].md, errbuf, sizeof (errbuf))) {
 				fprintf (stderr, "* ERROR: Parsing body of RENDER message: %s\n", errbuf);
