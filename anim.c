@@ -412,8 +412,10 @@ network_thread (gpointer data)
 	while (i < state->socket_count)
 		if (state->clients[i] != NULL)
 			disconnect_client (state, i);
-		else
+		else {
+			close (state->pollfds[i].fd);
 			i++;
+		}
 
 	return NULL;
 }
@@ -442,10 +444,15 @@ create_listener (const struct addrinfo *ai)
 
 	/* XXX Is it any good to set O_NONBLOCK for the listening socket? */
 	if (fcntl (sock, F_SETFL, O_NONBLOCK) < 0) {
-		fprintf (stderr, "* ERROR: fcntl(set O_NONBLOCK): %s\n", strerror (errno));
+		fprintf (stderr, "* ERROR: fcntl (enable O_NONBLOCK): %s\n", strerror (errno));
 		close (sock);
 		return -1;
 	}
+
+	static const int one = 1;
+
+	if (setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one)) < 0)
+		fprintf (stderr, "* WARNING: setsockopt (enable SO_REUSEADDR): %s\n", strerror (errno));
 
 	if (bind (sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 		fprintf (stderr, "* ERROR: bind(): %s\n", strerror (errno));
