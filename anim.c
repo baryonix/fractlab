@@ -568,7 +568,6 @@ process_net_input (struct net_client *client)
 	}
 	if (client->input_pos >= 1 && client->input_buf[client->input_pos - 1] == '\n') {
 		/* Complete line read, parse it. */
-		fprintf (stderr, "* DEBUG: message from client: [%s]\n", client->input_buf);
 		client->input_pos = 0;
 		char *saveptr;
 		const char *keyword = strtok_r (client->input_buf, NETWORK_DELIM, &saveptr);
