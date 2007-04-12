@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #include <unistd.h>
@@ -11,6 +12,7 @@
 #include <poll.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <strings.h>
 
 #include "anim.h"
 #include "util.h"
@@ -68,7 +70,7 @@ static void free_work_list (struct work_list_item *list);
 static void free_work_list_item (struct work_list_item *item);
 static struct work_list_item *get_work (struct anim_state *state);
 static void add_socket (struct anim_state *state, int fd, struct net_client *client);
-static int create_listener (int domain, int protocol, struct sockaddr *addr, socklen_t addrlen);
+static int create_listener (const struct addrinfo *ai);
 static void accept_connection (struct anim_state *state, unsigned i);
 static bool send_render_command (struct anim_state *state, unsigned client_id, unsigned thread_id, unsigned frame_no, const struct mandeldata *md);
 static bool process_net_input (struct net_client *client);
@@ -82,7 +84,7 @@ gint img_width = 200, img_height = 200, frame_count = 0;
 static gint zoom_threads = 1;
 static gint compression = -1;
 static gint start_frame = 0;
-static gint network_port = 0;
+static const gchar *network_port = NULL;
 static gint no_dns = 0;
 
 
@@ -93,7 +95,7 @@ static GOptionEntry option_entries[] = {
 	{"height", 'H', 0, G_OPTION_ARG_INT, &img_height, "Image height", "PIXELS"},
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &zoom_threads, "Parallel rendering with N threads", "N"},
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
-	{"listen", 'l', 0, G_OPTION_ARG_INT, &network_port, "Listen on PORT for network rendering", "PORT"},
+	{"listen", 'l', 0, G_OPTION_ARG_STRING, &network_port, "Listen on PORT for network rendering", "PORT"},
 	{"no-dns", 'N', 0, G_OPTION_ARG_NONE, &no_dns, "Don't resolve hostnames of clients via DNS"},
 	{NULL}
 };
@@ -136,11 +138,11 @@ anim_render (frame_func_t frame_func, void *data)
 	g_thread_init (NULL);
 	GThread *threads[zoom_threads], *net_thread = NULL;
 	state->mutex = g_mutex_new ();
-	if (network_port != 0)
+	if (network_port != NULL)
 		net_thread = g_thread_create (network_thread, state, TRUE, NULL);
 	for (i = 0; i < zoom_threads; i++)
 		threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
-	if (network_port != 0)
+	if (network_port != NULL)
 		g_thread_join (net_thread);
 	for (i = 0; i < zoom_threads; i++)
 		g_thread_join (threads[i]);
@@ -275,9 +277,36 @@ static gpointer
 network_thread (gpointer data)
 {
 	struct anim_state *state = (struct anim_state *) data;
-	struct sockaddr_in sin = {AF_INET, htons (network_port), {htonl (INADDR_ANY)}};
-	int l = create_listener (PF_INET, IPPROTO_TCP, (struct sockaddr *) &sin, sizeof (sin));
-	add_socket (state, l, NULL);
+	struct addrinfo *ai = NULL;
+	struct addrinfo aihints = {
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
+		.ai_flags = AI_PASSIVE
+	};
+	int r = getaddrinfo (NULL, network_port, &aihints, &ai);
+	if (r != 0) {
+		fprintf (stderr, "* ERROR: Cannot resolve network service name: %s\n", gai_strerror (r));
+		return NULL;
+	}
+	struct addrinfo *aicur;
+	unsigned listeners = 0;
+	for (aicur = ai; aicur != NULL; aicur = aicur->ai_next) {
+		int l = create_listener (aicur);
+		if (l >= 0) {
+			listeners++;
+			add_socket (state, l, NULL);
+		}
+	}
+	freeaddrinfo (ai);
+
+	if (listeners == 0) {
+		fprintf (stderr, "* ERROR: Could not create any listening sockets.\n");
+		return NULL;
+	}
+
+	fprintf (stderr, "* INFO: Created %u listening sockets.\n", listeners);
+
 	while (true) {
 		int r = poll (state->pollfds, state->socket_count, -1);
 		if (r < 0) {
@@ -404,26 +433,28 @@ add_socket (struct anim_state *state, int fd, struct net_client *client)
 
 
 static int
-create_listener (int domain, int protocol, struct sockaddr *addr, socklen_t addrlen)
+create_listener (const struct addrinfo *ai)
 {
-	int sock = socket (domain, SOCK_STREAM, protocol);
+	int sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (sock < 0) {
 		fprintf (stderr, "* ERROR: socket(): %s\n", strerror (errno));
 		return -1;
 	}
 
+	/* XXX Is it any good to set O_NONBLOCK for the listening socket? */
 	if (fcntl (sock, F_SETFL, O_NONBLOCK) < 0) {
 		fprintf (stderr, "* ERROR: fcntl(set O_NONBLOCK): %s\n", strerror (errno));
 		close (sock);
 		return -1;
 	}
 
-	if (bind (sock, addr, addrlen) < 0) {
+	if (bind (sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 		fprintf (stderr, "* ERROR: bind(): %s\n", strerror (errno));
 		close (sock);
 		return -1;
 	}
 
+	/* XXX backlog is hardcoded */
 	if (listen (sock, 10) < 0) {
 		fprintf (stderr, "* ERROR: listen(): %s\n", strerror (errno));
 		close (sock);
@@ -457,11 +488,20 @@ accept_connection (struct anim_state *state, unsigned i)
 	if (no_dns)
 		niflags |= NI_NUMERICHOST;
 	int r = getnameinfo ((struct sockaddr *) &client->addr, client->addrlen, client->name, sizeof (client->name), NULL, 0, niflags);
-	if (r != 0) {
+	if (r == 0) {
+		/*
+		 * IPv6-mapped IPv4 addresses look crappy, we turn them into the
+		 * normal IPv4 representation. And yes, we do it the dirty way.
+		 */
+		static const char v4map_prefix[] = "::ffff:";
+		static const size_t v4map_prefix_len = sizeof (v4map_prefix) - 1;
+		if (strncasecmp (client->name, v4map_prefix, v4map_prefix_len) == 0)
+			memmove (client->name, client->name + v4map_prefix_len, strlen (client->name + v4map_prefix_len) + 1);
+	} else {
 		fprintf (stderr, "* WARNING: getnameinfo() failed: %s\n", gai_strerror (r));
 		my_safe_strcpy (client->name, "???", sizeof (client->name));
 	}
-	fprintf (stderr, "* INFO: Accepted new connection from %s\n", client->name);
+	fprintf (stderr, "* INFO: Accepted new connection from [%s]\n", client->name);
 
 	if (fcntl (client->fd, F_SETFL, O_NONBLOCK) < 0) {
 		fprintf (stderr, "* ERROR: fcntl(set O_NONBLOCK): %s\n", strerror (errno));
