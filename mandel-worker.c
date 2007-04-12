@@ -82,13 +82,19 @@ worker_thread (gpointer data)
 int
 main (int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf (stderr, "* USAGE: %s <host> <port>\n", argv[0]);
+	if (argc != 4) {
+		fprintf (stderr, "* USAGE: %s <host> <port> <threads>\n", argv[0]);
 		return 1;
 	}
 
 	const char *hostname = argv[1];
 	const char *servname = argv[2];
+	thread_count = atoi (argv[3]);
+
+	if (thread_count < 1) {
+		fprintf (stderr, "* ERROR: Thread count must be >= 1.\n");
+		return 1;
+	}
 
 	struct addrinfo aihints = {
 		.ai_family = AF_UNSPEC,
