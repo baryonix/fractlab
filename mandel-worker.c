@@ -62,6 +62,16 @@ worker_thread (gpointer data)
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
 		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h);
+
+		/*
+		 * We cannot use stdio here, because it relies on locking file
+		 * handles before doing anything on them. The dispatcher thread is
+		 * doing a blocking fgets() most of the time, so stdio would
+		 * spend a long time here waiting for the lock. Non-blocking I/O
+		 * would make the code way too complex. Thus, we use stdio for input
+		 * and do output via write(2).
+		 * This is dirty and possibly non-portable (works on Linux, though).
+		 */
 		size_t mlen = snprintf (buf, sizeof (buf), "DONE %u\r\n", info->thread_id);
 		write (state->connection, buf, mlen);
 	}
