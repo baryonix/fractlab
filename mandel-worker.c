@@ -72,7 +72,7 @@ worker_thread (gpointer data)
 		 * and do output via write(2).
 		 * This is dirty and possibly non-portable (works on Linux, though).
 		 */
-		size_t mlen = snprintf (buf, sizeof (buf), "DONE %u\r\n", info->thread_id);
+		int mlen = snprintf (buf, sizeof (buf), "DONE %u\r\n", info->thread_id);
 		write (state->connection, buf, mlen);
 	}
 
