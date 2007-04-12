@@ -178,7 +178,7 @@ thread_func (gpointer data)
 		unsigned bits;
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 		struct tms time_before, time_after;
-		bool clock_ok = zoom_threads == 1 && clock_ticks > 0;
+		bool clock_ok = zoom_threads == 1 && network_port == NULL && clock_ticks > 0;
 		clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
 		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height);
@@ -599,7 +599,7 @@ process_net_input (struct anim_state *state, unsigned i)
 			fprintf (stderr, "* WARNING: EOF from client\n");
 		else
 			fprintf (stderr, "* WARNING: error from fgets: %s\n", strerror (errno));
-		 return false;
+		return false;
 	}
 	client->input_pos += strlen (client->input_buf + client->input_pos);
 	if (client->input_pos >= sizeof (client->input_buf) - 1 && client->input_buf[client->input_pos - 1] != '\n') {
@@ -631,7 +631,7 @@ process_net_input (struct anim_state *state, unsigned i)
 				fprintf (stderr, "* ERROR: Invalid thread count in MOIN message.\n");
 				return false;
 			}
-			fprintf (stderr, "* DEBUG: Received MOIN message with %d threads.\n", j);
+			fprintf (stderr, "* INFO: Client %s has %d threads.\n", client->name, j);
 			client->thread_count = j;
 			client->state = CSTATE_WORKING;
 			client->work_items = malloc (client->thread_count * sizeof (*client->work_items));
@@ -668,8 +668,6 @@ static void
 disconnect_client (struct anim_state *state, unsigned i)
 {
 	struct net_client *client = state->clients[i];
-
-	fprintf (stderr, "* DEBUG: disconnecting [%s]\n", client->name);
 
 	/* No error checks here, there's nothing we could do anyway. */
 	fputs ("TERMINATE\r\n", client->f);
