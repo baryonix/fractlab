@@ -11,21 +11,15 @@
 #include <poll.h>
 #include <arpa/inet.h>
 
-#include <png.h>
-
 #include "anim.h"
 #include "util.h"
 #include "file.h"
 #include "defs.h"
 #include "fractal-render.h"
+#include "render-png.h"
 
 
 #define NETWORK_DELIM " \t\r\n"
-
-
-struct color {
-	unsigned char r, g, b;
-};
 
 
 struct work_list_item {
@@ -65,10 +59,8 @@ struct anim_state {
 };
 
 
-static void write_png (const struct mandel_renderer *md, const char *filename);
 static gpointer thread_func (gpointer data);
 static gpointer network_thread (gpointer data);
-static void render_frame (struct mandeldata *md, unsigned long i);
 static struct work_list_item *generate_work_list (frame_func_t frame_func, void *data);
 static void free_work_list (struct work_list_item *list);
 static void free_work_list_item (struct work_list_item *item);
@@ -80,7 +72,7 @@ static bool send_render_command (struct anim_state *state, unsigned client_id, u
 static bool process_net_input (struct net_client *client);
 
 
-struct color colors[COLORS];
+static struct color colors[COLORS];
 
 static long clock_ticks;
 
@@ -152,53 +144,6 @@ anim_render (frame_func_t frame_func, void *data)
 }
 
 
-static void
-write_png (const struct mandel_renderer *renderer, const char *filename)
-{
-	FILE *f = fopen (filename, "wb");
-
-	png_structp png_ptr = png_create_write_struct (PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	png_infop info_ptr = png_create_info_struct (png_ptr);
-
-	if (setjmp (png_jmpbuf (png_ptr)))
-		fprintf (stderr, "PNG longjmp!\n");
-
-	//png_set_swap (png_ptr); /* FIXME this should only be done on little-endian systems */
-	png_init_io (png_ptr, f);
-	if (compression == 0)
-		png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
-	if (compression >= 0)
-		png_set_compression_level (png_ptr, compression);
-	png_set_IHDR (png_ptr, info_ptr, renderer->w, renderer->h, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	png_write_info (png_ptr, info_ptr);
-
-	unsigned char row[renderer->w * 3];
-	png_bytep row_ptr[] = {(png_bytep) row};
-
-	unsigned int x, y;
-	//int opct = -1;
-
-	for (y = 0; y < renderer->h; y++) {
-		for (x = 0; x < renderer->w; x++) {
-			unsigned int i = mandel_get_pixel (renderer, x, y);
-
-			i %= 256;
-
-			row[3 * x + 0] = colors[i].r;
-			row[3 * x + 1] = colors[i].g;
-			row[3 * x + 2] = colors[i].b;
-		}
-		png_write_rows (png_ptr, row_ptr, 1);
-	}
-
-	png_write_end (png_ptr, info_ptr);
-	png_destroy_write_struct (&png_ptr, &info_ptr);
-
-	fclose (f);
-}
-
-
 static gpointer
 thread_func (gpointer data)
 {
@@ -209,47 +154,30 @@ thread_func (gpointer data)
 		g_mutex_unlock (state->mutex);
 		if (item == NULL)
 			break;
-		render_frame (&item->md, item->i);
-		free_work_list_item (item);
-	}
-	return NULL;
-}
+		char filename[256];
+		snprintf (filename, sizeof (filename), "file%06d.png", (int) item->i);
 
-
-static void
-render_frame (struct mandeldata *md, unsigned long i)
-{
-	struct mandel_renderer renderer[1];
-
-	mandel_renderer_init (renderer, md, img_width, img_height);
-	renderer->render_method = RM_BOUNDARY_TRACE;
-	renderer->thread_count = 1;
-
-	/*
-	 * Unfortunately, there is no way of determining the amount of CPU
-	 * time used by the current thread.
-	 * On NetBSD, CLOCK_THREAD_CPUTIME_ID is not defined at all.
-	 * On Solaris, CLOCK_THREAD_CPUTIME_ID is defined, but
-	 * clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) fails.
-	 * On Linux, clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) succeeds,
-	 * but it returns the CPU time usage of the whole process intead. Bummer!
-	 * Linux also has pthread_getcpuclockid(), but it apparently always fails.
-	 */
+		/*
+		 * Unfortunately, there is no way of determining the amount of CPU
+		 * time used by the current thread.
+		 * On NetBSD, CLOCK_THREAD_CPUTIME_ID is not defined at all.
+		 * On Solaris, CLOCK_THREAD_CPUTIME_ID is defined, but
+		 * clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) fails.
+		 * On Linux, clock_gettime (CLOCK_THREAD_CPUTIME_ID, ...) succeeds,
+		 * but it returns the CPU time usage of the whole process intead. Bummer!
+		 * Linux also has pthread_getcpuclockid(), but it apparently always fails.
+		 */
+		unsigned bits;
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
-	struct tms time_before, time_after;
-	bool clock_ok = zoom_threads == 1 && clock_ticks > 0;
-	clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
+		struct tms time_before, time_after;
+		bool clock_ok = zoom_threads == 1 && clock_ticks > 0;
+		clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
-
-	mandel_render (renderer);
+		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 	clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
 #endif
-
-	char name[64];
-	sprintf (name, "file%06lu.png", i);
-	write_png (renderer, name);
 
 #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
 	flockfile (stderr);
@@ -258,8 +186,7 @@ render_frame (struct mandeldata *md, unsigned long i)
 	if (clock_ok)
 		fprintf (stderr, "[%7.1fs CPU] ", (double) (time_after.tms_utime + time_after.tms_stime - time_before.tms_utime - time_before.tms_stime) / clock_ticks);
 #endif
-	fprintf (stderr, "Frame %ld done", i);
-	unsigned bits = mandel_get_precision (renderer);
+	fprintf (stderr, "Frame [%s] done", filename);
 	if (bits == 0)
 		fprintf (stderr, ", using FP arithmetic");
 	else
@@ -269,7 +196,9 @@ render_frame (struct mandeldata *md, unsigned long i)
 	funlockfile (stderr);
 #endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 
-	mandel_renderer_clear (renderer);
+		free_work_list_item (item);
+	}
+	return NULL;
 }
 
 

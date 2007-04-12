@@ -18,3 +18,4 @@ TODO
   bad performance implications
 - use the asm routine again
 - full IPv6 support in network code
+- detect "all done" situation in network rendering (server and client)

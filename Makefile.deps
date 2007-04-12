@@ -1,5 +1,5 @@
 anim.o: anim.c anim.h fractal-render.h fpdefs.h fractal-math.h util.h \
-  file.h defs.h
+  file.h defs.h render-png.h
 coord_lex.yy.o: coord_lex.yy.c fractal-render.h fpdefs.h fractal-math.h \
   coord_parse.tab.h
 coord_parse.tab.o: coord_parse.tab.c fractal-render.h fpdefs.h \
@@ -26,9 +26,12 @@ lissajoulia.o: lissajoulia.c anim.h fractal-render.h fpdefs.h \
 main.o: main.c file.h util.h fpdefs.h fractal-render.h fractal-math.h \
   gtkmandel.h gui-util.h defs.h gui.h gui-mainwin.h gui-infodlg.h \
   gui-typedlg.h
+mandel-worker.o: mandel-worker.c defs.h file.h util.h fpdefs.h \
+  fractal-render.h fractal-math.h render-png.h
 misc-math.o: misc-math.c fpdefs.h misc-math.h
+render-png.o: render-png.c render-png.h fractal-render.h fpdefs.h \
+  fractal-math.h
 stupidmng.o: stupidmng.c crc.h
-test_iobuf.o: test_iobuf.c util.h fpdefs.h
 test_parser.o: test_parser.c fractal-render.h fpdefs.h fractal-math.h \
   file.h util.h coord_parse.tab.h
 util.o: util.c util.h fpdefs.h
