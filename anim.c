@@ -310,17 +310,19 @@ network_thread (gpointer data)
 	fprintf (stderr, "* INFO: Created %u listening sockets.\n", listeners);
 
 	while (true) {
-		int r = poll (state->pollfds, state->socket_count, -1);
-		if (r < 0) {
-			fprintf (stderr, "* ERROR: poll() failed: %s\n", strerror (errno));
-			continue;
-		} else if (r == 0) {
-			fprintf (stderr, "* WARNING: poll() found no events, doing another iteration...\n");
+		int nevents = poll (state->pollfds, state->socket_count, 5000);
+		if (nevents < 0) {
+			if (errno != EINTR)
+				fprintf (stderr, "* WARNING: poll() failed: %s\n", strerror (errno));
 			continue;
 		}
 
 		unsigned i, socket_count = state->socket_count;
-		for (i = 0; i < socket_count; i++) {
+		int events_left = nevents;
+		for (i = 0; events_left > 0 && i < socket_count; i++) {
+			if (state->pollfds[i].revents != 0)
+				events_left--;
+
 			struct net_client *client = state->clients[i];
 			if ((state->pollfds[i].revents & POLLIN) != 0) {
 				/* There is input to be processed on this fd. */
@@ -356,42 +358,46 @@ network_thread (gpointer data)
 					state->pollfds[i].events &= ~POLLOUT;
 				}
 			}
+
+			/* XXX Check for error conditions */
 		}
 
-		/*
-		 * Scan the client list again and remove any clients that are in
-		 * dying state. Put their current work items back to the work list
-		 * for retry.
-		 */
-		for (i = 0; i < state->socket_count; i++)
-			if (state->clients[i] != NULL && state->clients[i]->dying)
-				disconnect_client (state, i);
+		if (nevents > 0) {
+			/*
+			 * Scan the client list again and remove any clients that are in
+			 * dying state. Put their current work items back to the work list
+			 * for retry.
+			 */
+			for (i = 0; i < state->socket_count; i++)
+				if (state->clients[i] != NULL && state->clients[i]->dying)
+					disconnect_client (state, i);
 
-		/*
-		 * After we did all the I/O stuff for this iteration, we now give
-		 * work to any idle clients.
-		 */
-		bool all_done = false;
-		for (i = 0; !all_done && i < state->socket_count; i++) {
-			int j;
-			struct net_client *client = state->clients[i];
-			if (client == NULL)
-				continue; /* skip over listening sockets */
+			/*
+			 * After we did all the I/O stuff for this iteration, we now give
+			 * work to any idle clients.
+			 */
+			bool all_done = false;
+			for (i = 0; nevents > 0 && !all_done && i < state->socket_count; i++) {
+				int j;
+				struct net_client *client = state->clients[i];
+				if (client == NULL)
+					continue; /* skip over listening sockets */
 
-			g_mutex_lock (state->mutex);
-			for (j = 0; j < client->thread_count; j++) {
-				if (client->work_items[j] != NULL)
-					continue; /* got work already */
-				struct work_list_item *item = get_work (state);
-				if (item == NULL) {
-					all_done = true;
-					break;
+				g_mutex_lock (state->mutex);
+				for (j = 0; j < client->thread_count; j++) {
+					if (client->work_items[j] != NULL)
+						continue; /* got work already */
+					struct work_list_item *item = get_work (state);
+					if (item == NULL) {
+						all_done = true;
+						break;
+					}
+					send_render_command (state, i, j, item->i, &item->md);
+					client->work_items[j] = item;
+					state->net_threads++;
 				}
-				send_render_command (state, i, j, item->i, &item->md);
-				client->work_items[j] = item;
-				state->net_threads++;
+				g_mutex_unlock (state->mutex);
 			}
-			g_mutex_unlock (state->mutex);
 		}
 
 		g_mutex_lock (state->mutex);
