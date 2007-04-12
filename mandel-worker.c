@@ -78,54 +78,50 @@ main (int argc, char **argv)
 	}
 
 	const char *hostname = argv[1];
-	int port = atoi (argv[2]);
+	const char *servname = argv[2];
 
-	if (port < 1 || port > 65535) {
-		fprintf (stderr, "* ERROR: invalid port number\n");
+	struct addrinfo aihints = {
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP
+	};
+	struct addrinfo *ai = NULL;
+	int r = getaddrinfo (hostname, servname, &aihints, &ai);
+	if (r != 0) {
+		fprintf (stderr, "* ERROR: Name lookup failed: %s\n", gai_strerror (r));
 		return 1;
 	}
+	int s = -1;
+	struct addrinfo *aicur;
+	for (aicur = ai; aicur != NULL; aicur = aicur->ai_next) {
+		char addrbuf[256], portbuf[16];
+		if (getnameinfo (aicur->ai_addr, aicur->ai_addrlen, addrbuf, sizeof (addrbuf), portbuf, sizeof (portbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+			fprintf (stderr, "* INFO: Trying to connect to [%s] port [%s]... ", addrbuf, portbuf);
+		else
+			fprintf (stderr, "* INFO: Trying to connect to [something that getnameinfo() doesn't understand]... ");
+		fflush (stderr);
 
-	/* XXX should use getipnodebyname() or even getaddrinfo() instead */
-	struct hostent *hent = gethostbyname (hostname);
-	if (hent == NULL) {
-		fprintf (stderr, "* ERROR: %s: %s\n", hostname, hstrerror (h_errno));
-		return 1;
+		s = socket (aicur->ai_family, aicur->ai_socktype, aicur->ai_protocol);
+		if (s < 0) {
+			fprintf (stderr, "%s\n", strerror (errno));
+			continue;
+		}
+
+		if (connect (s, aicur->ai_addr, aicur->ai_addrlen) < 0) {
+			fprintf (stderr, "%s\n", strerror (errno));
+			close (s);
+			s = -1;
+			continue;
+		}
+
+		fprintf (stderr, "okay.\n");
+		break;
 	}
 
-	int s = socket (hent->h_addrtype, SOCK_STREAM, IPPROTO_TCP);
+	freeaddrinfo (ai);
+
 	if (s < 0) {
-		perror ("socket()");
-		return 1;
-	}
-
-	struct sockaddr_storage saddr;
-	socklen_t addrlen = 0;
-	saddr.ss_family = hent->h_addrtype;
-	switch (hent->h_addrtype) {
-		case AF_INET: {
-			struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
-			memcpy (&sin->sin_addr, hent->h_addr_list[0], sizeof (sin->sin_addr));
-			sin->sin_port = htons (port);
-			addrlen = sizeof (struct sockaddr_in);
-			break;
-		}
-
-		case AF_INET6: {
-			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
-			memcpy (&sin6->sin6_addr, hent->h_addr_list[0], sizeof (sin6->sin6_addr));
-			sin6->sin6_port = htons (port);
-			addrlen = sizeof (struct sockaddr_in6);
-			break;
-		}
-
-		default: {
-			fprintf (stderr, "ERROR: Unknown address type (%d)\n", (int) hent->h_addrtype);
-			return 1;
-		}
-	}
-
-	if (connect (s, (struct sockaddr *) &saddr, addrlen) < 0) {
-		perror ("connect()");
+		fprintf (stderr, "* ERROR: Cannot connect to any address of the desired host.\n");
 		return 1;
 	}
 
