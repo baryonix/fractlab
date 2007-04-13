@@ -17,3 +17,6 @@ TODO
 - verify that commit 2d6d396232bdbbc12984ec00e85ede4504aebfc4 didn't have any
   bad performance implications
 - use the asm routine again
+- extend representation: there should be a sqrt(iter) representation, and a
+  linear coefficient should be available for the linear repres; this will
+  require a new coordinate file format, too
