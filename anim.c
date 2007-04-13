@@ -433,8 +433,11 @@ network_thread (gpointer data)
 		 * for retry.
 		 */
 		for (i = 0; i < state->socket_count; i++)
-			if (state->sockets[i].type == SOCK_TYPE_CLIENT && state->sockets[i].data.client->dying)
+			if (state->sockets[i].type == SOCK_TYPE_CLIENT && state->sockets[i].data.client->dying) {
 				disconnect_client (state, i);
+				fprintf (stderr, "* INFO: Client %s disconnected, total capacity now %u threads.\n", state->sockets[i].data.client->name, (unsigned) zoom_threads + state->net_threads_total);
+
+			}
 
 		/*
 		 * After we did all the I/O stuff for this iteration, we now give
@@ -789,8 +792,6 @@ disconnect_client (struct anim_state *state, unsigned i)
 		state->net_threads_busy--;
 	}
 	g_mutex_unlock (state->mutex);
-
-	fprintf (stderr, "* INFO: Client %s disconnected, total capacity now %u threads.\n", client->name, (unsigned) zoom_threads + state->net_threads_total);
 
 	free (client->work_items);
 	free (client);
