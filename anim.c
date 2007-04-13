@@ -322,8 +322,21 @@ network_thread (gpointer data)
 		for (i = 0; events_left > 0 && i < socket_count; i++) {
 			if (state->pollfds[i].revents != 0)
 				events_left--;
+			else
+				continue;
 
 			struct net_client *client = state->clients[i];
+
+			if ((state->pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+				if (client != NULL) {
+					/* XXX How to find out what error occured? */
+					fprintf (stderr, "* WARNING: poll() detected error on connection to client %s. Will be disconnected.\n", client->name);
+					client->dying = true;
+					continue;
+				} else
+					fprintf (stderr, "* UH-OH: poll() detected error on listening socket. Trying to continue...\n");
+			}
+
 			if ((state->pollfds[i].revents & POLLIN) != 0) {
 				/* There is input to be processed on this fd. */
 				if (client != NULL) {
@@ -358,8 +371,6 @@ network_thread (gpointer data)
 					state->pollfds[i].events &= ~POLLOUT;
 				}
 			}
-
-			/* XXX Check for error conditions */
 		}
 
 		if (nevents > 0) {
@@ -516,7 +527,7 @@ accept_connection (struct anim_state *state, unsigned i)
 		fprintf (stderr, "* WARNING: getnameinfo() failed: %s\n", gai_strerror (r));
 		my_safe_strcpy (client->name, "???", sizeof (client->name));
 	}
-	fprintf (stderr, "* INFO: Accepted new connection from [%s]\n", client->name);
+	fprintf (stderr, "* INFO: New connection from client %s.\n", client->name);
 
 	if (fcntl (client->fd, F_SETFL, O_NONBLOCK) < 0) {
 		fprintf (stderr, "* ERROR: fcntl (enable O_NONBLOCK): %s\n", strerror (errno));
@@ -612,14 +623,14 @@ process_net_input (struct anim_state *state, unsigned i)
 
 	if (fgets (client->input_buf + client->input_pos, sizeof (client->input_buf) - client->input_pos, client->f) == NULL) {
 		if (feof (client->f))
-			fprintf (stderr, "* WARNING: EOF from client\n");
+			fprintf (stderr, "* WARNING: EOF from client %s.\n", client->name);
 		else
-			fprintf (stderr, "* WARNING: error from fgets: %s\n", strerror (errno));
+			fprintf (stderr, "* WARNING: Error reading from client %s: %s\n", client->name, strerror (errno));
 		return false;
 	}
 	client->input_pos += strlen (client->input_buf + client->input_pos);
 	if (client->input_pos >= sizeof (client->input_buf) - 1 && client->input_buf[client->input_pos - 1] != '\n') {
-		fprintf (stderr, "* WARNING: Buffer overrun on network input. Nasty, nasty client. Dropping connection.\n");
+		fprintf (stderr, "* WARNING: Buffer overrun on network input from client %s. Nasty, nasty client. Dropping connection.\n", client->name);
 		return false;
 	}
 	if (client->input_pos >= 1 && client->input_buf[client->input_pos - 1] == '\n') {
@@ -628,42 +639,42 @@ process_net_input (struct anim_state *state, unsigned i)
 		char *saveptr;
 		const char *keyword = strtok_r (client->input_buf, NETWORK_DELIM, &saveptr);
 		if (keyword == NULL) {
-			fprintf (stderr, "* ERROR: Cannot extract keyword from message.\n");
+			fprintf (stderr, "* WARNING: Empty message from client %s.\n", client->name);
 			return false;
 		}
 
 		if (strcmp (keyword, "MOIN") == 0) {
 			if (client->state != CSTATE_INITIAL) {
-				fprintf (stderr, "* ERROR: MOIN message while not in CSTATE_INITIAL.\n");
+				fprintf (stderr, "* WARNING: MOIN message while not in CSTATE_INITIAL from client %s.\n", client->name);
 				return false;
 			}
 			const char *arg1 = strtok_r (NULL, NETWORK_DELIM, &saveptr);
 			if (arg1 == NULL) {
-				fprintf (stderr, "* ERROR: Cannot extract argument from MOIN message.\n");
+				fprintf (stderr, "* WARNING: Invalid MOIN message from client %s.\n", client->name);
 				return false;
 			}
 			int j = atoi (arg1);
 			if (j < 1) {
-				fprintf (stderr, "* ERROR: Invalid thread count in MOIN message.\n");
+				fprintf (stderr, "* WARNING: Invalid thread count in MOIN message from client %s.\n", client->name);
 				return false;
 			}
-			fprintf (stderr, "* INFO: Client %s has %d threads.\n", client->name, j);
+			fprintf (stderr, "* INFO: Client %s ready to rumble (%d threads).\n", client->name, j);
 			client->thread_count = j;
 			client->state = CSTATE_WORKING;
 			client->work_items = malloc (client->thread_count * sizeof (*client->work_items));
 			memset (client->work_items, 0, client->thread_count * sizeof (*client->work_items));
 		} else if (client->state == CSTATE_INITIAL) {
-			fprintf (stderr, "* ERROR: Only MOIN is allowed in CSTATE_INITIAL.\n");
+			fprintf (stderr, "* WARNING: Non-MOIN message in CSTATE_INITIAL, from client %s.\n", client->name);
 			return false;
 		} else if (strcmp (keyword, "DONE") == 0) {
 			const char *arg1 = strtok_r (NULL, NETWORK_DELIM, &saveptr);
 			if (arg1 == NULL) {
-				fprintf (stderr, "* ERROR: Cannot extract argument from DONE message.\n");
+				fprintf (stderr, "* WARNING: Invalid DONE message from client %s.\n", client->name);
 				return false;
 			}
 			int j = atoi (arg1);
 			if (j < 0 || j >= client->thread_count) {
-				fprintf (stderr, "* ERROR: Invalid thread id in DONE message.\n");
+				fprintf (stderr, "* WARNING: Invalid thread id in DONE message from client %s.\n", client->name);
 				return false;
 			}
 			fprintf (stderr, "Frame %d done, on %s.\n", client->work_items[j]->i, client->name);
@@ -672,7 +683,7 @@ process_net_input (struct anim_state *state, unsigned i)
 			client->work_items[j] = NULL;
 			state->net_threads--;
 		} else {
-			fprintf (stderr, "* DEBUG: unknown keyword [%s].\n", keyword);
+			fprintf (stderr, "* WARNING: Invalid message from client %s.\n", client->name);
 			return false;
 		}
 	}
