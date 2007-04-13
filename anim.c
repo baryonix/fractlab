@@ -60,7 +60,8 @@ struct anim_state {
 	unsigned socket_count;
 	struct pollfd *pollfds;
 	struct net_client **clients;
-	unsigned net_threads; /* number of net threads currently working (not including idle ones) */
+	unsigned net_threads_total;
+	unsigned net_threads_busy; /* number of net threads currently working (not including idle ones) */
 };
 
 
@@ -405,7 +406,7 @@ network_thread (gpointer data)
 					}
 					send_render_command (state, i, j, item->i, &item->md);
 					client->work_items[j] = item;
-					state->net_threads++;
+					state->net_threads_busy++;
 				}
 				g_mutex_unlock (state->mutex);
 			}
@@ -414,7 +415,7 @@ network_thread (gpointer data)
 		g_mutex_lock (state->mutex);
 		struct work_list_item *item = state->work_list;
 		g_mutex_unlock (state->mutex);
-		if (item == NULL && state->net_threads == 0)
+		if (item == NULL && state->net_threads_busy == 0)
 			break;
 	}
 
@@ -658,7 +659,8 @@ process_net_input (struct anim_state *state, unsigned i)
 				fprintf (stderr, "* WARNING: Invalid thread count in MOIN message from client %s.\n", client->name);
 				return false;
 			}
-			fprintf (stderr, "* INFO: Client %s ready to rumble (%d threads).\n", client->name, j);
+			state->net_threads_total += j;
+			fprintf (stderr, "* INFO: Client %s ready to rumble (%d threads). Total capacity now %u threads.\n", client->name, j, (unsigned) zoom_threads + state->net_threads_total);
 			client->thread_count = j;
 			client->state = CSTATE_WORKING;
 			client->work_items = malloc (client->thread_count * sizeof (*client->work_items));
@@ -681,7 +683,7 @@ process_net_input (struct anim_state *state, unsigned i)
 			/* XXX save the information that this client successfully rendered frame i */
 			free_work_list_item (client->work_items[j]);
 			client->work_items[j] = NULL;
-			state->net_threads--;
+			state->net_threads_busy--;
 		} else {
 			fprintf (stderr, "* WARNING: Invalid message from client %s.\n", client->name);
 			return false;
@@ -695,6 +697,8 @@ static void
 disconnect_client (struct anim_state *state, unsigned i)
 {
 	struct net_client *client = state->clients[i];
+
+	state->net_threads_total -= client->thread_count;
 
 	/* No error checks here, there's nothing we could do anyway. */
 	fputs ("TERMINATE\r\n", client->f);
@@ -710,9 +714,11 @@ disconnect_client (struct anim_state *state, unsigned i)
 		fprintf (stderr, "* WARNING: Will have to re-render frame %d due to client failure.\n", item->i);
 		item->next = state->work_list;
 		state->work_list = item;
-		state->net_threads--;
+		state->net_threads_busy--;
 	}
 	g_mutex_unlock (state->mutex);
+
+	fprintf (stderr, "* INFO: Client %s disconnected, total capacity now %u threads.\n", client->name, (unsigned) zoom_threads + state->net_threads_total);
 
 	free (client->work_items);
 	free (client);
