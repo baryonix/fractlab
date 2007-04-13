@@ -490,20 +490,29 @@ accept_connection (struct anim_state *state, unsigned i)
 		return;
 	}
 
+	/*
+	 * If we have an IPv6-mapped IPv4 address, convert it into a real IPv4
+	 * address. This gives a more aesthetic look to the result of
+	 * getnameinfo() on Linux (it will represent v6-mapped addresses in
+	 * the "::ffff:1.2.3.4" format otherwise).
+	 */
+	static const unsigned char v6mapped_prefix[12] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff};
+	if (client->addr.ss_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &client->addr;
+		if (memcmp (sin6->sin6_addr.s6_addr, v6mapped_prefix, 12) == 0) {
+			struct sockaddr_in *sin = (struct sockaddr_in *) &client->addr;
+			uint16_t port = sin6->sin6_port;
+			memmove (&sin->sin_addr.s_addr, sin6->sin6_addr.s6_addr + 12, 4);
+			sin->sin_family = AF_INET;
+			sin->sin_port = port;
+		}
+	}
+
 	int niflags = NI_NOFQDN | NI_NUMERICSERV;
 	if (no_dns)
 		niflags |= NI_NUMERICHOST;
 	int r = getnameinfo ((struct sockaddr *) &client->addr, client->addrlen, client->name, sizeof (client->name), NULL, 0, niflags);
-	if (r == 0) {
-		/*
-		 * IPv6-mapped IPv4 addresses look crappy, we turn them into the
-		 * normal IPv4 representation. And yes, we do it the dirty way.
-		 */
-		static const char v4map_prefix[] = "::ffff:";
-		static const size_t v4map_prefix_len = sizeof (v4map_prefix) - 1;
-		if (strncasecmp (client->name, v4map_prefix, v4map_prefix_len) == 0)
-			memmove (client->name, client->name + v4map_prefix_len, strlen (client->name + v4map_prefix_len) + 1);
-	} else {
+	if (r != 0) {
 		fprintf (stderr, "* WARNING: getnameinfo() failed: %s\n", gai_strerror (r));
 		my_safe_strcpy (client->name, "???", sizeof (client->name));
 	}
