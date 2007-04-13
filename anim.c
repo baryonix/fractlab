@@ -40,7 +40,8 @@ typedef enum client_state_enum {
 
 typedef enum socket_type_enum {
 	SOCK_TYPE_LISTENER,
-	SOCK_TYPE_CLIENT
+	SOCK_TYPE_CLIENT,
+	SOCK_TYPE_TERM /* termination indicator (the reading end of a pipe) */
 } socket_type_t;
 
 
@@ -79,6 +80,7 @@ struct anim_state {
 	struct socket_desc *sockets;
 	unsigned net_threads_total;
 	unsigned net_threads_busy; /* number of net threads currently working (not including idle ones) */
+	int term_pipe_r, term_pipe_w;
 };
 
 
@@ -158,8 +160,19 @@ anim_render (frame_func_t frame_func, void *data)
 	g_thread_init (NULL);
 	GThread *threads[zoom_threads], *net_thread = NULL;
 	state->mutex = g_mutex_new ();
-	if (network_port != NULL)
+	if (network_port != NULL) {
+		int pipefd[2];
+		if (pipe (pipefd) < 0) {
+			fprintf (stderr, "* ERROR: pipe() failed: %s\n", strerror (errno));
+			return;
+		}
+		state->term_pipe_r = pipefd[0];
+		state->term_pipe_w = pipefd[1];
 		net_thread = g_thread_create (network_thread, state, TRUE, NULL);
+	} else {
+		state->term_pipe_r = -1;
+		state->term_pipe_w = -1;
+	}
 	for (i = 0; i < zoom_threads; i++)
 		threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
 	if (network_port != NULL)
@@ -177,6 +190,15 @@ thread_func (gpointer data)
 	while (TRUE) {
 		g_mutex_lock (state->mutex);
 		struct work_list_item *item = get_work (state);
+		if (state->work_list == NULL && state->term_pipe_w >= 0) {
+			/*
+			 * Close the writing end of the pipe. This will cause the network
+			 * thread to wake up if it is currently in poll(). If no network
+			 * clients are left working, it will then terminate.
+			 */
+			close (state->term_pipe_w);
+			state->term_pipe_w = -1;
+		}
 		g_mutex_unlock (state->mutex);
 		if (item == NULL)
 			break;
@@ -327,8 +349,10 @@ network_thread (gpointer data)
 
 	fprintf (stderr, "* INFO: Created %u listening sockets.\n", listeners);
 
+	add_socket (state, SOCK_TYPE_TERM, state->term_pipe_r);
+
 	while (true) {
-		int nevents = poll (state->pollfds, state->socket_count, 5000);
+		int nevents = poll (state->pollfds, state->socket_count, -1);
 		if (nevents < 0) {
 			if (errno != EINTR)
 				fprintf (stderr, "* WARNING: poll() failed: %s\n", strerror (errno));
@@ -393,6 +417,13 @@ network_thread (gpointer data)
 
 					break;
 				}
+
+				case SOCK_TYPE_TERM:
+					/*
+					 * We don't do anything here, we only need the pipe to
+					 * wake us up while poll()ing.
+					 */
+					break;
 			}
 		}
 
@@ -441,13 +472,30 @@ network_thread (gpointer data)
 	}
 
 	fprintf (stderr, "* INFO: Network thread terminating, disconnecting all clients.\n");
+
+	/*
+	 * Close the writing end of the pipe first to avoid SIGPIPE under
+	 * any circumstances.
+	 */
+	g_mutex_lock (state->mutex);
+	if (state->term_pipe_w >= 0) {
+		close (state->term_pipe_w);
+		state->term_pipe_w = -1;
+	}
+	g_mutex_unlock (state->mutex);
+
 	unsigned i = 0;
 	while (i < state->socket_count)
-		if (state->sockets[i].type == SOCK_TYPE_CLIENT)
-			disconnect_client (state, i);
-		else {
-			close (state->sockets[i].fd);
-			i++;
+		switch (state->sockets[i].type) {
+			case SOCK_TYPE_LISTENER:
+			case SOCK_TYPE_TERM:
+				close (state->sockets[i].fd);
+				i++;
+				break;
+
+			case SOCK_TYPE_CLIENT:
+				disconnect_client (state, i);
+				break;
 		}
 
 	return NULL;
