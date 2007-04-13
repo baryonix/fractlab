@@ -38,10 +38,27 @@ typedef enum client_state_enum {
 } client_state_t;
 
 
+typedef enum socket_type_enum {
+	SOCK_TYPE_LISTENER,
+	SOCK_TYPE_CLIENT
+} socket_type_t;
+
+
+union socket_data {
+	struct net_client *client;
+};
+
+
+struct socket_desc {
+	socket_type_t type;
+	int fd;
+	union socket_data data;
+};
+
+
 struct net_client {
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
-	int fd;
 	FILE *f;
 	char input_buf[1024], output_buf[65536];
 	size_t input_pos, output_size, output_pos;
@@ -59,7 +76,7 @@ struct anim_state {
 	struct work_list_item *work_list;
 	unsigned socket_count;
 	struct pollfd *pollfds;
-	struct net_client **clients;
+	struct socket_desc *sockets;
 	unsigned net_threads_total;
 	unsigned net_threads_busy; /* number of net threads currently working (not including idle ones) */
 };
@@ -71,7 +88,7 @@ static struct work_list_item *generate_work_list (frame_func_t frame_func, void 
 static void free_work_list (struct work_list_item *list);
 static void free_work_list_item (struct work_list_item *item);
 static struct work_list_item *get_work (struct anim_state *state);
-static void add_socket (struct anim_state *state, int fd, struct net_client *client);
+static int add_socket (struct anim_state *state, socket_type_t type, int fd);
 static int create_listener (const struct addrinfo *ai);
 static void accept_connection (struct anim_state *state, unsigned i);
 static bool send_render_command (struct anim_state *state, unsigned client_id, unsigned thread_id, unsigned frame_no, const struct mandeldata *md);
@@ -298,7 +315,7 @@ network_thread (gpointer data)
 		int l = create_listener (aicur);
 		if (l >= 0) {
 			listeners++;
-			add_socket (state, l, NULL);
+			add_socket (state, SOCK_TYPE_LISTENER, l);
 		}
 	}
 	freeaddrinfo (ai);
@@ -326,90 +343,94 @@ network_thread (gpointer data)
 			else
 				continue;
 
-			struct net_client *client = state->clients[i];
+			switch (state->sockets[i].type) {
+				case SOCK_TYPE_LISTENER: {
+					if ((state->pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+						fprintf (stderr, "* UH-OH: poll() detected error on listening socket. Trying to continue...\n");
+						break;
+					}
+					if ((state->pollfds[i].revents & POLLIN) != 0)
+						accept_connection (state, i);
+					break;
+				}
 
-			if ((state->pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-				if (client != NULL) {
-					/* XXX How to find out what error occured? */
-					fprintf (stderr, "* WARNING: poll() detected error on connection to client %s. Will be disconnected.\n", client->name);
-					client->dying = true;
-					continue;
-				} else
-					fprintf (stderr, "* UH-OH: poll() detected error on listening socket. Trying to continue...\n");
-			}
+				case SOCK_TYPE_CLIENT: {
+					struct net_client *client = state->sockets[i].data.client;
 
-			if ((state->pollfds[i].revents & POLLIN) != 0) {
-				/* There is input to be processed on this fd. */
-				if (client != NULL) {
-					/* This is a client connection on which we received data. */
-					if (!process_net_input (state, i))
+					if ((state->pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+						fprintf (stderr, "* WARNING: poll() detected error on connection to client %s. Will be disconnected.\n", client->name);
 						client->dying = true;
-				} else {
-					/* This is a listening socket on which a new connection has just arrived. */
-					accept_connection (state, i);
-				}
-			}
+						break;
+					}
 
-			/*
-			 * We make the assumption that POLLOUT only ever gets set in revents if it was
-			 * set in events before. We also assume that we only ever set it in events if
-			 * there is data to send. Some extra consistency checking would be nice...
-			 */
-			if (client != NULL && !client->dying && (state->pollfds[i].revents & POLLOUT) != 0) {
-				errno = 0;
-				size_t written = fwrite (client->output_buf + client->output_pos, 1, client->output_size - client->output_pos, client->f);
-				if (errno != 0 && errno != EAGAIN) {
-					fprintf (stderr, "* ERROR: Sending to client: %s\n", strerror (errno));
-					client->dying = true;
-					continue;
-				}
+					if ((state->pollfds[i].revents & POLLIN) != 0 && !process_net_input (state, i)) {
+						client->dying = true;
+						break;
+					}
 
-				client->output_pos += written;
-				if (client->output_pos >= client->output_size) {
-					/* Buffer has been completely sent. */
-					client->output_pos = 0;
-					client->output_size = 0;
-					state->pollfds[i].events &= ~POLLOUT;
+					/*
+					 * We make the assumption that POLLOUT only ever gets set in revents if it was
+					 * set in events before. We also assume that we only ever set it in events if
+					 * there is data to send. Some extra consistency checking would be nice...
+					 */
+					if ((state->pollfds[i].revents & POLLOUT) != 0) {
+						errno = 0;
+						size_t written = fwrite (client->output_buf + client->output_pos, 1, client->output_size - client->output_pos, client->f);
+						if (errno != 0 && errno != EAGAIN) {
+							fprintf (stderr, "* ERROR: Sending to client: %s\n", strerror (errno));
+							client->dying = true;
+							break;
+						}
+
+						client->output_pos += written;
+						if (client->output_pos >= client->output_size) {
+							/* Buffer has been completely sent. */
+							client->output_pos = 0;
+							client->output_size = 0;
+							state->pollfds[i].events &= ~POLLOUT;
+						}
+					}
+
+					break;
 				}
 			}
 		}
 
-		if (nevents > 0) {
-			/*
-			 * Scan the client list again and remove any clients that are in
-			 * dying state. Put their current work items back to the work list
-			 * for retry.
-			 */
-			for (i = 0; i < state->socket_count; i++)
-				if (state->clients[i] != NULL && state->clients[i]->dying)
-					disconnect_client (state, i);
+		/*
+		 * Scan the client list again and remove any clients that are in
+		 * dying state. Put their current work items back to the work list
+		 * for retry.
+		 */
+		for (i = 0; i < state->socket_count; i++)
+			if (state->sockets[i].type == SOCK_TYPE_CLIENT && state->sockets[i].data.client->dying)
+				disconnect_client (state, i);
 
-			/*
-			 * After we did all the I/O stuff for this iteration, we now give
-			 * work to any idle clients.
-			 */
-			bool all_done = false;
-			for (i = 0; nevents > 0 && !all_done && i < state->socket_count; i++) {
-				int j;
-				struct net_client *client = state->clients[i];
-				if (client == NULL)
-					continue; /* skip over listening sockets */
+		/*
+		 * After we did all the I/O stuff for this iteration, we now give
+		 * work to any idle clients.
+		 */
+		bool all_done = false;
+		for (i = 0; nevents > 0 && !all_done && i < state->socket_count; i++) {
+			int j;
+			if (state->sockets[i].type != SOCK_TYPE_CLIENT)
+				continue;
 
-				g_mutex_lock (state->mutex);
-				for (j = 0; j < client->thread_count; j++) {
-					if (client->work_items[j] != NULL)
-						continue; /* got work already */
-					struct work_list_item *item = get_work (state);
-					if (item == NULL) {
-						all_done = true;
-						break;
-					}
-					send_render_command (state, i, j, item->i, &item->md);
-					client->work_items[j] = item;
-					state->net_threads_busy++;
+			struct net_client *client = state->sockets[i].data.client;
+
+			g_mutex_lock (state->mutex);
+			for (j = 0; j < client->thread_count; j++) {
+				if (client->work_items[j] != NULL)
+					continue; /* got work already */
+				struct work_list_item *item = get_work (state);
+				if (item == NULL) {
+					all_done = true;
+					break;
 				}
-				g_mutex_unlock (state->mutex);
+				send_render_command (state, i, j, item->i, &item->md);
+				client->work_items[j] = item;
+				state->net_threads_busy++;
 			}
+			g_mutex_unlock (state->mutex);
 		}
 
 		g_mutex_lock (state->mutex);
@@ -422,10 +443,10 @@ network_thread (gpointer data)
 	fprintf (stderr, "* INFO: Network thread terminating, disconnecting all clients.\n");
 	unsigned i = 0;
 	while (i < state->socket_count)
-		if (state->clients[i] != NULL)
+		if (state->sockets[i].type == SOCK_TYPE_CLIENT)
 			disconnect_client (state, i);
 		else {
-			close (state->pollfds[i].fd);
+			close (state->sockets[i].fd);
 			i++;
 		}
 
@@ -433,15 +454,17 @@ network_thread (gpointer data)
 }
 
 
-static void
-add_socket (struct anim_state *state, int fd, struct net_client *client)
+static int
+add_socket (struct anim_state *state, socket_type_t type, int fd)
 {
-	state->socket_count++;
+	int idx = state->socket_count++;
 	state->pollfds = realloc (state->pollfds, state->socket_count * sizeof (*state->pollfds));
-	state->clients = realloc (state->clients, state->socket_count * sizeof (*state->clients));
-	state->pollfds[state->socket_count - 1].fd = fd;
-	state->pollfds[state->socket_count - 1].events = POLLIN;
-	state->clients[state->socket_count - 1] = client;
+	state->sockets = realloc (state->sockets, state->socket_count * sizeof (*state->sockets));
+	state->pollfds[idx].fd = fd;
+	state->pollfds[idx].events = POLLIN;
+	state->sockets[idx].type = type;
+	state->sockets[idx].fd = fd;
+	return idx;
 }
 
 
@@ -495,8 +518,8 @@ accept_connection (struct anim_state *state, unsigned i)
 	client->state = CSTATE_INITIAL;
 
 	client->addrlen = sizeof (client->addr);
-	client->fd = accept (state->pollfds[i].fd, (struct sockaddr *) &client->addr, &client->addrlen);
-	if (client->fd < 0) {
+	int fd = accept (state->pollfds[i].fd, (struct sockaddr *) &client->addr, &client->addrlen);
+	if (fd < 0) {
 		fprintf (stderr, "* ERROR: accept(): %s\n", strerror (errno));
 		free (client);
 		return;
@@ -530,21 +553,21 @@ accept_connection (struct anim_state *state, unsigned i)
 	}
 	fprintf (stderr, "* INFO: New connection from client %s.\n", client->name);
 
-	if (fcntl (client->fd, F_SETFL, O_NONBLOCK) < 0) {
+	if (fcntl (fd, F_SETFL, O_NONBLOCK) < 0) {
 		fprintf (stderr, "* ERROR: fcntl (enable O_NONBLOCK): %s\n", strerror (errno));
-		close (client->fd);
+		close (fd);
 		free (client);
 		return;
 	}
 
 	static const int one = 1;
-	if (setsockopt (client->fd, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof (one)) < 0)
+	if (setsockopt (fd, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof (one)) < 0)
 		fprintf (stderr, "* WARNING: setsockopt (enable SO_KEEPALIVE): %s\n", strerror (errno));
 
-	client->f = fdopen (client->fd, "r+");
+	client->f = fdopen (fd, "r+");
 	if (client->f == NULL) {
 		fprintf (stderr, "* ERROR: fdopen(): %s\n", strerror (errno));
-		close (client->fd);
+		close (fd);
 		free (client);
 	}
 
@@ -556,7 +579,8 @@ accept_connection (struct anim_state *state, unsigned i)
 	if (setvbuf (client->f, NULL, _IONBF, 0) != 0)
 		fprintf (stderr, "* WARNING: setvbuf(): %s\n", strerror (errno));
 
-	add_socket (state, client->fd, client);
+	int idx = add_socket (state, SOCK_TYPE_CLIENT, fd);
+	state->sockets[idx].data.client = client;
 }
 
 
@@ -568,7 +592,7 @@ send_render_command (struct anim_state *state, unsigned client_id, unsigned thre
 	 * The io_buffer code should get a bit smarter, which would probably
 	 * make most of the byte counting performed here superfluous.
 	 */
-	struct net_client *client = state->clients[client_id];
+	struct net_client *client = state->sockets[client_id].data.client;
 	char mdbuf1[4096], mdbuf2[4096];
 	struct io_buffer iob1[1], iob2[1];
 	struct io_stream ios1[1], ios2[1];
@@ -620,7 +644,7 @@ send_render_command (struct anim_state *state, unsigned client_id, unsigned thre
 static bool
 process_net_input (struct anim_state *state, unsigned i)
 {
-	struct net_client *client = state->clients[i];
+	struct net_client *client = state->sockets[i].data.client;
 
 	if (fgets (client->input_buf + client->input_pos, sizeof (client->input_buf) - client->input_pos, client->f) == NULL) {
 		if (feof (client->f))
@@ -696,14 +720,14 @@ process_net_input (struct anim_state *state, unsigned i)
 static void
 disconnect_client (struct anim_state *state, unsigned i)
 {
-	struct net_client *client = state->clients[i];
+	struct net_client *client = state->sockets[i].data.client;
 
 	state->net_threads_total -= client->thread_count;
 
 	/* No error checks here, there's nothing we could do anyway. */
 	fputs ("TERMINATE\r\n", client->f);
 	fclose (client->f);
-	close (client->fd);
+	close (state->sockets[i].fd);
 
 	g_mutex_lock (state->mutex);
 	unsigned j;
@@ -726,6 +750,6 @@ disconnect_client (struct anim_state *state, unsigned i)
 	state->socket_count--;
 	if (i < state->socket_count) {
 		memcpy (&state->pollfds[i], &state->pollfds[state->socket_count], sizeof (*state->pollfds));
-		state->clients[i] = state->clients[state->socket_count];
+		memcpy (&state->sockets[i], &state->sockets[state->socket_count], sizeof (*state->sockets));
 	}
 }
