@@ -81,6 +81,7 @@ struct anim_state {
 	unsigned net_threads_total;
 	unsigned net_threads_busy; /* number of net threads currently working (not including idle ones) */
 	int term_pipe_r, term_pipe_w;
+	char **client_index;
 };
 
 
@@ -108,6 +109,7 @@ static gint compression = -1;
 static gint start_frame = 0;
 static const gchar *network_port = NULL;
 static gint no_dns = 0;
+static const gchar *index_file = NULL;
 
 
 static GOptionEntry option_entries[] = {
@@ -119,6 +121,7 @@ static GOptionEntry option_entries[] = {
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
 	{"listen", 'l', 0, G_OPTION_ARG_STRING, &network_port, "Listen on PORT for network rendering", "PORT"},
 	{"no-dns", 'N', 0, G_OPTION_ARG_NONE, &no_dns, "Don't resolve hostnames of clients via DNS"},
+	{"index-file", 'I', 0, G_OPTION_ARG_FILENAME, &index_file, "Record in FILE which frame was rendered on which client", "FILE"},
 	{NULL}
 };
 
@@ -160,6 +163,10 @@ anim_render (frame_func_t frame_func, void *data)
 	g_thread_init (NULL);
 	GThread *threads[zoom_threads], *net_thread = NULL;
 	state->mutex = g_mutex_new ();
+	if (index_file != NULL) {
+		state->client_index = malloc (frame_count * sizeof (*state->client_index));
+		memset (state->client_index, 0, frame_count * sizeof (*state->client_index));
+	}
 	if (network_port != NULL) {
 		int pipefd[2];
 		if (pipe (pipefd) < 0) {
@@ -179,6 +186,16 @@ anim_render (frame_func_t frame_func, void *data)
 		g_thread_join (net_thread);
 	for (i = 0; i < zoom_threads; i++)
 		g_thread_join (threads[i]);
+	if (index_file != NULL && state->client_index != NULL) {
+		FILE *ixfile = fopen (index_file, "w");
+		if (ixfile != NULL) {
+			fprintf (stderr, "* INFO: Writing index to file [%s].\n", index_file);
+			for (i = start_frame; i < frame_count; i++)
+				fprintf (ixfile, "%d %s\n", i, (state->client_index[i] != NULL) ? state->client_index[i] : "<NOT DONE>");
+			fclose (ixfile);
+		} else
+			fprintf (stderr, "* ERROR: Writing index file [%s]: %s\n", index_file, strerror (errno));
+	}
 	g_mutex_free (state->mutex);
 }
 
@@ -244,6 +261,11 @@ thread_func (gpointer data)
 		funlockfile (stderr);
 #endif /* _POSIX_THREAD_SAFE_FUNCTIONS */
 
+		if (state->client_index != NULL) {
+			g_mutex_lock (state->mutex);
+			state->client_index[item->i] = "<LOCAL>";
+			g_mutex_unlock (state->mutex);
+		}
 		free_work_list_item (item);
 	}
 	return NULL;
@@ -756,6 +778,11 @@ process_net_input (struct anim_state *state, unsigned i)
 			}
 			fprintf (stderr, "Frame %d done, on %s.\n", client->work_items[j]->i, client->name);
 			/* XXX save the information that this client successfully rendered frame i */
+			if (state->client_index != NULL) {
+				g_mutex_lock (state->mutex);
+				state->client_index[client->work_items[j]->i] = strdup (client->name);
+				g_mutex_unlock (state->mutex);
+			}
 			free_work_list_item (client->work_items[j]);
 			client->work_items[j] = NULL;
 			state->net_threads_busy--;
