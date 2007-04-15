@@ -62,6 +62,7 @@ worker_thread (gpointer data)
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
 		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h);
+		mandeldata_clear (&info->md);
 
 		/*
 		 * We cannot use stdio here, because it relies on locking file
@@ -183,10 +184,17 @@ main (int argc, char **argv)
 
 	while (true) {
 		char buf[256];
-		errno = 0;
-		fgets (buf, sizeof (buf), f);
-		if (errno != 0) {
-			fprintf (stderr, "* ERROR in fgets: %s\n", strerror (errno));
+		if (fgets (buf, sizeof (buf), f) == NULL) {
+			if (feof (f))
+				fprintf (stderr, "* ERROR: Server unexpectedly closed the connection.\n");
+			else
+				fprintf (stderr, "* ERROR reading from server: %s\n", strerror (errno));
+			return 1;
+		} else if (buf[strlen (buf) - 1] != '\n') {
+			if (feof (f))
+				fprintf (stderr, "* ERROR: Server unexpectedly closed the connection.\n");
+			else
+				fprintf (stderr, "* ERROR: Buffer overrun reading command from server.\n");
 			return 1;
 		}
 
@@ -255,12 +263,13 @@ main (int argc, char **argv)
 				return 1;
 			}
 
-			char *mdbuf = malloc (mdlen + 1);
+			char mdbuf[mdlen + 1];
 			mdbuf[mdlen] = 0;
-			errno = 0;
-			fread (mdbuf, mdlen, 1, f);
-			if (errno != 0) {
-				fprintf (stderr, "* ERROR: Reading body of RENDER message: %s\n", strerror (errno));
+			if (fread (mdbuf, mdlen, 1, f) < 1) {
+				if (feof (f))
+					fprintf (stderr, "* ERROR: Server unexpectedly closed the connection.\n");
+				else
+					fprintf (stderr, "* ERROR: Reading body of RENDER message: %s\n", strerror (errno));
 				return 1;
 			}
 
