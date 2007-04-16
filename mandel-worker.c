@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
+#include <netinet/in.h>
 
 #include <glib.h>
 
@@ -53,6 +54,14 @@ worker_thread (gpointer data)
 {
 	struct thread_info *info = (struct thread_info *) data;
 	struct worker_state *state = info->state;
+
+	GMutex *startup_mutex = info->mutex;
+	g_mutex_lock (info->mutex);
+	g_cond_signal (info->cond);
+	info->mutex = g_mutex_new ();
+	g_mutex_lock (info->mutex);
+	info->cond = g_cond_new ();
+	g_mutex_unlock (startup_mutex);
 
 	while (true) {
 		fprintf (stderr, "* INFO: Thread %u waiting for work\n", info->thread_id);
@@ -162,16 +171,25 @@ main (int argc, char **argv)
 	state->thread_info = tinfo;
 	state->connection = s;
 
+	GMutex *startup_mutex = g_mutex_new ();
+	GCond *startup_cond = g_cond_new ();
+	g_mutex_lock (startup_mutex);
+
 	int i;
 	for (i = 0; i < state->thread_count; i++) {
 		tinfo[i].state = state;
 		tinfo[i].thread_id = i;
-		tinfo[i].mutex = g_mutex_new ();
-		g_mutex_lock (tinfo[i].mutex);
-		tinfo[i].cond = g_cond_new ();
+		tinfo[i].mutex = startup_mutex;
+		tinfo[i].cond = startup_cond;
 		tinfo[i].terminate = false;
 		tinfo[i].thread = g_thread_create (worker_thread, (gpointer) &tinfo[i], true, NULL);
+		fprintf (stderr, "* DEBUG: waiting for thread %d\n", i);
+		g_cond_wait (startup_cond, startup_mutex);
 	}
+
+	g_mutex_unlock (startup_mutex);
+	g_mutex_free (startup_mutex);
+	g_cond_free (startup_cond);
 
 	fprintf (f, "MOIN %u\r\n", state->thread_count);
 	fflush (f);
