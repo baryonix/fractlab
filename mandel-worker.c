@@ -97,6 +97,9 @@ main (int argc, char **argv)
 		return 1;
 	}
 
+	mpf_set_default_prec (1024); /* ! */
+	mpfr_set_default_prec (1024); /* ! */
+
 	const char *hostname = argv[1];
 	const char *servname = argv[2];
 	thread_count = atoi (argv[3]);
