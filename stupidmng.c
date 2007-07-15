@@ -104,9 +104,10 @@ main (int argc, char *argv[])
 {
 	long frames = 0, width = 0, height = 0, rate = 25;
 	const char *format = NULL, *outfile = NULL;
-	int opt, checkcrc = 1;
+	int opt, checkcrc = 1, loop = 0;
+	unsigned initial_frame = 0;
 	opterr = 0;
-	while ((opt = getopt (argc, argv, "h?n:W:H:r:F:o:C")) != -1) {
+	while ((opt = getopt (argc, argv, "h?n:W:H:r:F:o:CLi:")) != -1) {
 		switch (opt) {
 			case 'n': {
 				frames = strtol (optarg, NULL, 10);
@@ -134,6 +135,14 @@ main (int argc, char *argv[])
 			}
 			case 'C': {
 				checkcrc = 0;
+				break;
+			}
+			case 'L': {
+				loop = 1;
+				break;
+			}
+			case 'i': {
+				initial_frame = strtol (optarg, NULL, 10);
 				break;
 			}
 			case 'h':
@@ -167,11 +176,16 @@ main (int argc, char *argv[])
 	mhdr.profile = htonl (0x41);
 	write_chunk (out, "MHDR", (char *) &mhdr, sizeof (mhdr), NULL);
 
+	if (loop) {
+		char term[1] = {3};
+		write_chunk (out, "TERM", term, sizeof (term), NULL);
+	}
+
 	char bg[6] = {0, 0, 0, 0, 0, 0};
 	write_chunk (out, "BACK", bg, sizeof (bg), NULL);
 
 	long i;
-	for (i = 0; i < frames; i++) {
+	for (i = initial_frame; i < initial_frame + frames; i++) {
 		char fname[1024];
 		sprintf (fname, format, i);
 		FILE *f = fopen (fname, "rb");
