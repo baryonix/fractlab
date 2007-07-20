@@ -611,7 +611,7 @@ type_dlg_get_repres (FractalTypeDialog *dlg)
 static void
 fractal_type_dialog_dispose (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: disposing type dialog\n");
+	//fprintf (stderr, "* DEBUG: disposing type dialog\n");
 	int i;
 	FractalTypeDialog *const dlg = FRACTAL_TYPE_DIALOG (object);
 	FractalTypeDialogPrivate *const priv = dlg->priv;
@@ -639,7 +639,7 @@ fractal_type_dialog_dispose (GObject *object)
 static void
 fractal_type_dialog_finalize (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: finalizing type dialog\n");
+	//fprintf (stderr, "* DEBUG: finalizing type dialog\n");
 	int i;
 	FractalTypeDialog *const dlg = FRACTAL_TYPE_DIALOG (object);
 	FractalTypeDialogPrivate *const priv = dlg->priv;

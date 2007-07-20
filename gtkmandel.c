@@ -678,7 +678,7 @@ gtk_mandel_get_progress (GtkMandel *mandel)
 static void
 gtk_mandel_dispose (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: disposing GtkMandel\n");
+	//fprintf (stderr, "* DEBUG: disposing GtkMandel\n");
 	GtkMandel *mandel = GTK_MANDEL (object);
 	if (!mandel->disposed) {
 		gtk_mandel_stop (mandel);
@@ -699,7 +699,7 @@ gtk_mandel_dispose (GObject *object)
 static void
 gtk_mandel_finalize (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: finalizing GtkMandel\n");
+	//fprintf (stderr, "* DEBUG: finalizing GtkMandel\n");
 	GtkMandel *mandel = GTK_MANDEL (object);
 	g_mutex_free (mandel->pb_mutex);
 	if (mandel->renderer != NULL) {

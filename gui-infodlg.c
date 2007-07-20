@@ -164,7 +164,7 @@ fractal_info_dialog_new (GtkWindow *parent)
 static void
 fractal_info_dialog_dispose (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: disposing info dialog\n");
+	//fprintf (stderr, "* DEBUG: disposing info dialog\n");
 	FractalInfoDialog *const dlg = FRACTAL_INFO_DIALOG (object);
 	FractalInfoDialogPrivate *const priv = dlg->priv;
 	GObjectClass *const parent_class = g_type_class_peek_parent (G_OBJECT_GET_CLASS (object));
@@ -187,7 +187,7 @@ fractal_info_dialog_dispose (GObject *object)
 static void
 fractal_info_dialog_finalize (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: finalizing info dialog\n");
+	//fprintf (stderr, "* DEBUG: finalizing info dialog\n");
 	FractalInfoDialog *const dlg = FRACTAL_INFO_DIALOG (object);
 	GObjectClass *const parent_class = g_type_class_peek_parent (G_OBJECT_GET_CLASS (object));
 	free (dlg->priv);

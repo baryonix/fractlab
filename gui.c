@@ -309,7 +309,7 @@ about_dlg_requested (GtkMandelApplication *app, gpointer data)
 static void
 gtk_mandel_app_dispose (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: disposing application\n");
+	//fprintf (stderr, "* DEBUG: disposing application\n");
 	GtkMandelApplication *app = GTK_MANDEL_APPLICATION (object);
 	if (!app->disposed) {
 		my_gtk_widget_destroy_unref (app->open_coord_chooser);
@@ -327,6 +327,6 @@ gtk_mandel_app_dispose (GObject *object)
 static void
 gtk_mandel_app_finalize (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: finalizing application\n");
+	//fprintf (stderr, "* DEBUG: finalizing application\n");
 	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->finalize (object);
 }

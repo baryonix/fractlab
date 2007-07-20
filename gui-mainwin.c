@@ -734,7 +734,7 @@ about_dlg_requested (FractalMainWindow *win, gpointer data)
 static void
 fractal_main_window_dispose (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: disposing main window\n");
+	//fprintf (stderr, "* DEBUG: disposing main window\n");
 	FractalMainWindow *const win = FRACTAL_MAIN_WINDOW (object);
 	FractalMainWindowPrivate *const priv = win->priv;
 	if (!priv->disposed) {
@@ -750,16 +750,16 @@ fractal_main_window_dispose (GObject *object)
 			g_object_unref (priv->menu.render_method_items[i]);
 		priv->disposed = true;
 	}
-	fprintf (stderr, "* DEBUG: calling parent dispose handler for main window\n");
+	//fprintf (stderr, "* DEBUG: calling parent dispose handler for main window\n");
 	G_OBJECT_CLASS (g_type_class_peek_parent (G_OBJECT_GET_CLASS (object)))->dispose (object);
-	fprintf (stderr, "* DEBUG: finished disposing main window\n");
+	//fprintf (stderr, "* DEBUG: finished disposing main window\n");
 }
 
 
 static void
 fractal_main_window_finalize (GObject *object)
 {
-	fprintf (stderr, "* DEBUG: finalizing main window\n");
+	//fprintf (stderr, "* DEBUG: finalizing main window\n");
 	FractalMainWindow *const win = FRACTAL_MAIN_WINDOW (object);
 	FractalMainWindowPrivate *const priv = win->priv;
 	free_mandeldata_gslist (priv->undo);
