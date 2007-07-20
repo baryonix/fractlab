@@ -17,7 +17,6 @@ struct julia_state;
 struct mandel_julia_state {
 	unsigned frac_limbs;
 	fractal_type_flags_t flags;
-	unsigned *ptriangle;
 };
 
 struct mandelbrot_state {
@@ -243,7 +242,6 @@ mandel_julia_zpower (struct mandel_julia_state *state, const struct mandel_julia
 	const unsigned total_limbs = INT_LIMBS + frac_limbs;
 	const unsigned maxiter = param->maxiter;
 	const unsigned zpower = param->zpower;
-	const unsigned *const ptri = state->ptriangle;
 	mp_limb_t x0[total_limbs], y0[total_limbs], preal[total_limbs], pimag[total_limbs];
 	bool x0_sign, y0_sign, preal_sign, pimag_sign;
 	mp_limb_t x[total_limbs], y[total_limbs], xsqr[total_limbs], ysqr[total_limbs], sqrsum[total_limbs], four[INT_LIMBS];
@@ -289,7 +287,7 @@ mandel_julia_zpower (struct mandel_julia_state *state, const struct mandel_julia
 		mp_limb_t tmpreal[total_limbs], tmpimag[total_limbs], tmpreal2[total_limbs], tmpimag2[total_limbs], rtmp1[total_limbs];
 		bool tmpreal_sign, tmpimag_sign, tmpreal2_sign, tmpimag2_sign, rtmp1_sign;
 		if (distance_est) {
-			complex_pow (x, x_sign, y, y_sign, zpower - 1, tmpreal2, &tmpreal2_sign, tmpimag2, &tmpimag2_sign, frac_limbs, ptri);
+			complex_pow (x, x_sign, y, y_sign, zpower - 1, tmpreal2, &tmpreal2_sign, tmpimag2, &tmpimag2_sign, frac_limbs);
 
 			my_mpn_get_mpf (ftmpreal, tmpreal2, tmpreal2_sign, frac_limbs);
 			my_mpn_get_mpf (ftmpimag, tmpimag2, tmpimag2_sign, frac_limbs);
@@ -315,7 +313,7 @@ mandel_julia_zpower (struct mandel_julia_state *state, const struct mandel_julia
 			rtmp1_sign = tmpreal2_sign != y_sign;
 			tmpimag_sign = my_mpn_add_signed (tmpimag, tmpimag, tmpimag_sign, rtmp1, rtmp1_sign, frac_limbs);
 		} else
-			complex_pow (x, x_sign, y, y_sign, zpower, tmpreal, &tmpreal_sign, tmpimag, &tmpimag_sign, frac_limbs, ptri);
+			complex_pow (x, x_sign, y, y_sign, zpower, tmpreal, &tmpreal_sign, tmpimag, &tmpimag_sign, frac_limbs);
 
 		x_sign = my_mpn_add_signed (x, tmpreal, tmpreal_sign, preal, preal_sign, frac_limbs);
 		y_sign = my_mpn_add_signed (y, tmpimag, tmpimag_sign, pimag, pimag_sign, frac_limbs);
@@ -439,13 +437,12 @@ mandel_julia_zpower_fp (struct mandel_julia_state *state, const struct mandel_ju
 	const bool distance_est = (state->flags & FRAC_TYPE_DISTANCE) != 0;
 	const unsigned maxiter = param->maxiter;
 	const unsigned zpower = param->zpower;
-	const unsigned *const ptri = state->ptriangle;
 	unsigned i = 0, k = 1, m = 1;
 	mandel_fp_t x = x0, y = y0, cd_x = x, cd_y = y, dx = 0.0, dy = 0.0;
 	while (i < maxiter && x * x + y * y < 4.0) {
 		if (distance_est) {
 			mandel_fp_t treal, timag;
-			complex_pow_fp (x, y, zpower - 1, &treal, &timag, ptri);
+			complex_pow_fp (x, y, zpower - 1, &treal, &timag);
 			mandel_fp_t new_dx = (mandel_fp_t) zpower * (treal * dx - timag * dy) + 1.0;
 			dy = (mandel_fp_t) zpower * (treal * dy + timag * dx);
 			dx = new_dx;
@@ -453,7 +450,7 @@ mandel_julia_zpower_fp (struct mandel_julia_state *state, const struct mandel_ju
 			y = treal * y + timag * x;
 			x = new_x;
 		} else
-			complex_pow_fp (x, y, zpower, &x, &y, ptri);
+			complex_pow_fp (x, y, zpower, &x, &y);
 
 		x += preal;
 		y += pimag;
@@ -692,20 +689,14 @@ julia_compute_fp (void *state_, mandel_fp_t real, mandel_fp_t imag, unsigned *it
 static void
 mandel_julia_state_init (struct mandel_julia_state *state, const struct mandel_julia_param *param)
 {
-	if (param->zpower > 2) {
-		unsigned ptri_row = param->zpower;
-		if ((state->flags & FRAC_TYPE_DISTANCE) != 0)
-			ptri_row--;
-		state->ptriangle = pascal_triangle (ptri_row);
-	}
+	/* Nothing to do. */
 }
 
 
 static void
 mandel_julia_state_clear (struct mandel_julia_state *state)
 {
-	if (state->ptriangle != NULL)
-		free (state->ptriangle);
+	/* Nothing to do. */
 }
 
 

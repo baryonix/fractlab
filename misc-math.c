@@ -1,6 +1,8 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include <gmp.h>
 
@@ -8,6 +10,7 @@
 #include "misc-math.h"
 
 
+/* Currently unused. */
 unsigned *
 pascal_triangle (unsigned n)
 {
@@ -28,108 +31,134 @@ pascal_triangle (unsigned n)
 
 
 void
-store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n)
+complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag)
 {
-	int i;
-	powers[0] = x * x;
-	for (i = 1; i < n - 1; i++) {
-		powers[i] = powers[i - 1] * x;
+	if (n == 0) {
+		*rreal = 1.0;
+		*rimag = 0.0;
+		return;
 	}
-}
 
+	/*
+	 * Use an integer of well-defined size, so we can safely check
+	 * whether the highest bit is set.
+	 */
+	uint32_t m = n;
+	unsigned bits = 32;
+	while ((m & (1 << 31)) == 0) {
+		m <<= 1;
+		bits--;
+	}
+	/* Ignore the first 1-bit as we set c = x initially */
+	m <<= 1;
+	bits--;
 
-void
-complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, const unsigned *pascal)
-{
-	mandel_fp_t real_powers[n - 1], imag_powers[n - 1];
-	store_powers_fp (real_powers, xreal, n);
-	store_powers_fp (imag_powers, ximag, n);
-	mandel_fp_t real = 0.0, imag = 0.0;
-	unsigned j;
-	for (j = 0; j <= n; j++) {
-		mandel_fp_t cur = stored_power_fp (xreal, n - j, real_powers) * stored_power_fp (ximag, j, imag_powers) * pascal[j];
-		switch (j % 4) {
-			case 0: /* i^0 = 1: add to real */
-				real += cur;
-				break;
-			case 1: /* i^1 = i: add to imag */
-				imag += cur;
-				break;
-			case 2: /* i^2 = -1: subtract from real */
-				real -= cur;
-				break;
-			case 3: /* i^3 = -i: subtract from imag */
-				imag -= cur;
-				break;
+	mandel_fp_t creal = xreal, cimag = ximag;
+	mandel_fp_t tmp;
+	int i;
+	for (i = 0; i < bits; i++) {
+		/* square */
+		tmp = creal;
+		creal = creal * creal - cimag * cimag;
+		cimag = ldexp (tmp * cimag, 1);
+
+		if ((m & (1 << 31)) != 0) {
+			/* multiply by x */
+			tmp = creal;
+			creal = creal * xreal - cimag * ximag;
+			cimag = tmp * ximag + cimag * xreal;
 		}
+
+		m <<= 1;
 	}
-	*rreal = real;
-	*rimag = imag;
+
+	*rreal = creal;
+	*rimag = cimag;
 }
 
 
 void
-store_powers (mp_ptr powers, bool *signs, mp_srcptr x, bool xsign, unsigned n, unsigned frac_limbs)
-{
-	unsigned total_limbs = frac_limbs + INT_LIMBS;
-	int i;
-	/* set x^0 to 1 */
-	for (i = 0; i < total_limbs; i++)
-		powers[i] = 0;
-	powers[frac_limbs] = 1;
-	signs[0] = false;
-
-	/* set x^1 to x */
-	memcpy (powers + total_limbs, x, total_limbs * sizeof (mp_limb_t));
-	signs[1] = xsign;
-
-	for (i = 2; i <= n; i++) {
-		my_mpn_mul_fast (powers + total_limbs * i, powers + total_limbs * (i - 1), x, frac_limbs);
-		signs[i] = xsign && !signs[i - 1];
-	}
-}
-
-
-void
-complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool ximag_sign, unsigned n, mp_ptr real, bool *rreal_sign, mp_ptr imag, bool *rimag_sign, unsigned frac_limbs, const unsigned *pascal)
+complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool ximag_sign, unsigned n, mp_ptr real, bool *rreal_sign, mp_ptr imag, bool *rimag_sign, unsigned frac_limbs)
 {
 	unsigned total_limbs = INT_LIMBS + frac_limbs;
-	mp_limb_t real_powers[(n + 1) * total_limbs], imag_powers[(n + 1) * total_limbs];
-	bool real_psigns[n + 1], imag_psigns[n + 1];
-	int i;
-	bool real_sign = false, imag_sign = false;
+	mp_limb_t real_buf[total_limbs], imag_buf[total_limbs], temp[total_limbs];
+	bool src_real_sign = xreal_sign, src_imag_sign = ximag_sign, dst_real_sign, dst_imag_sign;
+	mp_ptr src_real = real_buf, src_imag = imag_buf, dst_real = real, dst_imag = imag, temp_ptr;
 
-	store_powers (real_powers, real_psigns, xreal, xreal_sign, n, frac_limbs);
-	store_powers (imag_powers, imag_psigns, ximag, ximag_sign, n, frac_limbs);
+	/* XXX This copy could be avoided. */
+	memcpy (src_real, xreal, total_limbs * sizeof (*src_real));
+	memcpy (src_imag, ximag, total_limbs * sizeof (*src_imag));
 
-	for (i = 0; i < total_limbs; i++)
-		real[i] = imag[i] = 0;
-
-	unsigned j;
-	for (j = 0; j <= n; j++) {
-		mp_limb_t cur[total_limbs], tmp1[total_limbs];
-		bool cur_sign;
-		my_mpn_mul_fast (tmp1, real_powers + (n - j) * total_limbs, imag_powers + j * total_limbs, frac_limbs);
-		cur_sign = real_psigns[n - j] != imag_psigns[j];
-		/* we could do mpn_mul_1() in-place, but performance may be better if no overlap */
-		mpn_mul_1 (cur, tmp1, total_limbs, (mp_limb_t) pascal[j]);
-		switch (j % 4) {
-			case 0: /* i^0 = 1: add to real */
-				real_sign = my_mpn_add_signed (real, real, real_sign, cur, cur_sign, frac_limbs);
-				break;
-			case 1: /* i^1 = i: add to imag */
-				imag_sign = my_mpn_add_signed (imag, imag, imag_sign, cur, cur_sign, frac_limbs);
-				break;
-			case 2: /* i^2 = -1: subtract from real */
-				real_sign = my_mpn_add_signed (real, real, real_sign, cur, !cur_sign, frac_limbs);
-				break;
-			case 3: /* i^3 = -i: subtract from imag */
-				imag_sign = my_mpn_add_signed (imag, imag, imag_sign, cur, !cur_sign, frac_limbs);
-				break;
-		}
+	/*
+	 * Use an integer of well-defined size, so we can safely check
+	 * whether the highest bit is set.
+	 */
+	uint32_t m = n;
+	unsigned bits = 32;
+	while ((m & (1 << 31)) == 0) {
+		m <<= 1;
+		bits--;
 	}
-	*rreal_sign = real_sign;
-	*rimag_sign = imag_sign;
+	/* Ignore the first 1-bit as we set c = x initially */
+	m <<= 1;
+	bits--;
+
+	int i;
+	for (i = 0; i < bits; i++) {
+		/* square */
+		my_mpn_mul_fast (dst_real, src_real, src_real, frac_limbs);
+		my_mpn_mul_fast (temp, src_imag, src_imag, frac_limbs);
+		dst_real_sign = my_mpn_add_signed (dst_real, dst_real, false, temp, true, frac_limbs);
+
+		my_mpn_mul_fast (dst_imag, src_real, src_imag, frac_limbs);
+		mpn_lshift (dst_imag, dst_imag, total_limbs, 1);
+		dst_imag_sign = src_real_sign != src_imag_sign;
+
+		/* swap src <-> dst */
+		temp_ptr = src_real;
+		src_real = dst_real;
+		dst_real = temp_ptr;
+
+		temp_ptr = src_imag;
+		src_imag = dst_imag;
+		dst_imag = temp_ptr;
+
+		src_real_sign = dst_real_sign;
+		src_imag_sign = dst_imag_sign;
+
+		if ((m & (1 << 31)) != 0) {
+			/* multiply by x */
+			my_mpn_mul_fast (dst_real, src_real, xreal, frac_limbs);
+			my_mpn_mul_fast (temp, src_imag, ximag, frac_limbs);
+			dst_real_sign = my_mpn_add_signed (dst_real, dst_real, src_real_sign != xreal_sign, temp, src_imag_sign == ximag_sign, frac_limbs);
+
+			my_mpn_mul_fast (dst_imag, src_real, ximag, frac_limbs);
+			my_mpn_mul_fast (temp, src_imag, xreal, frac_limbs);
+			dst_imag_sign = my_mpn_add_signed (dst_imag, dst_imag, src_real_sign != ximag_sign, temp, src_imag_sign != xreal_sign, frac_limbs);
+
+			/* swap src <-> dst */
+			temp_ptr = src_real;
+			src_real = dst_real;
+			dst_real = temp_ptr;
+
+			temp_ptr = src_imag;
+			src_imag = dst_imag;
+			dst_imag = temp_ptr;
+
+			src_real_sign = dst_real_sign;
+			src_imag_sign = dst_imag_sign;
+		}
+
+		m <<= 1;
+	}
+
+	*rreal_sign = src_real_sign;
+	if (src_real != real)
+		memcpy (real, src_real, total_limbs * sizeof (*real));
+
+	*rimag_sign = src_imag_sign;
+	if (src_imag != imag)
+		memcpy (imag, src_imag, total_limbs * sizeof (*imag));
 }
 
 

@@ -9,30 +9,14 @@
 #define INT_LIMBS 1
 
 unsigned *pascal_triangle (unsigned n);
-void store_powers_fp (mandel_fp_t *powers, mandel_fp_t x, unsigned n);
-void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag, const unsigned *pascal);
-void store_powers (mp_ptr powers, bool *signs, mp_srcptr x, bool xsign, unsigned n, unsigned frac_limbs);
-void complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool ximag_sign, unsigned n, mp_ptr real, bool *rreal_sign, mp_ptr imag, bool *rimag_sign, unsigned frac_limbs, const unsigned *pascal);
+void complex_pow_fp (mandel_fp_t xreal, mandel_fp_t ximag, unsigned n, mandel_fp_t *rreal, mandel_fp_t *rimag);
+void complex_pow (mp_srcptr xreal, bool xreal_sign, mp_srcptr ximag, bool ximag_sign, unsigned n, mp_ptr real, bool *rreal_sign, mp_ptr imag, bool *rimag_sign, unsigned frac_limbs);
 
 void my_mpn_get_mpf (mpf_ptr rop, mp_srcptr op, bool sign, unsigned frac_limbs);
 bool my_mpf_get_mpn (mp_ptr rop, mpf_srcptr op, unsigned frac_limbs);
 
-static inline mandel_fp_t stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers);
 static inline void my_mpn_mul_fast (mp_ptr p, mp_srcptr f0, mp_srcptr f1, unsigned frac_limbs);
 static inline void my_mpn_invert (mp_ptr op, unsigned total_limbs);
-
-static inline mandel_fp_t
-stored_power_fp (mandel_fp_t x, unsigned n, mandel_fp_t *powers)
-{
-	switch (n) {
-		case 0:
-			return 1.0;
-		case 1:
-			return x;
-		default:
-			return powers[n - 2];
-	}
-}
 
 /*
  * FIXME: Despite the name, this routine isn't especially fast.
