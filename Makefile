@@ -10,7 +10,7 @@ NASM = nasm
 # name, it might actually be!), or if your machine doesn't use two's complement,
 # or if you have nails enabled in GMP.
 # On Pentium4, _not_ defining MY_MPN_SUB_SLOW increases performance by ~5%.
-COPTS = -O3 -march=pentium4 -Wall -g -std=c99 #-DMY_MPN_SUB_SLOW
+COPTS = -O3 -march=pentium4 -fomit-frame-pointer -Wall -g -std=c99 #-DMY_MPN_SUB_SLOW
 USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
