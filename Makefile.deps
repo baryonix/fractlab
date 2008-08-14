@@ -21,6 +21,8 @@ gui-mainwin.o: gui-mainwin.c defs.h fractal-render.h fpdefs.h \
 gui-typedlg.o: gui-typedlg.c fractal-render.h fpdefs.h fractal-math.h \
   util.h gui-util.h gui-typedlg.h
 gui-util.o: gui-util.c gui-util.h
+image.o: image.c defs.h fractal-render.h fpdefs.h fractal-math.h file.h \
+  util.h render-png.h
 lissajoulia.o: lissajoulia.c anim.h fractal-render.h fpdefs.h \
   fractal-math.h file.h util.h
 main.o: main.c file.h util.h fpdefs.h fractal-render.h fractal-math.h \

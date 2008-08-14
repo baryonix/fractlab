@@ -70,7 +70,7 @@ worker_thread (gpointer data)
 		char buf[256];
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
-		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h);
+		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h, 1);
 		mandeldata_clear (&info->md);
 
 		/*

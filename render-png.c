@@ -51,13 +51,16 @@ write_png (const struct mandel_renderer *renderer, const char *filename, int com
 
 
 void
-render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, struct color *colors, unsigned w, unsigned h)
+render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, struct color *colors, unsigned w, unsigned h, unsigned threads)
 {
 	struct mandel_renderer renderer[1];
 
 	mandel_renderer_init (renderer, md, w, h);
-	renderer->render_method = RM_BOUNDARY_TRACE;
-	renderer->thread_count = 1;
+	if (threads > 1)
+		renderer->render_method = RM_MARIANI_SILVER;
+	else
+		renderer->render_method = RM_BOUNDARY_TRACE;
+	renderer->thread_count = threads;
 	mandel_render (renderer);
 	write_png (renderer, filename, compression, colors);
 	if (bits != NULL)

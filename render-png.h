@@ -9,6 +9,6 @@ struct color {
 
 
 void write_png (const struct mandel_renderer *md, const char *filename, int compression, struct color *colors);
-void render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, struct color *colors, unsigned w, unsigned h);
+void render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, struct color *colors, unsigned w, unsigned h, unsigned threads);
 
 #endif /* _GTKMANDEL_RENDER_PNG_H */

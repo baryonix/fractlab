@@ -238,7 +238,7 @@ thread_func (gpointer data)
 		bool clock_ok = zoom_threads == 1 && network_port == NULL && clock_ticks > 0;
 		clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
-		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height);
+		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height, 1);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 		clock_ok = clock_ok && times (&time_after) != (clock_t) -1;

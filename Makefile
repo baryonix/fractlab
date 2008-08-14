@@ -1,5 +1,6 @@
 GFRACTLAB_PKG = gtk+-2.0 gthread-2.0
 FRACTLAB_ZOOM_PKG = glib-2.0 gthread-2.0 libpng
+FRACTLAB_IMAGE_PKG = glib-2.0 gthread-2.0 libpng
 FRACTLAB_WORKER_PKG = glib-2.0 gthread-2.0 libpng
 TEST_PARSER_PKG = glib-2.0 gthread-2.0
 CC = gcc
@@ -19,6 +20,7 @@ GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
 MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 GFRACTLAB_LIBS = $(shell pkg-config --libs $(GFRACTLAB_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 FRACTLAB_ZOOM_LIBS = $(shell pkg-config --libs $(FRACTLAB_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
+FRACTLAB_IMAGE_LIBS = $(shell pkg-config --libs $(FRACTLAB_IMAGE_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(FRACTLAB_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 FRACTLAB_WORKER_LIBS = $(shell pkg-config --libs $(FRACTLAB_WORKER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
@@ -40,6 +42,7 @@ endif
 
 GFRACTLAB_OBJECTS = main.o coord_lex.yy.o coord_parse.tab.o file.o fractal-render.o gtkmandel.o util.o gui.o gui-mainwin.o gui-typedlg.o gui-infodlg.o gui-util.o misc-math.o fractal-math.o
 FRACTLAB_ZOOM_OBJECTS = zoom.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o anim.o misc-math.o fractal-math.o render-png.o
+FRACTLAB_IMAGE_OBJECTS = image.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o misc-math.o fractal-math.o render-png.o
 LISSAJOULIA_OBJECTS = lissajoulia.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o anim.o misc-math.o fractal-math.o render-png.o
 FRACTLAB_WORKER_OBJECTS = worker.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o misc-math.o fractal-math.o render-png.o
 STUPIDMNG_OBJECTS = crc.o stupidmng.o
@@ -52,13 +55,16 @@ FRACTLAB_ZOOM_OBJECTS += ia32/mandel387.o
 LISSAJOULIA_OBJECTS += ia32/mandel387.o
 endif
 
-all: gfractlab$(SUFFIX) fractlab-zoom$(SUFFIX) lissajoulia$(SUFFIX) fractlab-worker$(SUFFIX) stupidmng$(SUFFIX)
+all: gfractlab$(SUFFIX) fractlab-zoom$(SUFFIX) fractlab-image$(SUFFIX) lissajoulia$(SUFFIX) fractlab-worker$(SUFFIX) stupidmng$(SUFFIX)
 
 gfractlab$(SUFFIX): $(GFRACTLAB_OBJECTS)
 	$(CC) -o $@ $^ $(GFRACTLAB_LIBS)
 
 fractlab-zoom$(SUFFIX): $(FRACTLAB_ZOOM_OBJECTS)
 	$(CC) -o $@ $^ $(FRACTLAB_ZOOM_LIBS)
+
+fractlab-image$(SUFFIX): $(FRACTLAB_IMAGE_OBJECTS)
+	$(CC) -o $@ $^ $(FRACTLAB_IMAGE_LIBS)
 
 lissajoulia$(SUFFIX): $(LISSAJOULIA_OBJECTS)
 	$(CC) -o $@ $^ $(LISSAJOULIA_LIBS)
@@ -86,7 +92,7 @@ test_parser$(SUFFIX): $(TEST_PARSER_OBJECTS)
 .SECONDARY:
 
 clean:
-	-rm -f *.o ia32/*.o gfractlab$(SUFFIX) fractlab-zoom$(SUFFIX) lissajoulia$(SUFFIX) fractlab-worker$(SUFFIX) stupidmng$(SUFFIX) test_parser$(SUFFIX)
+	-rm -f *.o ia32/*.o gfractlab$(SUFFIX) fractlab-zoom$(SUFFIX) fractlab-image$(SUFFIX) lissajoulia$(SUFFIX) fractlab-worker$(SUFFIX) stupidmng$(SUFFIX) test_parser$(SUFFIX)
 
 distclean: clean
 	-rm -f *.yy.[ch] *.tab.[ch]
