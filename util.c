@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
@@ -197,7 +198,7 @@ io_buffer_clear (struct io_buffer *buf)
 
 
 static int
-io_buffer_generic_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap, int (*vsnprintf_func) (char *, size_t, const char *, ...))
+io_buffer_generic_vprintf (void *data, char *errbuf, size_t errbsize, const char *format, va_list ap, int (*vsnprintf_func) (char *, size_t, const char *, va_list))
 {
 	struct io_buffer *buf = (struct io_buffer *) data;
 	size_t rem = buf->len - buf->pos;
