@@ -10,11 +10,11 @@ NASM = nasm
 # name, it might actually be!), or if your machine doesn't use two's complement,
 # or if you have nails enabled in GMP.
 # On Pentium4, _not_ defining MY_MPN_SUB_SLOW increases performance by ~5%.
-COPTS = -O3 -march=pentium4 -fomit-frame-pointer -Wall -g -std=c99 #-DMY_MPN_SUB_SLOW
+COPTS = -O3 -march=pentium4 -fomit-frame-pointer -Wall -g #-DMY_MPN_SUB_SLOW
 USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
-CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -D_XOPEN_SOURCE=600 $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS)
+CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -D_XOPEN_SOURCE=600 $(shell pkg-config --cflags $(MANDEL_GTK_PKG) $(MANDEL_ZOOM_PKG)) $(COPTS) $(C_DIALECT)
 GMP_LIBS = $(GMP_DIR)/lib/libgmp.a
 MPFR_LIBS = $(MPFR_DIR)/lib/libmpfr.a
 MANDEL_GTK_LIBS = $(shell pkg-config --libs $(MANDEL_GTK_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
@@ -22,6 +22,21 @@ MANDEL_ZOOM_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(
 LISSAJOULIA_LIBS = $(shell pkg-config --libs $(MANDEL_ZOOM_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 MANDEL_WORKER_LIBS = $(shell pkg-config --libs $(MANDEL_WORKER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
 TEST_PARSER_LIBS = $(shell pkg-config --libs $(TEST_PARSER_PKG)) $(MPFR_LIBS) $(GMP_LIBS) -lpthread -lm
+
+ifneq ($(shell uname -s | grep CYGWIN_NT),)
+OS = windows
+else
+OS = other
+endif
+
+ifeq ($(OS),windows)
+OBJFORMAT = coff
+SUFFIX = .exe
+C_DIALECT = -std=gnu99
+else
+OBJFORMAT = elf
+C_DIALECT = -std=c99
+endif
 
 MANDEL_GTK_OBJECTS = main.o coord_lex.yy.o coord_parse.tab.o file.o fractal-render.o gtkmandel.o util.o gui.o gui-mainwin.o gui-typedlg.o gui-infodlg.o gui-util.o misc-math.o fractal-math.o
 MANDEL_ZOOM_OBJECTS = zoom.o coord_lex.yy.o coord_parse.tab.o file.o util.o fractal-render.o anim.o misc-math.o fractal-math.o render-png.o
@@ -37,31 +52,31 @@ MANDEL_ZOOM_OBJECTS += ia32/mandel387.o
 LISSAJOULIA_OBJECTS += ia32/mandel387.o
 endif
 
-all: mandel-gtk mandel-zoom lissajoulia mandel-worker stupidmng
+all: mandel-gtk$(SUFFIX) mandel-zoom$(SUFFIX) lissajoulia$(SUFFIX) mandel-worker$(SUFFIX) stupidmng$(SUFFIX)
 
-mandel-gtk: $(MANDEL_GTK_OBJECTS)
+mandel-gtk$(SUFFIX): $(MANDEL_GTK_OBJECTS)
 	$(CC) -o $@ $^ $(MANDEL_GTK_LIBS)
 
-mandel-zoom: $(MANDEL_ZOOM_OBJECTS)
+mandel-zoom$(SUFFIX): $(MANDEL_ZOOM_OBJECTS)
 	$(CC) -o $@ $^ $(MANDEL_ZOOM_LIBS)
 
-lissajoulia: $(LISSAJOULIA_OBJECTS)
+lissajoulia$(SUFFIX): $(LISSAJOULIA_OBJECTS)
 	$(CC) -o $@ $^ $(LISSAJOULIA_LIBS)
 
-mandel-worker: $(MANDEL_WORKER_OBJECTS)
+mandel-worker$(SUFFIX): $(MANDEL_WORKER_OBJECTS)
 	$(CC) -o $@ $^ $(MANDEL_WORKER_LIBS)
 
-stupidmng: $(STUPIDMNG_OBJECTS)
+stupidmng$(SUFFIX): $(STUPIDMNG_OBJECTS)
 	$(CC) -o $@ $^
 
-test_parser: $(TEST_PARSER_OBJECTS)
+test_parser$(SUFFIX): $(TEST_PARSER_OBJECTS)
 	$(CC) -o $@ $^ $(TEST_PARSER_LIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .asm.o:
-	$(NASM) -f elf -o $@ $<
+	$(NASM) -f $(OBJFORMAT) -o $@ $<
 
 .PHONY: clean distclean newdeps
 
@@ -71,7 +86,7 @@ test_parser: $(TEST_PARSER_OBJECTS)
 .SECONDARY:
 
 clean:
-	-rm -f *.o ia32/*.o mandel-gtk mandel-zoom lissajoulia mandel-worker stupidmng test_parser
+	-rm -f *.o ia32/*.o mandel-gtk$(SUFFIX) mandel-zoom$(SUFFIX) lissajoulia$(SUFFIX) mandel-worker$(SUFFIX) stupidmng$(SUFFIX) test_parser$(SUFFIX)
 
 distclean: clean
 	-rm -f *.yy.[ch] *.tab.[ch]
