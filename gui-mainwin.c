@@ -3,6 +3,7 @@
 #include <glib.h>
 #include <gtk/gtk.h>
 
+#include "defs.h"
 #include "fractal-render.h"
 #include "gtkmandel.h"
 #include "gui-util.h"
@@ -173,7 +174,7 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	priv->redo = NULL;
 	win->md = NULL;
 
-	gtk_window_set_title (GTK_WINDOW (win), "mandel-gtk");
+	gtk_window_set_title (GTK_WINDOW (win), PROGRAM_NAME);
 	g_signal_connect_object (win, "delete-event", (GCallback) quit_selected, win, G_CONNECT_SWAPPED);
 
 	GtkWidget *container, *container2, *widget;

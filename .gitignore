@@ -1,7 +1,7 @@
-mandel-gtk
-mandel-zoom
+gfractlab
+fractlab-zoom
 stupidmng
 test_parser
 lissajoulia
-mandel-worker
+fractlab-worker
 *.exe

@@ -16,8 +16,8 @@ gui.o: gui.c defs.h fractal-render.h fpdefs.h fractal-math.h gtkmandel.h \
   file.h
 gui-infodlg.o: gui-infodlg.c fractal-render.h fpdefs.h fractal-math.h \
   gui-util.h gui-infodlg.h util.h
-gui-mainwin.o: gui-mainwin.c fractal-render.h fpdefs.h fractal-math.h \
-  gtkmandel.h gui-util.h gui-mainwin.h
+gui-mainwin.o: gui-mainwin.c defs.h fractal-render.h fpdefs.h \
+  fractal-math.h gtkmandel.h gui-util.h gui-mainwin.h
 gui-typedlg.o: gui-typedlg.c fractal-render.h fpdefs.h fractal-math.h \
   util.h gui-util.h gui-typedlg.h
 gui-util.o: gui-util.c gui-util.h
@@ -26,8 +26,6 @@ lissajoulia.o: lissajoulia.c anim.h fractal-render.h fpdefs.h \
 main.o: main.c file.h util.h fpdefs.h fractal-render.h fractal-math.h \
   gtkmandel.h gui-util.h defs.h gui.h gui-mainwin.h gui-infodlg.h \
   gui-typedlg.h
-mandel-worker.o: mandel-worker.c defs.h file.h util.h fpdefs.h \
-  fractal-render.h fractal-math.h render-png.h
 misc-math.o: misc-math.c fpdefs.h misc-math.h
 render-png.o: render-png.c render-png.h fractal-render.h fpdefs.h \
   fractal-math.h
@@ -35,5 +33,7 @@ stupidmng.o: stupidmng.c crc.h
 test_parser.o: test_parser.c fractal-render.h fpdefs.h fractal-math.h \
   file.h util.h coord_parse.tab.h
 util.o: util.c util.h fpdefs.h
+worker.o: worker.c defs.h file.h util.h fpdefs.h fractal-render.h \
+  fractal-math.h render-png.h
 zoom.o: zoom.c anim.h fractal-render.h fpdefs.h fractal-math.h util.h \
   file.h defs.h
