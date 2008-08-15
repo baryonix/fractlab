@@ -16,7 +16,7 @@
 struct sr_state {
 	struct mandel_renderer *renderer;
 	int y, chunk_size;
-	GStaticMutex mutex;
+	GMutex *mutex;
 };
 
 
@@ -459,7 +459,7 @@ calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size)
 static void
 calc_sr_mt_pass (struct mandel_renderer *mandel, int chunk_size)
 {
-	struct sr_state state = {mandel, 0, chunk_size, G_STATIC_MUTEX_INIT};
+	struct sr_state state = {mandel, 0, chunk_size, g_mutex_new ()};
 	GThread *threads[mandel->thread_count];
 	int i;
 
@@ -467,6 +467,8 @@ calc_sr_mt_pass (struct mandel_renderer *mandel, int chunk_size)
 		threads[i] = g_thread_create (sr_mt_thread_func, &state, TRUE, NULL);
 	for (i = 0; i < mandel->thread_count; i++)
 		g_thread_join (threads[i]);
+
+	g_mutex_free (state.mutex);
 }
 
 
@@ -476,10 +478,10 @@ sr_mt_thread_func (gpointer data)
 	struct sr_state *state = (struct sr_state *) data;
 	while (!state->renderer->terminate) {
 		int y;
-		g_static_mutex_lock (&state->mutex);
+		g_mutex_lock (state->mutex);
 		y = state->y;
 		state->y += state->chunk_size;
-		g_static_mutex_unlock (&state->mutex);
+		g_mutex_unlock (state->mutex);
 		if (y >= state->renderer->h)
 			break; /* done */
 		calc_sr_row (state->renderer, y, state->chunk_size);
