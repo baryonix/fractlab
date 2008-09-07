@@ -456,8 +456,10 @@ network_thread (gpointer data)
 		 */
 		for (i = 0; i < state->socket_count; i++)
 			if (state->sockets[i].type == SOCK_TYPE_CLIENT && state->sockets[i].data.client->dying) {
+				char old_name[512];
+				my_safe_strcpy (old_name, state->sockets[i].data.client->name, sizeof (old_name));
 				disconnect_client (state, i);
-				fprintf (stderr, "* INFO: Client %s disconnected, total capacity now %u threads.\n", state->sockets[i].data.client->name, (unsigned) zoom_threads + state->net_threads_total); /* XXX wrong client name is output here */
+				fprintf (stderr, "* INFO: Client %s disconnected, total capacity now %u threads.\n", old_name, (unsigned) zoom_threads + state->net_threads_total);
 
 			}
 
