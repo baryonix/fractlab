@@ -11,8 +11,8 @@ NASM = nasm
 # name, it might actually be!), or if your machine doesn't use two's complement,
 # or if you have nails enabled in GMP.
 # On Pentium4, _not_ defining MY_MPN_SUB_SLOW increases performance by ~5%.
-COPTS = -O3 -march=pentium4 -fomit-frame-pointer -Wall -g #-DMY_MPN_SUB_SLOW
-USE_IA32_ASM = i387
+COPTS = -O3 -march=core2 -Wall -g #-DMY_MPN_SUB_SLOW
+#USE_IA32_ASM = i387
 GMP_DIR = /opt/gmp
 MPFR_DIR = $(GMP_DIR)
 CFLAGS = -D_REENTRANT -I$(GMP_DIR)/include -I$(MPFR_DIR)/include -D_XOPEN_SOURCE=600 $(shell pkg-config --cflags $(GFRACTLAB_PKG) $(FRACTLAB_ZOOM_PKG)) $(COPTS) $(C_DIALECT)
