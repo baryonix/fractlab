@@ -1,7 +1,10 @@
+syntax: glob
 gfractlab
 fractlab-zoom
 stupidmng
 test_parser
 lissajoulia
 fractlab-worker
+fractlab-image
 *.exe
+*.o
