@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include <glib.h>
 #include <gtk/gtk.h>
@@ -32,6 +33,7 @@ struct _FractalMainWindowPrivate {
 	GSList *undo, *redo;
 	FractalMainWindowMode mode;
 	bool disposed;
+	GTimeVal start_time;
 };
 
 
@@ -505,6 +507,7 @@ static void
 restart_thread (FractalMainWindow *win)
 {
 	FractalMainWindowPrivate *const priv = win->priv;
+	g_get_current_time (&priv->start_time);
 	gtk_mandel_start (GTK_MANDEL (priv->mandel));
 }
 
@@ -675,8 +678,22 @@ static void
 rendering_progress (FractalMainWindow *win, gdouble progress, gpointer data)
 {
 	FractalMainWindowPrivate *const priv = win->priv;
-	char buf[256];
-	int r = snprintf (buf, sizeof (buf), "Rendering (%.1f%%)", (double) progress * 100.0);
+	char buf[256], tbuf[32];
+	GTimeVal now;
+	g_get_current_time (&now);
+	/* FIXME: Take microseconds into account for better precision */
+	unsigned h, m, s = round ((1.0 - progress) / progress * (now.tv_sec - priv->start_time.tv_sec));
+	m = s / 60;
+	s %= 60;
+	h = m / 60;
+	m %= 60;
+	if (h != 0)
+		snprintf (tbuf, sizeof (tbuf), "%u:%02u:%02u", h, m, s);
+	else if (m != 0)
+		snprintf (tbuf, sizeof (tbuf), "%u:%02u", m, s);
+	else
+		snprintf (tbuf, sizeof (tbuf), "%u", s);
+	int r = snprintf (buf, sizeof (buf), "Rendering (%.1f%%), %ss left", (double) progress * 100.0, tbuf);
 	if (r > 0 && r < sizeof (buf))
 		gtk_progress_bar_set_text (GTK_PROGRESS_BAR (priv->status_info), buf);
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (priv->status_info), progress);
