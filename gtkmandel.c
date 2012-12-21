@@ -213,7 +213,7 @@ init_renderer (GtkMandel *mandel)
 	GtkWidget *widget = GTK_WIDGET (mandel);
 
 	struct mandel_renderer *renderer = malloc (sizeof (*renderer));
-	mandel_renderer_init (renderer, mandel->md, mandel->cur_w, mandel->cur_h);
+	mandel_renderer_init (renderer, mandel->md, mandel->cur_w, mandel->cur_h, 4);
 	renderer->render_method = mandel->render_method;
 	renderer->thread_count = mandel->thread_count;
 	renderer->user_data = mandel;

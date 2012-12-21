@@ -75,6 +75,7 @@ struct mandel_renderer {
 	} rep_state;
 	struct color *palette;
 	unsigned palette_size;
+	unsigned aa_level;
 	void (*notify_update) (unsigned x, unsigned y, unsigned w, unsigned h, void *user_data);
 };
 
@@ -98,7 +99,7 @@ int mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y);
 void mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_render (struct mandel_renderer *mandel);
-void mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h);
+void mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h, unsigned aa_level);
 struct color *mandel_create_default_palette (unsigned size);
 struct color *mandel_get_default_palette (void);
 void mandel_renderer_clear (struct mandel_renderer *renderer);

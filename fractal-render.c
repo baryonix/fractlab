@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include <gmp.h>
 #include <mpfr.h>
@@ -72,7 +73,7 @@ mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned 
 {
 	mpf_sub (rop, mandel->xmax_f, mandel->xmin_f);
 	mpf_mul_ui (rop, rop, op);
-	mpf_div_ui (rop, rop, mandel->w);
+	mpf_div_ui (rop, rop, mandel->w / mandel->aa_level);
 	mpf_add (rop, rop, mandel->xmin_f);
 }
 
@@ -82,7 +83,7 @@ mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned 
 {
 	mpf_sub (rop, mandel->ymin_f, mandel->ymax_f);
 	mpf_mul_ui (rop, rop, op);
-	mpf_div_ui (rop, rop, mandel->h);
+	mpf_div_ui (rop, rop, mandel->h / mandel->aa_level);
 	mpf_add (rop, rop, mandel->ymax_f);
 }
 
@@ -90,8 +91,20 @@ mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned 
 static void
 notify_update (struct mandel_renderer *mandel, int x, int y, int w, int h)
 {
-	if (mandel->notify_update != NULL)
-		mandel->notify_update (x, y, w, h, mandel->user_data);
+	if (mandel->notify_update == NULL)
+		return;
+
+	int xr = (x + w - 1) / mandel->aa_level;
+	int yr = (y + h - 1) / mandel->aa_level;
+	x /= mandel->aa_level;
+	y /= mandel->aa_level;
+
+	//printf ("%d %d %d %d\n", x, y, xr, yr);
+
+	assert (xr < mandel->w / mandel->aa_level);
+	assert (yr < mandel->h / mandel->aa_level);
+	mandel->notify_update (x, y, xr - x + 1, yr - y + 1, mandel->user_data);
+	//mandel->notify_update (x, y, 1, 1, mandel->user_data);
 }
 
 
@@ -123,14 +136,25 @@ mandel_get_point (const struct mandel_renderer *mandel, int x, int y)
 void
 mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y, struct color *px)
 {
-	int pval = mandel_get_point (mandel, x, y);
-	if (pval >= 0) {
-		*px = mandel->palette[pval % mandel->palette_size];
-	} else {
-		px->r = 0;
-		px->g = 0;
-		px->b = 0;
+	uint32_t r = 0, g = 0, b = 0;
+
+	for (unsigned xi = 0; xi < mandel->aa_level; xi++) {
+		for (unsigned yi = 0; yi < mandel->aa_level; yi++) {
+			int pval = mandel_get_point (mandel, x * mandel->aa_level + xi, y * mandel->aa_level + yi);
+			if (pval < 0)
+				continue;
+			struct color *color = &mandel->palette[pval % mandel->palette_size];
+			r += color->r;
+			g += color->g;
+			b += color->b;
+		}
 	}
+
+	unsigned npixels = mandel->aa_level * mandel->aa_level;
+	unsigned npxhalf = npixels / 2 - 1;
+	px->r = (r + npxhalf) / npixels;
+	px->g = (g + npxhalf) / npixels;
+	px->b = (b + npxhalf) / npixels;
 }
 
 
@@ -248,7 +272,7 @@ mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 void
 mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter)
 {
-	mandel->notify_update (x, y, w, h, mandel->user_data);
+	notify_update (mandel, x, y, w, h);
 }
 
 
@@ -264,7 +288,7 @@ mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, uns
 
 
 void
-mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h)
+mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h, unsigned aa_level)
 {
 	memset (renderer, 0, sizeof (*renderer)); /* just to be safe... */
 	renderer->data = NULL;
@@ -276,9 +300,10 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	mpf_init (renderer->ymax_f);
 
 	renderer->md = md;
-	renderer->w = w;
-	renderer->h = h;
+	renderer->w = w * aa_level;
+	renderer->h = h * aa_level;
 	g_atomic_int_set (&renderer->pixels_done, 0);
+	renderer->aa_level = aa_level;
 
 	renderer->aspect = (double) renderer->w / renderer->h;
 	center_to_corners (renderer->xmin_f, renderer->xmax_f, renderer->ymin_f, renderer->ymax_f, renderer->md->area.center.real, renderer->md->area.center.imag, renderer->md->area.magf, renderer->aspect);
