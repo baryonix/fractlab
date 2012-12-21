@@ -106,7 +106,7 @@ mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsign
 
 
 int
-mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y)
+mandel_get_point (const struct mandel_renderer *mandel, int x, int y)
 {
 	return mandel->data[x * mandel->h + y];
 }
@@ -115,26 +115,26 @@ mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y)
 static bool
 mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d)
 {
-	const int px = mandel_get_pixel (mandel, x, y);
+	const int px = mandel_get_point (mandel, x, y);
 	const int w = mandel->w - d, h = mandel->h - d;
 	return
-		   (x <  d || y <  d || mandel_get_pixel (mandel, x - d, y - d) == px)
-		&& (x <  d           || mandel_get_pixel (mandel, x - d, y    ) == px)
-		&& (x <  d || y >= h || mandel_get_pixel (mandel, x - d, y + d) == px)
-		&& (          y <  d || mandel_get_pixel (mandel, x    , y - d) == px)
-		&& (          y >= h || mandel_get_pixel (mandel, x    , y + d) == px)
-		&& (x >= w || y <  d || mandel_get_pixel (mandel, x + d, y - d) == px)
-		&& (x >= w           || mandel_get_pixel (mandel, x + d, y    ) == px)
-		&& (x >= w || y >= h || mandel_get_pixel (mandel, x + d, y + d) == px);
+		   (x <  d || y <  d || mandel_get_point (mandel, x - d, y - d) == px)
+		&& (x <  d           || mandel_get_point (mandel, x - d, y    ) == px)
+		&& (x <  d || y >= h || mandel_get_point (mandel, x - d, y + d) == px)
+		&& (          y <  d || mandel_get_point (mandel, x    , y - d) == px)
+		&& (          y >= h || mandel_get_point (mandel, x    , y + d) == px)
+		&& (x >= w || y <  d || mandel_get_point (mandel, x + d, y - d) == px)
+		&& (x >= w           || mandel_get_point (mandel, x + d, y    ) == px)
+		&& (x >= w || y >= h || mandel_get_point (mandel, x + d, y + d) == px);
 	/*return x >= d && y >= d && x < mandel->w - d && y < mandel->h - d
-		&& mandel_get_pixel (mandel, x - d, y - d) == px
-		&& mandel_get_pixel (mandel, x - d, y    ) == px
-		&& mandel_get_pixel (mandel, x - d, y + d) == px
-		&& mandel_get_pixel (mandel, x    , y - d) == px
-		&& mandel_get_pixel (mandel, x    , y + d) == px
-		&& mandel_get_pixel (mandel, x + d, y - d) == px
-		&& mandel_get_pixel (mandel, x + d, y    ) == px
-		&& mandel_get_pixel (mandel, x + d, y + d) == px;*/
+		&& mandel_get_point (mandel, x - d, y - d) == px
+		&& mandel_get_point (mandel, x - d, y    ) == px
+		&& mandel_get_point (mandel, x - d, y + d) == px
+		&& mandel_get_point (mandel, x    , y - d) == px
+		&& mandel_get_point (mandel, x    , y + d) == px
+		&& mandel_get_point (mandel, x + d, y - d) == px
+		&& mandel_get_point (mandel, x + d, y    ) == px
+		&& mandel_get_point (mandel, x + d, y + d) == px;*/
 }
 
 
@@ -213,7 +213,7 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 int
 mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 {
-	int i = mandel_get_pixel (mandel, x, y);
+	int i = mandel_get_point (mandel, x, y);
 	if (i >= 0)
 		return i; /* pixel has been rendered previously */
 	i = mandel_pixel_value (mandel, x, y);
@@ -461,9 +461,9 @@ calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size)
 
 		if (do_eval) {
 			mandel_render_pixel (mandel, x, y);
-			mandel_display_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_pixel (mandel, x, y));
+			mandel_display_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_point (mandel, x, y));
 		} else {
-			mandel_put_pixel (mandel, x, y, mandel_get_pixel (mandel, parent_x, parent_y));
+			mandel_put_pixel (mandel, x, y, mandel_get_point (mandel, parent_x, parent_y));
 		}
 	}
 }
@@ -575,13 +575,13 @@ ms_do_work (struct mandel_renderer *md, int x0, int y0, int x1, int y1, void (*e
 {
 	int x, y;
 	bool failed = false;
-	unsigned p0 = mandel_get_pixel (md, x0, y0);
+	unsigned p0 = mandel_get_point (md, x0, y0);
 
 	for (x = x0; !failed && x <= x1; x++)
-		failed = mandel_get_pixel (md, x, y0) != p0 || mandel_get_pixel (md, x, y1) != p0;
+		failed = mandel_get_point (md, x, y0) != p0 || mandel_get_point (md, x, y1) != p0;
 
 	for (y = y0; !failed && y <= y1; y++)
-		failed = mandel_get_pixel (md, x0, y) != p0 || mandel_get_pixel (md, x1, y) != p0;
+		failed = mandel_get_point (md, x0, y) != p0 || mandel_get_point (md, x1, y) != p0;
 
 	if (failed) {
 		if (x1 - x0 > y1 - y0) {
@@ -638,7 +638,7 @@ mandel_get_precision (const struct mandel_renderer *mandel)
 static bool
 is_inside (struct mandel_renderer *md, int x, int y, int iter)
 {
-	int p = mandel_get_pixel (md, x, y);
+	int p = mandel_get_point (md, x, y);
 	return p == -1 || p == iter;
 }
 
