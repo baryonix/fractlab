@@ -46,7 +46,6 @@ struct thread_info {
 
 
 static gint thread_count = 3;
-static struct color colors[COLORS];
 
 
 gpointer
@@ -70,7 +69,7 @@ worker_thread (gpointer data)
 		char buf[256];
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
-		render_to_png (&info->md, buf, 9, NULL, colors, info->w, info->h, 1);
+		render_to_png (&info->md, buf, 9, NULL, info->w, info->h, 1);
 		mandeldata_clear (&info->md);
 
 		/*
@@ -196,12 +195,6 @@ main (int argc, char **argv)
 
 	fprintf (f, "MOIN %u\r\n", state->thread_count);
 	fflush (f);
-
-	for (i = 0; i < COLORS; i++) {
-		colors[i].r = (unsigned short) (sin (2 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].g = (unsigned short) (sin (4 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].b = (unsigned short) (sin (6 * M_PI * i / COLORS) * 127) + 128;
-	}
 
 	while (true) {
 		char buf[256];

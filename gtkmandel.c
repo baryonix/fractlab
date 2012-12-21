@@ -64,8 +64,6 @@ mouse_handler_t *mouse_handlers[] = {
 	select_point_mouse_handler
 };
 
-GdkColor mandelcolors[COLORS];
-
 
 GtkWidget *
 gtk_mandel_new (void)

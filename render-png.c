@@ -4,7 +4,7 @@
 
 
 void
-write_png (const struct mandel_renderer *renderer, const char *filename, int compression, struct color *colors)
+write_png (const struct mandel_renderer *renderer, const char *filename, int compression)
 {
 	FILE *f = fopen (filename, "wb");
 
@@ -32,13 +32,12 @@ write_png (const struct mandel_renderer *renderer, const char *filename, int com
 
 	for (y = 0; y < renderer->h; y++) {
 		for (x = 0; x < renderer->w; x++) {
-			unsigned int i = mandel_get_pixel (renderer, x, y);
+			struct color px;
+			mandel_get_pixel (renderer, x, y, &px);
 
-			i %= 256;
-
-			row[3 * x + 0] = colors[i].r;
-			row[3 * x + 1] = colors[i].g;
-			row[3 * x + 2] = colors[i].b;
+			row[3 * x + 0] = px.r >> 8;
+			row[3 * x + 1] = px.g >> 8;
+			row[3 * x + 2] = px.b >> 8;
 		}
 		png_write_rows (png_ptr, row_ptr, 1);
 	}
@@ -51,7 +50,7 @@ write_png (const struct mandel_renderer *renderer, const char *filename, int com
 
 
 void
-render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, struct color *colors, unsigned w, unsigned h, unsigned threads)
+render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, unsigned w, unsigned h, unsigned threads)
 {
 	struct mandel_renderer renderer[1];
 
@@ -62,7 +61,7 @@ render_to_png (struct mandeldata *md, const char *filename, int compression, uns
 		renderer->render_method = RM_BOUNDARY_TRACE;
 	renderer->thread_count = threads;
 	mandel_render (renderer);
-	write_png (renderer, filename, compression, colors);
+	write_png (renderer, filename, compression);
 	if (bits != NULL)
 		*bits = mandel_get_precision (renderer);
 	mandel_renderer_clear (renderer);

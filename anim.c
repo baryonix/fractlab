@@ -99,8 +99,6 @@ static bool process_net_input (struct anim_state *state, unsigned i);
 static void disconnect_client (struct anim_state *state, unsigned i);
 
 
-static struct color colors[COLORS];
-
 static long clock_ticks;
 
 gint img_width = 200, img_height = 200, frame_count = 0;
@@ -153,13 +151,6 @@ anim_render (frame_func_t frame_func, void *data)
 	if (state->work_list == NULL)
 		return;
 
-	int i;
-	for (i = 0; i < COLORS; i++) {
-		colors[i].r = (unsigned short) (sin (2 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].g = (unsigned short) (sin (4 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].b = (unsigned short) (sin (6 * M_PI * i / COLORS) * 127) + 128;
-	}
-
 	g_thread_init (NULL);
 	GThread *threads[zoom_threads], *net_thread = NULL;
 	state->mutex = g_mutex_new ();
@@ -180,6 +171,7 @@ anim_render (frame_func_t frame_func, void *data)
 		state->term_pipe_r = -1;
 		state->term_pipe_w = -1;
 	}
+	int i;
 	for (i = 0; i < zoom_threads; i++)
 		threads[i] = g_thread_create (thread_func, state, TRUE, NULL);
 	if (network_port != NULL)
@@ -238,7 +230,7 @@ thread_func (gpointer data)
 		bool clock_ok = zoom_threads == 1 && network_port == NULL && clock_ticks > 0;
 		clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
-		render_to_png (&item->md, filename, compression, &bits, colors, img_width, img_height, 1);
+		render_to_png (&item->md, filename, compression, &bits, img_width, img_height, 1);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 		clock_ok = clock_ok && times (&time_after) != (clock_t) -1;

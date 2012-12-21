@@ -42,9 +42,6 @@ parse_command_line (int *argc, char ***argv)
 }
 
 
-static struct color colors[COLORS];
-
-
 int
 main (int argc, char **argv)
 {
@@ -66,20 +63,13 @@ main (int argc, char **argv)
 		return 1;
 	}
 
-	int i;
-	for (i = 0; i < COLORS; i++) {
-		colors[i].r = (unsigned short) (sin (2 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].g = (unsigned short) (sin (4 * M_PI * i / COLORS) * 127) + 128;
-		colors[i].b = (unsigned short) (sin (6 * M_PI * i / COLORS) * 127) + 128;
-	}
-
 	struct mandeldata md;
 	char errbuf[256];
 	if (!read_mandeldata (argv[1], &md, errbuf, sizeof (errbuf))) {
 		fprintf (stderr, "%s: cannot read: %s\n", argv[1], errbuf);
 	}
 
-	render_to_png (&md, output_file, compression, NULL, colors, img_width, img_height, thread_count);
+	render_to_png (&md, output_file, compression, NULL, img_width, img_height, thread_count);
 
 	return 0;
 }

@@ -33,13 +33,6 @@ main (int argc, char **argv)
 
 	mpf_set_default_prec (1024); /* ? */
 
-	int i;
-	for (i = 0; i < COLORS; i++) {
-		mandelcolors[i].red = (guint16) (sin (2 * M_PI * i / COLORS) * 32767) + 32768;
-		mandelcolors[i].green = (guint16) (sin (4 * M_PI * i / COLORS) * 32767) + 32768;
-		mandelcolors[i].blue = (guint16) (sin (6 * M_PI * i / COLORS) * 32767) + 32768;
-	}
-
 	gtk_init (&argc, &argv);
 
 #if 0
