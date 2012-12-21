@@ -2,6 +2,7 @@
 #define _MANDEL_MANDELBROT_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <glib.h>
 
 #include <gmp.h>
@@ -27,6 +28,11 @@ typedef enum fractal_repres_enum {
 	REPRES_DISTANCE = 2,
 	REPRES_MAX = 3
 } fractal_repres_t;
+
+
+struct color {
+	uint16_t r, g, b;
+};
 
 
 struct mandeldata;
@@ -67,6 +73,8 @@ struct mandel_renderer {
 		double log_factor;
 		mpfr_t distance_est_k;
 	} rep_state;
+	struct color *palette;
+	unsigned palette_size;
 	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
 	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
 };
@@ -90,6 +98,7 @@ void mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h
 void mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);
 void mandel_render (struct mandel_renderer *mandel);
 void mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h);
+struct color *mandel_create_default_palette (unsigned size);
 void mandel_renderer_clear (struct mandel_renderer *renderer);
 unsigned mandel_get_precision (const struct mandel_renderer *mandel);
 double mandel_renderer_progress (const struct mandel_renderer *renderer);

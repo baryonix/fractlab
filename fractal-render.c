@@ -318,6 +318,19 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 }
 
 
+struct color *
+mandel_create_default_palette (unsigned size)
+{
+	struct color *p = malloc (size * sizeof (*p));
+	for (unsigned i = 0; i < size; i++) {
+		p[i].r = (guint16) (sin (2 * M_PI * i / size) * 32767) + 32768;
+		p[i].g = (guint16) (sin (4 * M_PI * i / size) * 32767) + 32768;
+		p[i].b = (guint16) (sin (6 * M_PI * i / size) * 32767) + 32768;
+	}
+	return p;
+}
+
+
 void
 mandel_renderer_clear (struct mandel_renderer *renderer)
 {
