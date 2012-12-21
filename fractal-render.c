@@ -87,7 +87,7 @@ mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned 
 
 
 void
-mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter)
+mandel_set_point (struct mandel_renderer *mandel, int x, int y, unsigned iter)
 {
 	volatile int *px = mandel->data + x * mandel->h + y;
 	if (*px < 0)
@@ -97,9 +97,9 @@ mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter)
 
 
 void
-mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter)
+mandel_put_point (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter)
 {
-	mandel_set_pixel (mandel, x, y, iter);
+	mandel_set_point (mandel, x, y, iter);
 	if (mandel->display_pixel != NULL)
 		mandel->display_pixel (x, y, iter, mandel->user_data);
 }
@@ -217,7 +217,7 @@ mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 	if (i >= 0)
 		return i; /* pixel has been rendered previously */
 	i = mandel_pixel_value (mandel, x, y);
-	mandel_put_pixel (mandel, x, y, i);
+	mandel_put_point (mandel, x, y, i);
 	return i;
 }
 
@@ -239,7 +239,7 @@ mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, uns
 	int xc, yc;
 	for (xc = x; xc < x + w; xc++)
 		for (yc = y; yc < y + h; yc++)
-			mandel_set_pixel (mandel, xc, yc, iter);
+			mandel_set_point (mandel, xc, yc, iter);
 	mandel_display_rect (mandel, x, y, w, h, iter);
 }
 
@@ -463,7 +463,7 @@ calc_sr_row (struct mandel_renderer *mandel, int y, int chunk_size)
 			mandel_render_pixel (mandel, x, y);
 			mandel_display_rect (mandel, x, y, MIN (chunk_size, mandel->w - x), MIN (chunk_size, mandel->h - y), mandel_get_point (mandel, x, y));
 		} else {
-			mandel_put_pixel (mandel, x, y, mandel_get_point (mandel, parent_x, parent_y));
+			mandel_put_point (mandel, x, y, mandel_get_point (mandel, parent_x, parent_y));
 		}
 	}
 }
@@ -670,7 +670,7 @@ render_btrace (struct mandel_renderer *md, int x0, int y0, unsigned char *flags,
 			int xf = x, yf = y;
 			while (xf >= 0 && yf >= 0 && xf < md->w && yf < md->h && is_inside (md, xf, yf, inside)) {
 				flags[xf * md->h + yf] = 1;
-				mandel_put_pixel (md, xf, yf, inside);
+				mandel_put_point (md, xf, yf, inside);
 				xf += xfs;
 				yf += yfs;
 			}
@@ -725,7 +725,7 @@ render_btrace_test (struct mandel_renderer *md, int x0, int y0, int xstep0, int 
 			int xf = x + xfs, yf = y + yfs;
 			while (pixel_in_bounds (md, xf, yf) && is_inside (md, xf, yf, inside)) {
 				flags[xf * md->h + yf] = 1;
-				mandel_put_pixel (md, xf, yf, inside);
+				mandel_put_point (md, xf, yf, inside);
 				xf += xfs;
 				yf += yfs;
 			}

@@ -87,8 +87,8 @@ int fractal_supported_representations (const struct fractal_type *type, fractal_
 void mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
 void mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op);
 
-void mandel_set_pixel (struct mandel_renderer *mandel, int x, int y, unsigned iter);
-void mandel_put_pixel (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter);
+void mandel_set_point (struct mandel_renderer *mandel, int x, int y, unsigned iter);
+void mandel_put_point (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter);
 
 int mandel_get_point (const struct mandel_renderer *mandel, int x, int y);
 
