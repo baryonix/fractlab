@@ -92,6 +92,8 @@ void mandel_put_point (struct mandel_renderer *mandel, unsigned x, unsigned y, u
 
 int mandel_get_point (const struct mandel_renderer *mandel, int x, int y);
 
+void mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y, struct color *px);
+
 int mandel_render_pixel (struct mandel_renderer *mandel, int x, int y);
 int mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y);
 void mandel_put_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter);
@@ -99,6 +101,7 @@ void mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, i
 void mandel_render (struct mandel_renderer *mandel);
 void mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata *md, unsigned w, unsigned h);
 struct color *mandel_create_default_palette (unsigned size);
+struct color *mandel_get_default_palette (void);
 void mandel_renderer_clear (struct mandel_renderer *renderer);
 unsigned mandel_get_precision (const struct mandel_renderer *mandel);
 double mandel_renderer_progress (const struct mandel_renderer *renderer);

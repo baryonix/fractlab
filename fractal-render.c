@@ -112,6 +112,20 @@ mandel_get_point (const struct mandel_renderer *mandel, int x, int y)
 }
 
 
+void
+mandel_get_pixel (const struct mandel_renderer *mandel, int x, int y, struct color *px)
+{
+	int pval = mandel_get_point (mandel, x, y);
+	if (pval >= 0) {
+		*px = mandel->palette[pval % mandel->palette_size];
+	} else {
+		px->r = 0;
+		px->g = 0;
+		px->b = 0;
+	}
+}
+
+
 static bool
 mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d)
 {
@@ -293,6 +307,9 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 
 	renderer->data = malloc (renderer->w * renderer->h * sizeof (*renderer->data));
 
+	renderer->palette = mandel_get_default_palette ();
+	renderer->palette_size = COLORS;
+
 	fractal_type_flags_t flags = 0;
 	switch (renderer->md->repres.repres) {
 		case REPRES_ESCAPE:
@@ -327,6 +344,21 @@ mandel_create_default_palette (unsigned size)
 		p[i].g = (guint16) (sin (4 * M_PI * i / size) * 32767) + 32768;
 		p[i].b = (guint16) (sin (6 * M_PI * i / size) * 32767) + 32768;
 	}
+	return p;
+}
+
+
+struct color *
+mandel_get_default_palette (void)
+{
+	static struct color *p = NULL;
+
+	if (g_atomic_pointer_get (&p) == NULL) {
+		struct color *p2 = mandel_create_default_palette (COLORS);
+		if (!g_atomic_pointer_compare_and_exchange (&p, NULL, p2))
+			free (p2);
+	}
+
 	return p;
 }
 
