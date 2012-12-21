@@ -56,6 +56,7 @@ static void btrace_queue_push (GQueue *queue, int x, int y, int xstep, int ystep
 static void btrace_queue_pop (GQueue *queue, int *x, int *y, int *xstep, int *ystep);
 static bool mandel_all_neighbors_same (const struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned d);
 static void calcpart (struct mandel_renderer *md, int x0, int y0, int x1, int y1);
+static void notify_update (struct mandel_renderer *mandel, int x, int y, int w, int h);
 
 
 
@@ -86,6 +87,14 @@ mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned 
 }
 
 
+static void
+notify_update (struct mandel_renderer *mandel, int x, int y, int w, int h)
+{
+	if (mandel->notify_update != NULL)
+		mandel->notify_update (x, y, w, h, mandel->user_data);
+}
+
+
 void
 mandel_set_point (struct mandel_renderer *mandel, int x, int y, unsigned iter)
 {
@@ -100,8 +109,7 @@ void
 mandel_put_point (struct mandel_renderer *mandel, unsigned x, unsigned y, unsigned iter)
 {
 	mandel_set_point (mandel, x, y, iter);
-	if (mandel->display_pixel != NULL)
-		mandel->display_pixel (x, y, iter, mandel->user_data);
+	notify_update (mandel, x, y, 1, 1);
 }
 
 
@@ -240,10 +248,7 @@ mandel_render_pixel (struct mandel_renderer *mandel, int x, int y)
 void
 mandel_display_rect (struct mandel_renderer *mandel, int x, int y, int w, int h, unsigned iter)
 {
-	if (mandel->display_rect != NULL)
-		mandel->display_rect (x, y, w, h, iter, mandel->user_data);
-	else if (mandel->display_pixel != NULL)
-		mandel->display_pixel (x, y, iter, mandel->user_data);
+	mandel->notify_update (x, y, w, h, mandel->user_data);
 }
 
 
@@ -264,8 +269,7 @@ mandel_renderer_init (struct mandel_renderer *renderer, const struct mandeldata 
 	memset (renderer, 0, sizeof (*renderer)); /* just to be safe... */
 	renderer->data = NULL;
 	renderer->terminate = false;
-	renderer->display_pixel = NULL;
-	renderer->display_rect = NULL;
+	renderer->notify_update = NULL;
 	mpf_init (renderer->xmin_f);
 	mpf_init (renderer->xmax_f);
 	mpf_init (renderer->ymin_f);

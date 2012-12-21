@@ -75,8 +75,7 @@ struct mandel_renderer {
 	} rep_state;
 	struct color *palette;
 	unsigned palette_size;
-	void (*display_pixel) (unsigned x, unsigned y, unsigned i, void *user_data);
-	void (*display_rect) (unsigned x, unsigned y, unsigned w, unsigned h, unsigned i, void *user_data);
+	void (*notify_update) (unsigned x, unsigned y, unsigned w, unsigned h, void *user_data);
 };
 
 

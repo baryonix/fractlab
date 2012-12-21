@@ -37,8 +37,7 @@ struct rendering_stopped_info {
 typedef gboolean mouse_handler_t (GtkWidget *, GdkEvent *, gpointer);
 
 
-static void gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data);
-static void gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data);
+static void gtk_mandel_notify_update (unsigned x, unsigned y, unsigned w, unsigned h, void *user_data);
 static gboolean mouse_event (GtkWidget *widget, GdkEvent *e, gpointer user_data);
 static gboolean select_area_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data);
 static gboolean select_point_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data);
@@ -220,8 +219,7 @@ init_renderer (GtkMandel *mandel)
 	renderer->render_method = mandel->render_method;
 	renderer->thread_count = mandel->thread_count;
 	renderer->user_data = mandel;
-	renderer->display_pixel = gtk_mandel_display_pixel;
-	renderer->display_rect = gtk_mandel_display_rect;
+	renderer->notify_update = gtk_mandel_notify_update;
 	mandel->renderer = renderer;
 
 	/* Clear image */
@@ -438,28 +436,21 @@ my_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
 
 
 static void
-gtk_mandel_display_pixel (unsigned x, unsigned y, unsigned iter, void *user_data)
-{
-	gtk_mandel_display_rect (x, y, 1, 1, iter, user_data);
-}
-
-
-static void
-gtk_mandel_display_rect (unsigned x, unsigned y, unsigned w, unsigned h, unsigned iter, void *user_data)
+gtk_mandel_notify_update (unsigned x, unsigned y, unsigned w, unsigned h, void *user_data)
 {
 	int xi, yi;
 
 	GtkMandel *mandel = GTK_MANDEL (user_data);
 
-	GdkColor *color = &mandelcolors[iter % COLORS]; /* FIXME why use GdkColor for mandelcolors? better define our own struct. */
-
 	g_mutex_lock (mandel->pb_mutex);
 	for (xi = x; xi < x + w; xi++)
 		for (yi = y; yi < y + h; yi++) {
 			guchar *p = mandel->pb_data + yi * mandel->pb_rowstride + xi * mandel->pb_nchan;
-			p[0] = color->red >> 8;
-			p[1] = color->green >> 8;
-			p[2] = color->blue >> 8;
+			struct color color;
+			mandel_get_pixel (mandel->renderer, xi, yi, &color);
+			p[0] = color.r >> 8;
+			p[1] = color.g >> 8;
+			p[2] = color.b >> 8;
 		}
 
 	if (mandel->need_redraw) {
