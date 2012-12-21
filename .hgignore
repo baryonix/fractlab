@@ -8,3 +8,4 @@ fractlab-worker
 fractlab-image
 *.exe
 *.o
+.*.swp
