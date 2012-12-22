@@ -27,6 +27,7 @@ struct _FractalMainWindowPrivate {
 	GtkWidget *undo_button, *redo_button, *stop;
 	GtkWidget *zoom_mode, *to_julia_mode;
 	GtkWidget *threads_input;
+	GtkWidget *aa_level_input;
 	GtkWidget *mandel;
 	GtkWidget *status_info, *math_info;
 	struct mainwin_menu menu;
@@ -56,6 +57,7 @@ static void stop_pressed (FractalMainWindow *win, gpointer data);
 static void zoom_2exp (FractalMainWindow *win, long exponent);
 static void zoomed_out (FractalMainWindow *win, gpointer data);
 static void threads_updated (FractalMainWindow *win, gpointer data);
+static void aa_level_updated (FractalMainWindow *win, gpointer data);
 static void zoom_mode_selected (FractalMainWindow *win, gpointer data);
 static void to_julia_mode_selected (FractalMainWindow *win, gpointer data);
 static void fractal_main_window_set_area (FractalMainWindow *win, struct mandel_area *area);
@@ -278,6 +280,19 @@ fractal_main_window_init (GTypeInstance *instance, gpointer g_class)
 	g_signal_connect_object (widget, "value-changed", (GCallback) threads_updated, win, G_CONNECT_SWAPPED);
 	priv->threads_input = widget;
 	g_object_ref (priv->threads_input);
+
+	widget = gtk_label_new ("Anti-Aliasing Level");
+	gtk_misc_set_alignment (GTK_MISC (widget), 0.0, 0.5);
+	gtk_table_attach (GTK_TABLE (container), widget, 2, 3, 0, 1, GTK_FILL, 0, 0, 0);
+
+	widget = gtk_spin_button_new_with_range (1.0, 1024.0, 1.0);
+	gtk_table_attach (GTK_TABLE (container), widget, 3, 4, 0, 1, GTK_FILL | GTK_EXPAND, 0, 0, 0);
+	gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (widget), TRUE);
+	gtk_entry_set_alignment (GTK_ENTRY (widget), 1.0);
+	gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
+	g_signal_connect_object (widget, "value-changed", (GCallback) aa_level_updated, win, G_CONNECT_SWAPPED);
+	priv->aa_level_input = widget;
+	g_object_ref (priv->aa_level_input);
 
 	/*
 	 * GtkMandel
@@ -607,6 +622,14 @@ threads_updated (FractalMainWindow *win, gpointer data)
 {
 	FractalMainWindowPrivate *const priv = win->priv;
 	gtk_mandel_set_thread_count (GTK_MANDEL (priv->mandel), gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (priv->threads_input)));
+}
+
+
+static void
+aa_level_updated (FractalMainWindow *win, gpointer data)
+{
+	FractalMainWindowPrivate *const priv = win->priv;
+	gtk_mandel_set_aa_level (GTK_MANDEL (priv->mandel), gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (priv->aa_level_input)));
 }
 
 

@@ -29,6 +29,7 @@ typedef struct
 	const struct mandeldata *md;
 	render_method_t render_method;
 	unsigned thread_count;
+	unsigned aa_level;
 	struct mandel_renderer *renderer;
 	volatile guint redraw_source_id;
 	gdouble center_x, center_y, selection_size;
@@ -64,6 +65,7 @@ GtkWidget *gtk_mandel_new (void);
 void gtk_mandel_set_mandeldata (GtkMandel *mandel, const struct mandeldata *md);
 void gtk_mandel_set_render_method (GtkMandel *mandel, render_method_t render_method);
 void gtk_mandel_set_thread_count (GtkMandel *mandel, unsigned thread_count);
+void gtk_mandel_set_aa_level (GtkMandel *mandel, unsigned level);
 void gtk_mandel_start (GtkMandel *mandel);
 void gtk_mandel_stop (GtkMandel *mandel);
 void gtk_mandel_redraw (GtkMandel *mandel);

@@ -159,6 +159,7 @@ gtk_mandel_init (GtkMandel *mandel)
 
 	mandel->render_method = RM_SUCCESSIVE_REFINE;
 	mandel->thread_count = 1;
+	mandel->aa_level = 1;
 	mandel->md = NULL;
 	mandel->renderer = NULL;
 	mandel->pixbuf = NULL;
@@ -213,7 +214,7 @@ init_renderer (GtkMandel *mandel)
 	GtkWidget *widget = GTK_WIDGET (mandel);
 
 	struct mandel_renderer *renderer = malloc (sizeof (*renderer));
-	mandel_renderer_init (renderer, mandel->md, mandel->cur_w, mandel->cur_h, 4);
+	mandel_renderer_init (renderer, mandel->md, mandel->cur_w, mandel->cur_h, mandel->aa_level);
 	renderer->render_method = mandel->render_method;
 	renderer->thread_count = mandel->thread_count;
 	renderer->user_data = mandel;
@@ -537,6 +538,13 @@ void
 gtk_mandel_set_thread_count (GtkMandel *mandel, unsigned thread_count)
 {
 	mandel->thread_count = thread_count;
+}
+
+
+void
+gtk_mandel_set_aa_level (GtkMandel *mandel, unsigned level)
+{
+	mandel->aa_level = level;
 }
 
 
