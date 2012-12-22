@@ -105,6 +105,8 @@ struct color *mandel_get_default_palette (void);
 void mandel_renderer_clear (struct mandel_renderer *renderer);
 unsigned mandel_get_precision (const struct mandel_renderer *mandel);
 double mandel_renderer_progress (const struct mandel_renderer *renderer);
+unsigned mandel_renderer_width (const struct mandel_renderer *renderer);
+unsigned mandel_renderer_height (const struct mandel_renderer *renderer);
 
 void mandeldata_init (struct mandeldata *md, const struct fractal_type *type);
 void mandeldata_clear (struct mandeldata *md);

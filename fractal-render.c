@@ -899,6 +899,20 @@ mandel_renderer_progress (const struct mandel_renderer *renderer)
 }
 
 
+unsigned
+mandel_renderer_width (const struct mandel_renderer *renderer)
+{
+	return renderer->w / renderer->aa_level;
+}
+
+
+unsigned
+mandel_renderer_height (const struct mandel_renderer *renderer)
+{
+	return renderer->h / renderer->aa_level;
+}
+
+
 int
 fractal_supported_representations (const struct fractal_type *type, fractal_repres_t *res)
 {
