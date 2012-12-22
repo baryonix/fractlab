@@ -337,10 +337,10 @@ select_area_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 			mpf_init (dy);
 			mpf_init (mpaspect);
 			mpf_set_d (mpaspect, mandel->aspect);
-			mandel_convert_x_f (mandel->renderer, cx, mandel->center_x);
-			mandel_convert_y_f (mandel->renderer, cy, mandel->center_y);
-			mandel_convert_x_f (mandel->renderer, dx, e->button.x);
-			mandel_convert_y_f (mandel->renderer, dy, e->button.y);
+			mandel_convert_x_f (mandel->renderer, cx, mandel->center_x, false);
+			mandel_convert_y_f (mandel->renderer, cy, mandel->center_y, false);
+			mandel_convert_x_f (mandel->renderer, dx, e->button.x, false);
+			mandel_convert_y_f (mandel->renderer, dy, e->button.y, false);
 			mpf_sub (dx, cx, dx);
 			mpf_abs (dx, dx);
 			mpf_sub (dy, cy, dy);
@@ -416,8 +416,8 @@ select_point_mouse_handler (GtkWidget *widget, GdkEvent *e, gpointer user_data)
 	GtkMandel *mandel = GTK_MANDEL (widget);
 	struct mandel_point point[1];
 	mandel_point_init (point);
-	mandel_convert_x_f (mandel->renderer, point->real, round (e->button.x));
-	mandel_convert_y_f (mandel->renderer, point->imag, round (e->button.y));
+	mandel_convert_x_f (mandel->renderer, point->real, round (e->button.x), false);
+	mandel_convert_y_f (mandel->renderer, point->imag, round (e->button.y), false);
 	g_signal_emit (mandel, GTK_MANDEL_GET_CLASS (mandel)->point_selected_signal, 0, point);
 	mandel_point_clear (point);
 	return TRUE;

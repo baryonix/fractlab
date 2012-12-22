@@ -69,21 +69,27 @@ const char *const render_method_names[] = {
 
 
 void
-mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op)
+mandel_convert_x_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op, bool aa_subpixel)
 {
 	mpf_sub (rop, mandel->xmax_f, mandel->xmin_f);
 	mpf_mul_ui (rop, rop, op);
-	mpf_div_ui (rop, rop, mandel->w / mandel->aa_level);
+	unsigned w = mandel->w;
+	if (!aa_subpixel)
+		w /= mandel->aa_level;
+	mpf_div_ui (rop, rop, w);
 	mpf_add (rop, rop, mandel->xmin_f);
 }
 
 
 void
-mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op)
+mandel_convert_y_f (const struct mandel_renderer *mandel, mpf_ptr rop, unsigned op, bool aa_subpixel)
 {
 	mpf_sub (rop, mandel->ymin_f, mandel->ymax_f);
 	mpf_mul_ui (rop, rop, op);
-	mpf_div_ui (rop, rop, mandel->h / mandel->aa_level);
+	unsigned h = mandel->h;
+	if (!aa_subpixel)
+		h /= mandel->aa_level;
+	mpf_div_ui (rop, rop, h);
 	mpf_add (rop, rop, mandel->ymax_f);
 }
 
@@ -218,8 +224,8 @@ mandel_pixel_value (const struct mandel_renderer *mandel, int x, int y)
 		if (mandel->md->repres.repres == REPRES_DISTANCE)
 			mpfr_init2 (distance, total_limbs * GMP_NUMB_BITS);
 
-		mandel_convert_x_f (mandel, x0, x);
-		mandel_convert_y_f (mandel, y0, y);
+		mandel_convert_x_f (mandel, x0, x, true);
+		mandel_convert_y_f (mandel, y0, y, true);
 
 		inside = mandel->md->type->compute (mandel->fractal_state, x0, y0, &i, distance);
 		mpf_clear (x0);
