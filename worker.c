@@ -41,7 +41,7 @@ struct thread_info {
 	GCond *cond;
 	bool terminate;
 	struct mandeldata md;
-	unsigned frame, w, h;
+	unsigned frame, w, h, aa_level;
 };
 
 
@@ -69,7 +69,7 @@ worker_thread (gpointer data)
 		char buf[256];
 		snprintf (buf, sizeof (buf), "file%06u.png", info->frame);
 		/* XXX much stuff hard-coded here */
-		render_to_png (&info->md, buf, 9, NULL, info->w, info->h, 1);
+		render_to_png (&info->md, buf, 9, NULL, info->w, info->h, 1, info->aa_level);
 		mandeldata_clear (&info->md);
 
 		/*
@@ -220,7 +220,7 @@ main (int argc, char **argv)
 		}
 
 		if (strcmp (keyword, "RENDER") == 0) {
-			int tid, frame, mdlen, w, h;
+			int tid, frame, mdlen, w, h, aa_level;
 
 			const char *arg = strtok_r (NULL, NETWORK_DELIM, &saveptr);
 			if (arg == NULL) {
@@ -277,6 +277,17 @@ main (int argc, char **argv)
 				return 1;
 			}
 
+			arg = strtok_r (NULL, NETWORK_DELIM, &saveptr);
+			if (arg == NULL) {
+				fprintf (stderr, "* ERROR: Cannot extract anti-aliasing level from RENDER message.\n");
+				return 1;
+			}
+			aa_level = atoi (arg);
+			if (h <= 0) {
+				fprintf (stderr, "* ERROR: Invalid anti-aliasing level in RENDER message.\n");
+				return 1;
+			}
+
 			char mdbuf[mdlen + 1];
 			mdbuf[mdlen] = 0;
 			if (fread (mdbuf, mdlen, 1, f) < 1) {
@@ -291,6 +302,7 @@ main (int argc, char **argv)
 			tinfo[tid].frame = frame;
 			tinfo[tid].w = w;
 			tinfo[tid].h = h;
+			tinfo[tid].aa_level = aa_level;
 			char errbuf[128];
 			if (!sread_mandeldata (mdbuf, &tinfo[tid].md, errbuf, sizeof (errbuf))) {
 				fprintf (stderr, "* ERROR: Parsing body of RENDER message: %s\n", errbuf);

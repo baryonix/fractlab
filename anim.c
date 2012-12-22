@@ -108,6 +108,7 @@ static gint start_frame = 0;
 static const gchar *network_port = NULL;
 static gint no_dns = 0;
 static const gchar *index_file = NULL;
+static gint aa_level = 1;
 
 
 static GOptionEntry option_entries[] = {
@@ -120,6 +121,7 @@ static GOptionEntry option_entries[] = {
 	{"listen", 'l', 0, G_OPTION_ARG_STRING, &network_port, "Listen on PORT for network rendering", "PORT"},
 	{"no-dns", 'N', 0, G_OPTION_ARG_NONE, &no_dns, "Don't resolve hostnames of clients via DNS"},
 	{"index-file", 'I', 0, G_OPTION_ARG_FILENAME, &index_file, "Record in FILE which frame was rendered on which client", "FILE"},
+	{"anti-alias", 'a', 0, G_OPTION_ARG_INT, &aa_level, "Anti-aliasing level", "LEVEL"},
 	{NULL}
 };
 
@@ -230,7 +232,7 @@ thread_func (gpointer data)
 		bool clock_ok = zoom_threads == 1 && network_port == NULL && clock_ticks > 0;
 		clock_ok = clock_ok && times (&time_before) != (clock_t) -1;
 #endif
-		render_to_png (&item->md, filename, compression, &bits, img_width, img_height, 1);
+		render_to_png (&item->md, filename, compression, &bits, img_width, img_height, 1, aa_level);
 
 #if defined (_SC_CLK_TCK) || defined (CLK_TCK)
 		clock_ok = clock_ok && times (&time_after) != (clock_t) -1;
@@ -683,7 +685,7 @@ send_render_command (struct anim_state *state, unsigned client_id, unsigned thre
 	}
 	io_stream_init_buffer (ios2, iob2);
 
-	if (my_printf (ios2, errbuf, sizeof (errbuf), "RENDER %u %u %lu %u %u\r\n%s", thread_id, frame_no, (unsigned long) iob1->pos, (unsigned) img_width, (unsigned) img_height, iob1->buf) < 0) {
+	if (my_printf (ios2, errbuf, sizeof (errbuf), "RENDER %u %u %lu %u %u %u\r\n%s", thread_id, frame_no, (unsigned long) iob1->pos, (unsigned) img_width, (unsigned) img_height, (unsigned) aa_level, iob1->buf) < 0) {
 		fprintf (stderr, "* ERROR: writing RENDER request to buffer: %s\n", errbuf);
 		io_buffer_clear (iob1);
 		io_buffer_clear (iob2);

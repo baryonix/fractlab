@@ -6,6 +6,9 @@
 void
 write_png (const struct mandel_renderer *renderer, const char *filename, int compression)
 {
+	const unsigned width = mandel_renderer_width (renderer);
+	const unsigned height = mandel_renderer_height (renderer);
+
 	FILE *f = fopen (filename, "wb");
 
 	png_structp png_ptr = png_create_write_struct (PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -20,18 +23,18 @@ write_png (const struct mandel_renderer *renderer, const char *filename, int com
 		png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
 	if (compression >= 0)
 		png_set_compression_level (png_ptr, compression);
-	png_set_IHDR (png_ptr, info_ptr, renderer->w, renderer->h, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+	png_set_IHDR (png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
 		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	png_write_info (png_ptr, info_ptr);
 
-	unsigned char row[renderer->w * 3];
+	unsigned char row[width * 3];
 	png_bytep row_ptr[] = {(png_bytep) row};
 
 	unsigned int x, y;
 	//int opct = -1;
 
-	for (y = 0; y < renderer->h; y++) {
-		for (x = 0; x < renderer->w; x++) {
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
 			struct color px;
 			mandel_get_pixel (renderer, x, y, &px);
 
@@ -50,11 +53,11 @@ write_png (const struct mandel_renderer *renderer, const char *filename, int com
 
 
 void
-render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, unsigned w, unsigned h, unsigned threads)
+render_to_png (struct mandeldata *md, const char *filename, int compression, unsigned *bits, unsigned w, unsigned h, unsigned threads, unsigned aa_level)
 {
 	struct mandel_renderer renderer[1];
 
-	mandel_renderer_init (renderer, md, w, h);
+	mandel_renderer_init (renderer, md, w, h, aa_level);
 	if (threads > 1)
 		renderer->render_method = RM_MARIANI_SILVER;
 	else

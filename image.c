@@ -17,6 +17,7 @@ static gint img_width = 200, img_height = 200;
 static gint thread_count = 1;
 static gint compression = 9;
 static gchar *output_file = NULL;
+static gint aa_level = 1;
 
 static GOptionEntry option_entries[] = {
 	{"width", 'W', 0, G_OPTION_ARG_INT, &img_width, "Image width", "PIXELS"},
@@ -24,6 +25,7 @@ static GOptionEntry option_entries[] = {
 	{"threads", 'T', 0, G_OPTION_ARG_INT, &thread_count, "Parallel rendering with N threads", "N"},
 	{"compression", 'C', 0, G_OPTION_ARG_INT, &compression, "Compression level for PNG output (0..9)", "LEVEL"},
 	{"output-file", 'o', 0, G_OPTION_ARG_FILENAME, &output_file, "Output file", "NAME"},
+	{"anti-alias", 'a', 0, G_OPTION_ARG_INT, &aa_level, "Anti-aliasing level", "LEVEL"},
 	{NULL}
 };
 
@@ -69,7 +71,7 @@ main (int argc, char **argv)
 		fprintf (stderr, "%s: cannot read: %s\n", argv[1], errbuf);
 	}
 
-	render_to_png (&md, output_file, compression, NULL, img_width, img_height, thread_count);
+	render_to_png (&md, output_file, compression, NULL, img_width, img_height, thread_count, aa_level);
 
 	return 0;
 }
