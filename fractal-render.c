@@ -394,7 +394,7 @@ mandel_get_default_palette (void)
 			free (p2);
 	}
 
-	return p;
+	return g_atomic_pointer_get (&p);
 }
 
 
