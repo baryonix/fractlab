@@ -1,14 +1,13 @@
-/* A Bison parser, made by GNU Bison 2.3.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
-/* Skeleton interface for Bison's Yacc-like parsers in C
+/* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-   Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,9 +15,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -33,57 +30,48 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* Tokens.  */
+#ifndef YY_COORD_COORD_PARSE_TAB_H_INCLUDED
+# define YY_COORD_COORD_PARSE_TAB_H_INCLUDED
+/* Debug traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
+#if YYDEBUG
+extern int coord_debug;
+#endif
+
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     TOKEN_INT = 258,
-     TOKEN_REAL = 259,
-     TOKEN_COORD_V1 = 260,
-     TOKEN_TYPE = 261,
-     TOKEN_MANDELBROT = 262,
-     TOKEN_JULIA = 263,
-     TOKEN_AREA = 264,
-     TOKEN_ZPOWER = 265,
-     TOKEN_MAXITER = 266,
-     TOKEN_PARAMETER = 267,
-     TOKEN_REPRESENTATION = 268,
-     TOKEN_ESCAPE = 269,
-     TOKEN_ESCAPE_LOG = 270,
-     TOKEN_DISTANCE = 271,
-     TOKEN_BASE = 272,
-     TOKEN_IDENTIFIER = 273,
-     TOKEN_LEX_ERROR = 274
-   };
+  enum yytokentype
+  {
+    TOKEN_INT = 258,
+    TOKEN_REAL = 259,
+    TOKEN_COORD_V1 = 260,
+    TOKEN_TYPE = 261,
+    TOKEN_MANDELBROT = 262,
+    TOKEN_JULIA = 263,
+    TOKEN_AREA = 264,
+    TOKEN_ZPOWER = 265,
+    TOKEN_MAXITER = 266,
+    TOKEN_PARAMETER = 267,
+    TOKEN_REPRESENTATION = 268,
+    TOKEN_ESCAPE = 269,
+    TOKEN_ESCAPE_LOG = 270,
+    TOKEN_DISTANCE = 271,
+    TOKEN_BASE = 272,
+    TOKEN_IDENTIFIER = 273,
+    TOKEN_LEX_ERROR = 274
+  };
 #endif
-/* Tokens.  */
-#define TOKEN_INT 258
-#define TOKEN_REAL 259
-#define TOKEN_COORD_V1 260
-#define TOKEN_TYPE 261
-#define TOKEN_MANDELBROT 262
-#define TOKEN_JULIA 263
-#define TOKEN_AREA 264
-#define TOKEN_ZPOWER 265
-#define TOKEN_MAXITER 266
-#define TOKEN_PARAMETER 267
-#define TOKEN_REPRESENTATION 268
-#define TOKEN_ESCAPE 269
-#define TOKEN_ESCAPE_LOG 270
-#define TOKEN_DISTANCE 271
-#define TOKEN_BASE 272
-#define TOKEN_IDENTIFIER 273
-#define TOKEN_LEX_ERROR 274
 
-
-
-
+/* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE
-#line 24 "coord_parse.y"
+
+union YYSTYPE
 {
+#line 24 "coord_parse.y" /* yacc.c:1909  */
+
 	char *string;
 	struct mandel_point mandel_point;
 	struct mandel_area mandel_area;
@@ -91,28 +79,31 @@ typedef union YYSTYPE
 	struct mdparam *mdparam;
 	struct coordparam *coordparam;
 	struct mandel_repres *repres;
-}
-/* Line 1489 of yacc.c.  */
-#line 97 "coord_parse.tab.h"
-	YYSTYPE;
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
-# define YYSTYPE_IS_DECLARED 1
+
+#line 84 "coord_parse.tab.h" /* yacc.c:1909  */
+};
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
+# define YYSTYPE_IS_DECLARED 1
 #endif
 
-
-
+/* Location type.  */
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
-typedef struct YYLTYPE
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
 {
   int first_line;
   int first_column;
   int last_line;
   int last_column;
-} YYLTYPE;
-# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
+};
 # define YYLTYPE_IS_DECLARED 1
 # define YYLTYPE_IS_TRIVIAL 1
 #endif
 
 
+
+int coord_parse (void *scanner, struct mandeldata *md, char *errbuf, size_t errbsize);
+
+#endif /* !YY_COORD_COORD_PARSE_TAB_H_INCLUDED  */

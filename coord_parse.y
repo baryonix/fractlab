@@ -2,12 +2,12 @@
 %locations
 %pure-parser
 
-%parse-param {yyscan_t scanner}
+%parse-param {void *scanner}
 %parse-param {struct mandeldata *md}
 %parse-param {char *errbuf}
 %parse-param {size_t errbsize}
 
-%lex-param {yyscan_t scanner}
+%lex-param {void *scanner}
 
 %{
 #include <stdio.h>
@@ -43,7 +43,7 @@ struct coordparam;
 #define coord_error(loc, scanner, md, errbuf, errbsize, msg) (coord_error_func (loc, scanner, md, errbuf, errbsize, msg, yychar, &yylval))
 
 static void
-coord_error_func (YYLTYPE *loc, yyscan_t scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg, int lookahead, YYSTYPE *lval)
+coord_error_func (YYLTYPE *loc, void *scanner, struct mandeldata *md, char *errbuf, size_t errbsize, char const *msg, int lookahead, YYSTYPE *lval)
 {
 	switch (lookahead) {
 		case TOKEN_LEX_ERROR:
